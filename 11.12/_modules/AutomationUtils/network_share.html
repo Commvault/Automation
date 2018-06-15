@@ -1,0 +1,275 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>AutomationUtils.network_share &#8212; Commvault Automation 11.12 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for AutomationUtils.network_share</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright ?2016 Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;File for handling operations on network shared drives</span>
+
+<span class="sd">NetworkShare, CIFSShare and NFSShare are teh classes defined in this file</span>
+
+<span class="sd">NetworkShare: Base class including common operations on network shares</span>
+
+<span class="sd">CIFSShare: Class for performing operations on cifs shares</span>
+
+<span class="sd">NFSShare: Class for performing operations on nfs shares</span>
+
+<span class="sd">NetworkShare:</span>
+
+<span class="sd">    __init__()                  --  initializes network share object</span>
+
+<span class="sd">    compare()                   --  compares two network share objects</span>
+
+<span class="sd">    compare_network_paths()     --  compares network paths on same machine</span>
+
+<span class="sd">    mount_path()                --  mounts network path on controller machine</span>
+
+<span class="sd">    unmount_path()              --  dis mounts network path from controller machine</span>
+<span class="sd">&quot;&quot;&quot;</span><span class="s2">&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">string</span>
+
+<span class="kn">from</span> <span class="nn">.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+
+<div class="viewcode-block" id="NetworkShare"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.network_share.NetworkShare">[docs]</a><span class="k">class</span> <span class="nc">NetworkShare</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class to handle network shared drives&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_share_machine</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">domain</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize Network share object</span>
+
+<span class="sd">            Takes network share machine authentication details</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_network_share_machine</span> <span class="o">=</span> <span class="n">network_share_machine</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_username</span> <span class="o">=</span> <span class="n">username</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_domain</span> <span class="o">=</span> <span class="n">domain</span>
+
+        <span class="c1"># get local machine object</span>
+        <span class="kn">import</span> <span class="nn">socket</span>
+        <span class="n">local_machine</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">local_machine</span><span class="p">)</span>
+
+<div class="viewcode-block" id="NetworkShare.compare"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.network_share.NetworkShare.compare">[docs]</a>    <span class="k">def</span> <span class="nf">compare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_share_obj</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">destination_path</span><span class="p">,</span> <span class="n">ignore_files</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="sd">&quot;&quot;&quot;Compares the two network directories</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                network_share_obj           (object)    --  NetworkShare subclass object</span>
+
+<span class="sd">                source_path                 (str)       --  source path on this machine</span>
+
+<span class="sd">                destination_path            (str)       --  destination path on remote machine</span>
+
+<span class="sd">                ignore_files                (list)      --  list of files/patterns to be ignored</span>
+<span class="sd">                    default: []</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                list -  list of file paths if any are difference exists else []</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if source_path does not exist</span>
+
+<span class="sd">                    if destination_path does not exist</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">source_mount_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mount_path</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
+        <span class="n">destination_mount_path</span> <span class="o">=</span> <span class="n">network_share_obj</span><span class="o">.</span><span class="n">mount_path</span><span class="p">(</span><span class="n">destination_path</span><span class="p">)</span>
+
+        <span class="n">diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">compare_folders</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="p">,</span> <span class="n">source_mount_path</span><span class="p">,</span> <span class="n">destination_mount_path</span><span class="p">,</span> <span class="n">ignore_files</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">unmount_path</span><span class="p">(</span><span class="n">source_mount_path</span><span class="p">)</span>
+        <span class="n">network_share_obj</span><span class="o">.</span><span class="n">unmount_path</span><span class="p">(</span><span class="n">destination_mount_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">diff</span></div>
+
+<div class="viewcode-block" id="NetworkShare.compare_network_paths"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.network_share.NetworkShare.compare_network_paths">[docs]</a>    <span class="k">def</span> <span class="nf">compare_network_paths</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">destination_path</span><span class="p">,</span> <span class="n">ignore_files</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="sd">&quot;&quot;&quot;Compares the two network paths</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                source_path           (str)         --  source network share path</span>
+
+<span class="sd">                destination_path      (str)         --  destination network share path</span>
+
+<span class="sd">                ignore_files          (list)        --  list of files/patterns to be ignored</span>
+<span class="sd">                    default: []</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                list -  list of file paths if any are difference exists else []</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">source_mount_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mount_path</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
+        <span class="n">destination_mount_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mount_path</span><span class="p">(</span><span class="n">destination_path</span><span class="p">)</span>
+
+        <span class="n">diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">compare_folders</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="p">,</span> <span class="n">source_mount_path</span><span class="p">,</span> <span class="n">destination_mount_path</span><span class="p">,</span> <span class="n">ignore_files</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">unmount_path</span><span class="p">(</span><span class="n">source_mount_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unmount_path</span><span class="p">(</span><span class="n">destination_mount_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">diff</span></div>
+
+<div class="viewcode-block" id="NetworkShare.mount_path"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.network_share.NetworkShare.mount_path">[docs]</a>    <span class="k">def</span> <span class="nf">mount_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Mounts the specified path on controller machine</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                path    (str)   --  path/volume name to be mounted</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                mounted drive letter if controller is windows</span>
+
+<span class="sd">                mounted path if controller is unix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">unc_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_unc_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;WINDOWS&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mount_on_windows</span><span class="p">(</span><span class="n">unc_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mount_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_mount_cmd</span><span class="p">()</span>
+
+            <span class="c1"># Create the mount directory</span>
+            <span class="n">random_string</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)])</span>
+            <span class="n">mount_path</span> <span class="o">=</span> <span class="s2">&quot;/mount&quot;</span> <span class="o">+</span> <span class="n">random_string</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">mount_path</span><span class="p">)</span>
+
+            <span class="c1"># Mount the network path</span>
+            <span class="n">mount_path_cmd</span> <span class="o">=</span> <span class="n">mount_cmd</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_password</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_domain</span><span class="p">,</span>
+                                              <span class="n">unc_path</span><span class="p">,</span> <span class="n">mount_path</span><span class="p">)</span>
+
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">mount_path_cmd</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exception_message</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">exception_code</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">exception_message</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">exception_code</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">mount_path</span></div>
+
+<div class="viewcode-block" id="NetworkShare.unmount_path"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.network_share.NetworkShare.unmount_path">[docs]</a>    <span class="k">def</span> <span class="nf">unmount_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mount_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Dis mounts the network share path from controller machine&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;WINDOWS&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">unmount_drive</span><span class="p">(</span><span class="n">mount_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">unmount_path</span><span class="p">(</span><span class="n">mount_path</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="CIFSShare"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.network_share.CIFSShare">[docs]</a><span class="k">class</span> <span class="nc">CIFSShare</span><span class="p">(</span><span class="n">NetworkShare</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to handle cifs shares&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_mount_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the mount command to mount CIFS share on unix machine&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">r</span><span class="s1">&#39;mount -t cifs -o username=</span><span class="si">{0}</span><span class="s1">,password=</span><span class="si">{1}</span><span class="s1">,domain=</span><span class="si">{2}</span><span class="s1"> &quot;</span><span class="si">{3}</span><span class="s1">&quot; </span><span class="si">{4}</span><span class="s1">&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_mount_on_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Mounts the network path on windows machine&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">mount_network_path</span><span class="p">(</span>
+            <span class="n">network_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_domain</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_password</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_unc_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the network share path&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_local_machine</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;WINDOWS&quot;</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;$&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">r</span><span class="s1">&#39;</span><span class="se">\\</span><span class="si">{0}</span><span class="s1">\</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_network_share_machine</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;$&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">r</span><span class="s1">&#39;//</span><span class="si">{0}</span><span class="s1">/</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_network_share_machine</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="NFSShare"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.network_share.NFSShare">[docs]</a><span class="k">class</span> <span class="nc">NFSShare</span><span class="p">(</span><span class="n">NetworkShare</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to handle nfs shares&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_mount_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the mount command to mount NFS share on unix machine&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">r</span><span class="s1">&#39;mount -t nfs -o username=</span><span class="si">{0}</span><span class="s1">,password=</span><span class="si">{1}</span><span class="s1">,domain=</span><span class="si">{2}</span><span class="s1"> &quot;</span><span class="si">{3}</span><span class="s1">&quot; </span><span class="si">{4}</span><span class="s1">&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_get_unc_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the network share path&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+    <span class="k">def</span> <span class="nf">_mount_on_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Mounts the network path on windows machine&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;NFS mount on windows is not supported.&quot;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

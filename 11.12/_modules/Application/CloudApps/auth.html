@@ -1,0 +1,268 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Application.CloudApps.auth &#8212; Commvault Automation 11.12 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for Application.CloudApps.auth</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main Module for authenticating cloud apps.</span>
+
+<span class="sd">GAuth is the class defined in this module to authenticate google APIs.</span>
+
+<span class="sd">GAuth: Class for getting credential object and build google service for different google APIs.</span>
+
+<span class="sd">GAuth:</span>
+<span class="sd">    __init__(log_object)  --  Initializes the GSuite Authentication object with given P12 or JSON key file.</span>
+
+<span class="sd">    __repr__()  --  Representation string for the instance of the GAuth class</span>
+
+<span class="sd">    _get_credentials()  --  Creates credential object from JSON or P12 service account Key file</span>
+
+<span class="sd">    build_service(APIName, delegated_user)  --  Builds Google service object for invoking Google APIs</span>
+
+<span class="sd">    __del__()   --  Deletes the credentials from Storage</span>
+
+<span class="sd">Attributes</span>
+<span class="sd">==========</span>
+
+<span class="sd">        **service_account_email**   --  Treats service_account_email as read only attribute</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+<span class="kn">from</span> <span class="nn">httplib2</span> <span class="k">import</span> <span class="n">Http</span>
+<span class="kn">from</span> <span class="nn">oauth2client.service_account</span> <span class="k">import</span> <span class="n">ServiceAccountCredentials</span>
+<span class="kn">from</span> <span class="nn">oauth2client.file</span> <span class="k">import</span> <span class="n">Storage</span>
+<span class="kn">from</span> <span class="nn">apiclient</span> <span class="k">import</span> <span class="n">discovery</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">.exception</span> <span class="k">import</span> <span class="n">CVCloudException</span>
+
+
+<div class="viewcode-block" id="GAuth"><a class="viewcode-back" href="../../../Application.CloudApps.html#Application.CloudApps.auth.GAuth">[docs]</a><span class="k">class</span> <span class="nc">GAuth</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for authenticating Google API via service account P12 or JSON private key file.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the GSuite Authentication object with given P12 or JSON key file.</span>
+
+<span class="sd">                Args:</span>
+
+<span class="sd">                    logger (object)  --   instance of logger module</span>
+
+<span class="sd">                Returns:</span>
+
+<span class="sd">                    object  -   instance of GAuth class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__service_account_email</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">APIName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Representation string for the instance of the GAuth class.&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="s1">&#39;GAuth class instance for Google service account: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__service_account_email</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates credential object from JSON or P12 service account Key file</span>
+<span class="sd">        and store it temporarily using OAuth2.file.Storage object.</span>
+<span class="sd">        If credential storage already exists, it returns the credentials from</span>
+<span class="sd">        the storage.If credentials are expired,</span>
+<span class="sd">        it renews and returns the credential object</span>
+
+<span class="sd">                Args:</span>
+
+<span class="sd">                    None</span>
+
+<span class="sd">                Returns:</span>
+
+<span class="sd">                    OAuth2 credential object -- (instance of ServiceAccountCredential class</span>
+<span class="sd">                    of Google&#39;s oauth2Client package)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">storage</span> <span class="o">=</span> <span class="n">Storage</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">CRED_STORAGE_FILE</span><span class="p">)</span>
+            <span class="n">credentials</span> <span class="o">=</span> <span class="n">storage</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">credentials</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;credentials are none.&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">constants</span><span class="o">.</span><span class="n">KEY_FILE_PATH</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;p12&#39;</span><span class="p">:</span>
+                    <span class="n">credentials</span> <span class="o">=</span> <span class="n">ServiceAccountCredentials</span><span class="o">.</span><span class="n">from_p12_keyfile</span><span class="p">(</span>
+                        <span class="n">constants</span><span class="o">.</span><span class="n">CLIENT_EMAIL</span><span class="p">,</span> <span class="n">constants</span><span class="o">.</span><span class="n">KEY_FILE_PATH</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">SCOPES</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s1">&#39;Got Google credential object from P12 Key file. &#39;</span>
+                        <span class="s1">&#39;Storing credential in storage..&#39;</span><span class="p">)</span>
+
+                <span class="k">elif</span> <span class="n">constants</span><span class="o">.</span><span class="n">KEY_FILE_PATH</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;json&#39;</span><span class="p">:</span>
+                    <span class="n">credentials</span> <span class="o">=</span> <span class="n">ServiceAccountCredentials</span><span class="o">.</span><span class="n">from_json_keyfile_name</span><span class="p">(</span>
+                        <span class="n">constants</span><span class="o">.</span><span class="n">KEY_FILE_PATH</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">SCOPES</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s1">&#39;Got Google credential object from JSON Key file. &#39;</span>
+                        <span class="s1">&#39;Storing credential in storage..&#39;</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Invalid Key file name.&#39;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="n">CVCloudException</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">APIName</span><span class="p">,</span> <span class="s1">&#39;101&#39;</span><span class="p">)</span>
+                <span class="n">storage</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s1">&#39;Credentials are stored in </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">constants</span><span class="o">.</span><span class="n">CRED_STORAGE_FILE</span><span class="p">))</span>
+
+            <span class="k">elif</span> <span class="n">credentials</span><span class="o">.</span><span class="n">access_token_expired</span><span class="p">:</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s1">&#39;Google credentials from storage are in expired state.&#39;</span>
+                    <span class="s1">&#39;Trying to refresh the credentials..&#39;</span><span class="p">)</span>
+                <span class="n">credential_info</span> <span class="o">=</span> <span class="n">credentials</span><span class="o">.</span><span class="n">get_access_token</span><span class="p">()</span>
+                <span class="n">credentials</span><span class="o">.</span><span class="n">set_store</span><span class="p">(</span><span class="n">storage</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s1">&#39;Credentials are refreshed with following info: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">credential_info</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__service_account_email</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__service_account_email</span> <span class="o">=</span> <span class="n">credentials</span><span class="o">.</span><span class="n">service_account_email</span>
+            <span class="k">return</span> <span class="n">credentials</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
+                <span class="s1">&#39;Exception while creating Google credentials object for google API&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span>
+
+<div class="viewcode-block" id="GAuth.build_service"><a class="viewcode-back" href="../../../Application.CloudApps.html#Application.CloudApps.auth.GAuth.build_service">[docs]</a>    <span class="k">def</span> <span class="nf">build_service</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">APIName</span><span class="p">,</span> <span class="n">delegated_user</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Builds Google service object for invoking Google APIs</span>
+
+<span class="sd">                Args:</span>
+
+<span class="sd">                    APIName (Str)   --   The name of the API to invoke.</span>
+<span class="sd">                                         This should be provided as defined in constants.</span>
+
+<span class="sd">                    delegated_user  (Str)   --   User&#39;s email id to impersonate user.</span>
+<span class="sd">                                                 Default value is admin email from constants</span>
+
+<span class="sd">                Returns:</span>
+
+<span class="sd">                    Google service object  (object) -- Instance of Google client API resource class</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">delegated_user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">delegated_user</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">ADMIN_EMAIL</span>
+            <span class="n">credentials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_credentials</span><span class="p">()</span>
+            <span class="n">servicename</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">GOOGLE_API_DICT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">APIName</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">serviceversion</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">GOOGLE_API_DICT</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">APIName</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Building service object for API Name: </span><span class="si">%s</span><span class="s1"> and API version: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                <span class="p">(</span><span class="n">servicename</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="n">serviceversion</span><span class="p">))</span>
+            <span class="n">delegated_cred</span> <span class="o">=</span> <span class="n">credentials</span><span class="o">.</span><span class="n">create_delegated</span><span class="p">(</span><span class="n">delegated_user</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Obtained delegated credentials for user: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                <span class="n">delegated_user</span><span class="p">)</span>
+            <span class="n">http_auth</span> <span class="o">=</span> <span class="n">delegated_cred</span><span class="o">.</span><span class="n">authorize</span><span class="p">(</span><span class="n">Http</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;http_auth object created&#39;</span><span class="p">)</span>
+            <span class="n">google_service</span> <span class="o">=</span> <span class="n">discovery</span><span class="o">.</span><span class="n">build</span><span class="p">(</span>
+                <span class="n">servicename</span><span class="p">,</span> <span class="n">serviceversion</span><span class="p">,</span> <span class="n">http</span><span class="o">=</span><span class="n">http_auth</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Google service object created for API Name: </span><span class="si">%s</span><span class="s1"> and API Version: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                <span class="p">(</span><span class="n">servicename</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="n">serviceversion</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">google_service</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
+                <span class="s1">&#39;Exception while building google service object. &#39;</span>
+                <span class="s1">&#39;Service Name or version may be incorrect or credentials can not be refreshed.&#39;</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="n">CVCloudException</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">APIName</span><span class="p">,</span> <span class="s1">&#39;102&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">service_account_email</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Treats service_account_email as read only attribute &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__service_account_email</span>
+
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deletes the credentials from Storage&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;entered destructor. deleting credential store&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">storage</span> <span class="o">=</span> <span class="n">Storage</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">CRED_STORAGE_FILE</span><span class="p">)</span>
+            <span class="n">storage</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;deleted credential store&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s1">&#39;Error while deleting credential storage. The file may not exist.&#39;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

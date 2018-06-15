@@ -1,0 +1,1159 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>AutomationUtils.machine &#8212; Commvault Automation 11.12 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for AutomationUtils.machine</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;File for performing operations on a machine / computer.</span>
+
+<span class="sd">This file consists of a class named: Machine, which can connect to the remote machine,</span>
+<span class="sd">using CVD, if it is a Commvault Client, or using PowerShell, otherwise.</span>
+
+<span class="sd">The instance of this class can be used to perform various operations on a machine, like,</span>
+
+<span class="sd">    #.  Check if a Directory Exists or not</span>
+<span class="sd">    #.  Create a new Directory</span>
+<span class="sd">    #.  Rename a File / Folder</span>
+<span class="sd">    #.  Remove an existing Directory</span>
+<span class="sd">    #.  Get the Size of a File / Folder</span>
+<span class="sd">    #.  Check if a Registry exists or not</span>
+<span class="sd">    #.  Add / Update a Registry Key / Value</span>
+<span class="sd">    #.  Get the Value of a Registry Key</span>
+<span class="sd">    #.  Delete a Registry Key / Value</span>
+<span class="sd">    #.  Compare the contents of 2 Files / Folders</span>
+
+
+<span class="sd">Machine</span>
+<span class="sd">=======</span>
+
+<span class="sd">    __new__()                       --  ping the machine, to get the OS details, whether</span>
+<span class="sd">    Windows / UNIX, and initialize the class instance accordingly</span>
+
+<span class="sd">    __init__()                      --  initialize object of the class</span>
+
+<span class="sd">    _login_with_credentials()       --  creates a connection to the remote client</span>
+
+<span class="sd">    _execute_with_credential()      --  execute a script on a remote client using its credentials</span>
+
+<span class="sd">    _execute_with_cvd()             --  execute a script on a remote client using the CVD service</span>
+
+<span class="sd">    _get_file_hash()                --  returns the hash value of specified file</span>
+
+<span class="sd">    _get_folder_hash()              --  returns the set of file paths and hash values</span>
+
+<span class="sd">    _compare_lists()                --  compares the source list with the destination list and</span>
+<span class="sd">    checks if they are the same or not</span>
+
+<span class="sd">    _convert_size()                 --  converts the given float size to appropriate size in</span>
+<span class="sd">    B / KB / MB / GB, etc.</span>
+
+<span class="sd">    _validate_ignore_files()        --  returns list of files from diff of 2 folders after ignoring</span>
+<span class="sd">    the list of files given in ignore_files list</span>
+
+<span class="sd">    get_unc_path()                  --  generates the unc path for the input path</span>
+
+<span class="sd">    execute()                       --  execute the given script remotely on a remote client</span>
+
+<span class="sd">    execute_command()               --  executes a command on the remote machine</span>
+
+<span class="sd">    check_directory_exists()        --  check if a directory exists on a remote client or not</span>
+
+<span class="sd">    check_file_exists()             --  checks if a file exists on a remote client or not</span>
+
+<span class="sd">    create_directory()              --  create a new directory on a remote client</span>
+
+<span class="sd">    rename_file_or_folder()         --  renames a file / folder on a remote client</span>
+
+<span class="sd">    remove_directory()              --  remove a directory on a remote client</span>
+
+<span class="sd">    get_file_size()                 --  get the size of a file on a remote client</span>
+
+<span class="sd">    get_folder_size()               --  get the size of a folder on a remote client</span>
+
+<span class="sd">    get_storage_details()           --  returns the storage details of this machine</span>
+
+<span class="sd">    check_registry_exists()         --  check if a registry exists on a remote client or not</span>
+
+<span class="sd">    get_registry_value()            --  get the value of a registry key from a remote client</span>
+
+<span class="sd">    create_registry()               --  create a registry key / value on a remote client</span>
+
+<span class="sd">    update_registry()               --  update the data of a registry value on a remote client</span>
+
+<span class="sd">    remove_registry()               --  remove a registry key / value from a remote client</span>
+
+<span class="sd">    compare_files()                 --  compares the contents of 2 files</span>
+
+<span class="sd">    compare_folders()               --  compares the contents of 2 folders</span>
+
+<span class="sd">    copy_from_local()               --  copies the file / folder specified in the input from</span>
+<span class="sd">    local machine to the remote machine</span>
+
+<span class="sd">    read_file()                     --  read the contents of the file present at input path</span>
+
+<span class="sd">    delete_file()                   --  removes the file present at the input path</span>
+
+<span class="sd">    change_folder_owner()           --  changes the ownership of the given directory</span>
+
+<span class="sd">    get_files_in_path()             --  returns the list of files present at the given path</span>
+
+<span class="sd">    get_folders_in_path()           --  returns the list of folders present at the given path</span>
+
+<span class="sd">    join_path()                     --  joins the path using the separator based on the OS of the</span>
+<span class="sd">    Machine</span>
+
+<span class="sd">    get_file_hash()                 --  returns the hash value of specified file</span>
+
+<span class="sd">    get_folder_hash()               --  returns the set of file paths and hash values</span>
+
+<span class="sd">    disconnect()                    --  disconnects the session with the machine</span>
+
+
+<span class="sd">Attributes</span>
+<span class="sd">----------</span>
+
+<span class="sd">    **os_info**     --  returns the OS details of the client (Windows / UNIX)</span>
+
+<span class="sd">    **os_sep**      --  returns the path separator based on the OS of the Machine</span>
+
+
+<span class="sd">Usage</span>
+<span class="sd">-----</span>
+
+<span class="sd">    -   For creating an object of any machine, i.e., Windows / UNIX, the user should only</span>
+<span class="sd">        initialize an object of the Machine class, which internally takes care of detecting the OS</span>
+<span class="sd">        of the machine, and initialize the appropriate object.</span>
+
+<span class="sd">    -   Machine class object can be initialized in 3 ways:</span>
+
+<span class="sd">        -   If the machine is a Commcell client:</span>
+
+<span class="sd">            &gt;&gt;&gt; machine = Machine(machine_name, commcell_object)</span>
+
+<span class="sd">        -   If the machine is a Commcell client, and user already has the client object:</span>
+
+<span class="sd">            &gt;&gt;&gt; machine = Machine(client_object)</span>
+
+<span class="sd">            **NOTE:** the client_object should be given as the value for the machine_name argument</span>
+
+<span class="sd">        -   If the machine is not a Commcell client:</span>
+
+<span class="sd">            &gt;&gt;&gt; machine = Machine(machine_name, username=username, password=password)</span>
+
+<span class="sd">        -   If the machine is the Local Machine:</span>
+
+<span class="sd">            &gt;&gt;&gt; machine = Machine(local_machine_name)</span>
+
+<span class="sd">                        OR</span>
+
+<span class="sd">            &gt;&gt;&gt; machine = Machine()</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">difflib</span> <span class="k">import</span> <span class="n">Differ</span>
+<span class="kn">import</span> <span class="nn">getpass</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.client</span> <span class="k">import</span> <span class="n">Client</span>
+<span class="kn">from</span> <span class="nn">.pyping</span> <span class="k">import</span> <span class="n">ping</span>
+
+
+<div class="viewcode-block" id="Machine"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine">[docs]</a><span class="k">class</span> <span class="nc">Machine</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for performing operations on a remote client.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">machine_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the instance of one of the Subclasses WindowsMachine / UnixMachine,</span>
+<span class="sd">            based on the OS details of the remote client.</span>
+
+<span class="sd">            If Commcell Object is given, and the Client is Commvault Client:</span>
+<span class="sd">                Gets the OS Info from Client OS Info attribute</span>
+
+<span class="sd">            Otherwise, Pings the client, and decides the OS based on the TTL value.</span>
+
+<span class="sd">            TTL Value: 64 (Linux) / 128 (Windows) / 255 (UNIX)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">machine_name</span><span class="p">:</span>
+            <span class="n">client</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">machine_name</span><span class="p">,</span> <span class="n">Client</span><span class="p">):</span>
+                <span class="n">client</span> <span class="o">=</span> <span class="n">machine_name</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">commcell_object</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                        <span class="n">commcell_object</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">has_client</span><span class="p">(</span><span class="n">machine_name</span><span class="p">)):</span>
+                    <span class="n">client</span> <span class="o">=</span> <span class="n">commcell_object</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">machine_name</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">client</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">client</span><span class="o">.</span><span class="n">is_ready</span><span class="p">:</span>
+                    <span class="n">exception</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="s1">&#39;Check readiness for the client: &quot;</span><span class="si">{0}</span><span class="s1">&quot; failed. &#39;</span>
+                        <span class="s1">&#39;Please ensure the services are up and running&#39;</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">client_name</span><span class="p">)</span>
+
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="s1">&#39;windows&#39;</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                    <span class="kn">from</span> <span class="nn">.windows_machine</span> <span class="k">import</span> <span class="n">WindowsMachine</span>
+                    <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">WindowsMachine</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="s1">&#39;unix&#39;</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                    <span class="kn">from</span> <span class="nn">.unix_machine</span> <span class="k">import</span> <span class="n">UnixMachine</span>
+                    <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">UnixMachine</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">machine_name</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="n">ping</span><span class="p">(</span><span class="n">machine_name</span><span class="p">)</span>
+
+        <span class="c1"># Extract TTL value form the response.output string.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">ttl</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(.*)ttl=(\d*) .*&quot;</span><span class="p">,</span>
+                               <span class="n">response</span><span class="o">.</span><span class="n">output</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to connect to the machine.</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">ttl</span> <span class="o">&lt;=</span> <span class="mi">64</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">.unix_machine</span> <span class="k">import</span> <span class="n">UnixMachine</span>
+            <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">UnixMachine</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">ttl</span> <span class="o">&lt;=</span> <span class="mi">128</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">.windows_machine</span> <span class="k">import</span> <span class="n">WindowsMachine</span>
+            <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">WindowsMachine</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">ttl</span> <span class="o">&lt;=</span> <span class="mi">255</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">.unix_machine</span> <span class="k">import</span> <span class="n">UnixMachine</span>
+            <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">UnixMachine</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Got unexpected TTL value.</span><span class="se">\n</span><span class="s1">TTL value: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ttl</span><span class="p">))</span>
+            <span class="c1"># https://social.technet.microsoft.com/Forums/windowsserver/en-US/86e490e2-72be-4e2f-bb45-85fa2f52c876/os-check-for-unix-or-linux?forum=winserverpowershell</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes instance of the Machine class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                machine_name        (str)       --  name / ip address of the client to connect to</span>
+
+<span class="sd">                    if machine name is not provided, then the Machine object for the local machine</span>
+<span class="sd">                    will be created</span>
+
+<span class="sd">                    default:    None</span>
+
+<span class="sd">                commcell_object     (object)    --  instance of the Commcell class from CVPySDK</span>
+
+<span class="sd">                    default:    None</span>
+
+<span class="sd">                username            (str)       --  username for the client to connect to</span>
+
+<span class="sd">                        Only Applicable if the client is not a Commvault Client</span>
+
+<span class="sd">                    default:    None</span>
+
+<span class="sd">                password            (str)       --  password for the above specified user</span>
+
+<span class="sd">                    default:    None</span>
+
+<span class="sd">            Also, initializes the Client object, if it is Commvault Client.</span>
+
+<span class="sd">            Otherwise, it creates a PowerShell credentials object for the client.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span> <span class="o">=</span> <span class="n">machine_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="n">username</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span> <span class="o">=</span> <span class="n">commcell_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">credentials_file</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_commvault_client</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_object</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_local_machine</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_os_info</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_script_generator</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">temp</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span> <span class="o">=</span> <span class="n">machine_name</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">machine_name</span><span class="p">,</span> <span class="n">Client</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_commvault_client</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_object</span> <span class="o">=</span> <span class="n">machine_name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">_commcell_object</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span> <span class="o">=</span> <span class="n">machine_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">client_name</span>
+
+        <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostbyname_ex</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="c1"># value will have the FQDN of the controller</span>
+                <span class="c1"># machine name should either match the FQDN, or just the hostname</span>
+                <span class="c1"># MachineName.Domain.com        //      MachineName.</span>
+                <span class="n">temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">machine_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">or</span>
+                    <span class="n">f</span><span class="s1">&#39;</span><span class="si">{machine_name}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">machine_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">value</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_local_machine</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+
+        <span class="k">del</span> <span class="n">temp</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_local_machine</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">credentials_file</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="c1"># this check needs to be performed in case, automation controller is a CS client</span>
+            <span class="c1"># and a helper needs to operate on the same client, and they require the client object</span>
+            <span class="c1"># to be present to get the log / install directory, or do some Commvault specific</span>
+            <span class="c1"># operations on the client</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_object</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                    <span class="n">commcell_object</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">has_client</span><span class="p">(</span><span class="n">machine_name</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">machine_name</span><span class="p">)</span>
+
+            <span class="c1"># executing the script via CVD will take more time here, as we&#39;ll have to</span>
+            <span class="c1"># make the API call to the WebServer, which will then go to the CommServer, and</span>
+            <span class="c1"># then to the client via CVD, which will then execute the script and return the</span>
+            <span class="c1"># results</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_commvault_client</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">prompt</span> <span class="o">=</span> <span class="s1">&#39;Please provide the password of the Machine: &quot;</span><span class="si">{0}</span><span class="s1">&quot;, for User: &quot;</span><span class="si">{1}</span><span class="s1">&quot;: &#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getpass</span><span class="p">(</span>
+                    <span class="n">prompt</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_login_with_credentials</span><span class="p">()</span>
+
+        <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_object</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+              <span class="n">commcell_object</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">has_client</span><span class="p">(</span><span class="n">machine_name</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_commvault_client</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">machine_name</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_object</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">exception</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Client: &quot;</span><span class="si">{0}</span><span class="s1">&quot; is not a Local Machine / Commvault client. &#39;</span>
+                <span class="s2">&quot;Please provide the client&#39;s username and password&quot;</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">machine_name</span><span class="p">)</span>
+
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_connected</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">_user</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;String representation of the instance of this class.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str - string about the details of the Machine class instance</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">representation_string</span> <span class="o">=</span> <span class="s1">&#39;Machine class instance of Host: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">representation_string</span> <span class="o">+</span> <span class="s1">&#39;, for User: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">representation_string</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the current instance.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object - the initialized instance referred by self</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception_type</span><span class="p">,</span> <span class="n">exception_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Disconnects the current session with the machine.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_login_with_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establish connection with the remote Client, if the client is not a Commvault client.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Execution</span>
+    <span class="k">def</span> <span class="nf">_execute_with_credential</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">script</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Execute the script remotely on a client using the credentials provided,</span>
+<span class="sd">            if the client is not a Commvault client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                script  (str)   --  path of the script file to execute on the client remotely</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_execute_with_cvd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">script</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Execute the script remotely on a client using the CVD service running on the client.</span>
+<span class="sd">            Only applicable if the client is a Commvault Client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                script  (str)   --  path of the script file to execute on the client remotely</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_file_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns MD5 hash value of the specified file at the given file path.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                file_path       (str)   --  path of the file to get the hash value of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   hash value of the given file</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if file path doesn&#39;t exist</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_folder_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">directory_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns set of files and their MD5 hash values present on the input path.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                directory_path      (str)   --  path of the directory to get hash values of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                set     -   set consisting of the file paths and their hash value as tuple</span>
+
+<span class="sd">                    set(</span>
+
+<span class="sd">                        (file_path1, hash1),</span>
+
+<span class="sd">                        (file_path2, hash2)</span>
+<span class="sd">                    )</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if specified directory path doesn&#39;t exist</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_compare_lists</span><span class="p">(</span><span class="n">source_list</span><span class="p">,</span> <span class="n">destination_list</span><span class="p">,</span> <span class="n">sort_list</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compares the source list with destination list</span>
+<span class="sd">            and checks if they are same.</span>
+
+<span class="sd">             Args:</span>
+<span class="sd">                source_list         (list)  --  list1 to compare the contents of</span>
+
+<span class="sd">                destination_list    (list)  --  list2 to compare the contents of</span>
+
+<span class="sd">                sort_list           (bool)  --  boolean flag specifying whether the lists should</span>
+<span class="sd">                be sorted before the comparison or not</span>
+
+<span class="sd">                    default: False</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                tuple   -   tuple consisting of a boolean and a string, where:</span>
+
+<span class="sd">                    bool:</span>
+
+<span class="sd">                        returns True if the lists are identical</span>
+
+<span class="sd">                        returns False if the contents of the lists are different</span>
+
+<span class="sd">                    str:</span>
+
+<span class="sd">                        empty string in case of True, otherwise string consisting of the</span>
+<span class="sd">                        differences b/w the 2 lists separated by new-line</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">sort_list</span><span class="p">:</span>
+            <span class="n">source_list</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+            <span class="n">destination_list</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+        <span class="n">diff_output</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">source_list</span> <span class="o">==</span> <span class="n">destination_list</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="n">diff_output</span>
+
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">Differ</span><span class="p">()</span><span class="o">.</span><span class="n">compare</span><span class="p">(</span><span class="n">source_list</span><span class="p">,</span> <span class="n">destination_list</span><span class="p">)</span>
+        <span class="n">diff_output</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">diff</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;  &#39;</span><span class="p">)])</span>
+
+        <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="n">diff_output</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_convert_size</span><span class="p">(</span><span class="n">input_size</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Converts the given float size to appropriate size in B / KB / MB / GB, etc.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                size    (float)     --  float value to convert</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   size converted to the specific type (B, KB, MB, GB, etc.)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">input_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;0B&#39;</span>
+
+        <span class="n">size_name</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;KB&quot;</span><span class="p">,</span> <span class="s2">&quot;MB&quot;</span><span class="p">,</span> <span class="s2">&quot;GB&quot;</span><span class="p">,</span> <span class="s2">&quot;TB&quot;</span><span class="p">,</span> <span class="s2">&quot;PB&quot;</span><span class="p">,</span> <span class="s2">&quot;EB&quot;</span><span class="p">,</span> <span class="s2">&quot;ZB&quot;</span><span class="p">,</span> <span class="s2">&quot;YB&quot;</span><span class="p">)</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">input_size</span><span class="p">,</span> <span class="mi">1024</span><span class="p">)))</span>
+        <span class="n">power</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">1024</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">input_size</span> <span class="o">/</span> <span class="n">power</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">size_name</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_validate_ignore_files</span><span class="p">(</span><span class="n">different_files</span><span class="p">,</span> <span class="n">ignore_files</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Removes the ignore files list from the difference obtained after comparing folders.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                different_files      (list)  --  list of different files</span>
+
+<span class="sd">                ignore_files         (list)  --  list of files that has to be ignored</span>
+
+<span class="sd">                    default: None</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                list    -   list of remaining different files</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">ignore_files</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ignore_files</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">different_file</span> <span class="ow">in</span> <span class="n">different_files</span><span class="p">:</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="n">different_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="c1"># Check if any different file starts with pattern in ignore_files</span>
+            <span class="c1"># list</span>
+            <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">ignore_files</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">pattern</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)):</span>
+                    <span class="n">found</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+
+            <span class="c1"># Append the file which didn&#39;t match with items in ignore_file list</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="p">:</span>
+                <span class="n">diff</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">different_file</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">diff</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">os_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the OS Info of this machine&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_os_info</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">os_sep</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the path separator based on the OS of the Machine.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s1">&#39;Property Not Implemented by the Child Class&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Machine.get_unc_path"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.get_unc_path">[docs]</a>    <span class="k">def</span> <span class="nf">get_unc_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the unc path for the specified path</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                path    (str)   --  path on this machine</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   unc path formed from the given path</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;WINDOWS&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\\\\</span><span class="si">{0}</span><span class="se">\\</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;$&#39;</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">path</span></div>
+
+<div class="viewcode-block" id="Machine.execute"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">script</span><span class="p">,</span> <span class="n">script_arguments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Execute the script remotely on a client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                script              (str)   --  path of the script file to execute on the</span>
+<span class="sd">                remote client</span>
+
+<span class="sd">                script_arguments    (str)   --  arguments to be passed to the script</span>
+
+<span class="sd">                    **This is applicable only for UNIX machines right now**</span>
+
+<span class="sd">                    default: None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_commvault_client</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">execution_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_execute_with_cvd</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">execution_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_execute_with_credential</span>
+
+        <span class="k">if</span> <span class="n">script_arguments</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">execution_method</span><span class="p">(</span><span class="n">script</span><span class="p">,</span> <span class="n">script_arguments</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">execution_method</span><span class="p">(</span><span class="n">script</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.execute_command"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.execute_command">[docs]</a>    <span class="k">def</span> <span class="nf">execute_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Executes a command on the machine.</span>
+
+<span class="sd">            An instance of the **Output** class is returned.</span>
+
+<span class="sd">            Output / Exception messages received from command execution are</span>
+<span class="sd">            available as the attributes of the class instance.</span>
+
+<span class="sd">                output_instance.output              --  raw output returned from the command</span>
+
+<span class="sd">                output_instance.formatted_output    --  o/p received after parsing the raw output</span>
+
+<span class="sd">                output_instance.exception           --  raw exception message</span>
+
+<span class="sd">                output_instance.exception_message   --  parsed exception message from the raw o/p</span>
+
+
+<span class="sd">            Args:</span>
+<span class="sd">                command     (str)   --  command to be executed on the machine</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  -   instance of Output class</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+    <span class="c1"># OS related functions</span>
+<div class="viewcode-block" id="Machine.check_directory_exists"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.check_directory_exists">[docs]</a>    <span class="k">def</span> <span class="nf">check_directory_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">directory_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check if a directory exists on the client or not.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                directory_path  (str)   --  path of the directory to check</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   boolean value whether the directory exists or not</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.check_file_exists"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.check_file_exists">[docs]</a>    <span class="k">def</span> <span class="nf">check_file_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check if a file exists on the client or not.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                file_path  (str)   --  path of file to check</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   boolean value whether the file exists or not</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.create_directory"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.create_directory">[docs]</a>    <span class="k">def</span> <span class="nf">create_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">directory_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a directory on the client, if it does not exist.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                directory_name  (str)   --  name / full path of the directory to create</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None    -   if directory creation was successful</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if directory already exists</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.rename_file_or_folder"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.rename_file_or_folder">[docs]</a>    <span class="k">def</span> <span class="nf">rename_file_or_folder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">old_name</span><span class="p">,</span> <span class="n">new_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Renames a file or a folder on the client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                old_name    (str)   --  name / full path of the directory to rename</span>
+
+<span class="sd">                new_name    (str)   --  new name / full path of the directory</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None    -   if directory was renamed successfully</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if failed to rename the directory</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.remove_directory"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.remove_directory">[docs]</a>    <span class="k">def</span> <span class="nf">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">directory_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Removes a directory on the client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                directory_name  (str)   --  name / full path of the directory to remove</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None    -   if directory was removed successfully</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if failed to remove the directory</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.get_file_size"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.get_file_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_file_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the size of a file on the client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                file_path   (str)   --  path of the file to get the size of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                float   -   size of the file on the client</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if failed to get the size of the file</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.get_folder_size"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.get_folder_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_folder_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the size of a folder on the client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                folder_path     (str)   --  path of the folder to get the size of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                float   -   size of the folder on the client</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if failed to get the size of the folder</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.get_storage_details"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.get_storage_details">[docs]</a>    <span class="k">def</span> <span class="nf">get_storage_details</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the details of the Storage on the Client.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+    <span class="c1"># Registry related operations</span>
+<div class="viewcode-block" id="Machine.check_registry_exists"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.check_registry_exists">[docs]</a>    <span class="k">def</span> <span class="nf">check_registry_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check if a registry key / value exists on the client or not.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                key     (str)   --  registry path of the key</span>
+
+<span class="sd">                value   (str)   --  value of the registry key</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   boolean value whether the registry key / value exists or not</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.get_registry_value"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.get_registry_value">[docs]</a>    <span class="k">def</span> <span class="nf">get_registry_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the data of a registry key and value on the client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                key     (str)       --  registry path of the key</span>
+
+<span class="sd">                value   (str)       --  value of the registry key</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   data of the value of the registry key</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception(Exception_Code, Exception_Message):</span>
+<span class="sd">                    if failed to get the data of the registry key and value</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.create_registry"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.create_registry">[docs]</a>    <span class="k">def</span> <span class="nf">create_registry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a registry key / value on the client, if it does not exist.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                key     (str)       --  registry path of the key</span>
+
+<span class="sd">                value   (str)       --  value of the registry key</span>
+
+<span class="sd">                data    (str)       --  data for the registry value</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   if registry key / value creation was successful</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception(Exception_Code, Exception_Message):</span>
+<span class="sd">                    if failed to create the registry key</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.update_registry"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.update_registry">[docs]</a>    <span class="k">def</span> <span class="nf">update_registry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the value of a registry key / Adds the key (if it does not exist) on the client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                key     (str)       --  registry path of the key</span>
+
+<span class="sd">                value   (str)       --  value of the registry key</span>
+
+<span class="sd">                data    (str)       --  data for the registry value</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   if registry value was updated successfully</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.remove_registry"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.remove_registry">[docs]</a>    <span class="k">def</span> <span class="nf">remove_registry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Removes a registry key / value on the client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                key     (str)       --  registry path of the key</span>
+
+<span class="sd">                value   (str)       --  value of the registry key</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   if registry key / value removal was successful</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception(Exception_Code, Exception_Message):</span>
+<span class="sd">                    if failed to remove the registry key</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.compare_files"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.compare_files">[docs]</a>    <span class="k">def</span> <span class="nf">compare_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">destination_machine</span><span class="p">,</span> <span class="n">source_file_path</span><span class="p">,</span> <span class="n">destination_file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compares the contents of the 2 files given.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                destination_machine     (object)    --  Machine class object for destination</span>
+<span class="sd">                machine</span>
+
+<span class="sd">                source_file_path        (str)       --  path of the source file to compare</span>
+
+<span class="sd">                destination_file_path   (str)       --  path of the destination file to compare</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   boolean whether the files are same or not</span>
+
+<span class="sd">                    True:   files are same</span>
+
+<span class="sd">                    False:  files are different</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if source_file_path does not exist</span>
+
+<span class="sd">                    if destination_file_path does not exist</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">source_hash</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_file_hash</span><span class="p">(</span><span class="n">source_file_path</span><span class="p">)</span>
+        <span class="n">destination_hash</span> <span class="o">=</span> <span class="n">destination_machine</span><span class="o">.</span><span class="n">get_file_hash</span><span class="p">(</span><span class="n">destination_file_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">source_hash</span> <span class="o">==</span> <span class="n">destination_hash</span></div>
+
+<div class="viewcode-block" id="Machine.compare_folders"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.compare_folders">[docs]</a>    <span class="k">def</span> <span class="nf">compare_folders</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">destination_machine</span><span class="p">,</span>
+            <span class="n">source_path</span><span class="p">,</span>
+            <span class="n">destination_path</span><span class="p">,</span>
+            <span class="n">ignore_files</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compares the two directories on different machines.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                destination_machine     (object)    --  Machine class object for destination</span>
+<span class="sd">                machine</span>
+
+<span class="sd">                source_path             (str)       --  path on source machine that is to be</span>
+<span class="sd">                compared</span>
+
+<span class="sd">                destination_path        (str)       --  path on destination machine that is to be</span>
+<span class="sd">                compared</span>
+
+<span class="sd">                ignore_patterns         (str)       --  files/patterns that are to be ignored</span>
+
+<span class="sd">                    default: None</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                list    -   file paths which are different on the destination machine</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">source_hash</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_folder_hash</span><span class="p">(</span><span class="n">source_path</span><span class="p">)</span>
+        <span class="n">destination_hash</span> <span class="o">=</span> <span class="n">destination_machine</span><span class="o">.</span><span class="n">get_folder_hash</span><span class="p">(</span><span class="n">destination_path</span><span class="p">)</span>
+
+        <span class="n">difference</span> <span class="o">=</span> <span class="n">source_hash</span> <span class="o">-</span> <span class="n">destination_hash</span>
+
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">difference</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_ignore_files</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">difference</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">ignore_files</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="Machine.copy_from_local"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.copy_from_local">[docs]</a>    <span class="k">def</span> <span class="nf">copy_from_local</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_path</span><span class="p">,</span> <span class="n">remote_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Copies the file / folder present at the given path to the path specified on the</span>
+<span class="sd">            remote machine.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                local_path      (str)   --  path of the file / folder on the local machine</span>
+
+<span class="sd">                remote_path     (str)   --  path of the directory to which the file / folder</span>
+<span class="sd">                should be copied on the remote machine</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (bool, list)    -   tuple consisting of a</span>
+
+<span class="sd">                **bool** output specifying whether the file / folder was copied successfully or not</span>
+
+<span class="sd">                    True    -   all files / folders were copied successfully</span>
+
+<span class="sd">                    False   -   failed to copy some files / folders</span>
+
+<span class="sd">                **list** consisting of the items failed to be copied</span>
+
+<span class="sd">                    list consisiting of items that were not copied</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception(Exception_Code, Exception_Message):</span>
+<span class="sd">                    if failed to copy the file / folder</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.read_file"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.read_file">[docs]</a>    <span class="k">def</span> <span class="nf">read_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the contents of the file present at the specified file path.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                file_path   (str)   --  full path of the file to get the contents of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   string consisting of the file contents</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if no file exists at the given path</span>
+
+<span class="sd">                    if failed to get the contents of the file</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.delete_file"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.delete_file">[docs]</a>    <span class="k">def</span> <span class="nf">delete_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deletes the file present at the specified file path.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                file_path   (str)   --  full path of the file to be removed</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None    -   if the file was removed successfully</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if no file exists at the given path</span>
+
+<span class="sd">                    if failed to remove the file</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.change_folder_owner"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.change_folder_owner">[docs]</a>    <span class="k">def</span> <span class="nf">change_folder_owner</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">directory_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Changes the owner of the folder given as the value of directory_path.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                username        (str)   --  name of user to give ownership</span>
+
+<span class="sd">                directory_path  (str)   --  path of the directory to change ownership</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   boolean value if ownership change was successful</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if specified folder doesn&#39;t exist</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.get_files_in_path"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.get_files_in_path">[docs]</a>    <span class="k">def</span> <span class="nf">get_files_in_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of all the files at the given folder path.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                folder_path     (str)   --  full path of the folder to get the list of files from</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                list    -   list of the files present at the given path</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if failed to get the list of files</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.get_folders_in_path"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.get_folders_in_path">[docs]</a>    <span class="k">def</span> <span class="nf">get_folders_in_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of all the folders at the given folder path.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                folder_path     (str)   --  full path of the folder to get the list of folders from</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                list    -   list of the folders present at the given path</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if failed to get the list of folders</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.join_path"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.join_path">[docs]</a>    <span class="k">def</span> <span class="nf">join_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Joins the paths given in the args list with the given path using the os separator based</span>
+<span class="sd">            on the OS / Type of the Machine</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                path    (str)       --  root path to join the rest of the elements to</span>
+
+<span class="sd">                *args   (tuple)     --  list of the elements of path to join to the root path</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   full path generated after joining all the elements using the OS sep</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">os_sep</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">path</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">os_sep</span><span class="p">)]</span>
+            <span class="o">+</span> <span class="p">[</span><span class="n">arg</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">os_sep</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.get_file_hash"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.get_file_hash">[docs]</a>    <span class="k">def</span> <span class="nf">get_file_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns MD5 hash value of the specified file at the given file path.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                file_path       (str)   --  path of the file to get the hash value of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   hash value of the given file</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if file path doesn&#39;t exist</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.get_folder_hash"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.get_folder_hash">[docs]</a>    <span class="k">def</span> <span class="nf">get_folder_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">directory_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns set of files and their MD5 hash values present on the input path.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                directory_path      (str)   --  path of the directory to get hash values of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                set     -   set consisting of the file paths and their hash value as tuple</span>
+
+<span class="sd">                    set(</span>
+
+<span class="sd">                        (file_path1, hash1),</span>
+
+<span class="sd">                        (file_path2, hash2)</span>
+<span class="sd">                    )</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if specified directory path doesn&#39;t exist</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_folder_hash</span><span class="p">(</span><span class="n">directory_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Machine.disconnect"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.machine.Machine.disconnect">[docs]</a>    <span class="k">def</span> <span class="nf">disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Disconnects the current session with the machine.</span>
+
+<span class="sd">            Deletes the object&#39;s attributes.</span>
+
+<span class="sd">            Removes the Credentials File as well, if it was created.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_connected</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_object</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">credentials_file</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+            <span class="c1"># Continue silently, as the file might already have been removed</span>
+            <span class="k">pass</span>
+
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">credentials_file</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_commvault_client</span>
+
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_script_generator</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

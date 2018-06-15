@@ -1,0 +1,1076 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>AutomationUtils.database_helper &#8212; Commvault Automation 11.12 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for AutomationUtils.database_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper File for Database related operations.</span>
+
+<span class="sd">This file consists of a class `DBResponse` for executing and parsing the Database query,</span>
+<span class="sd">and its response.</span>
+
+<span class="sd">A common Base class `Database` is defined to execute queries on any Database - MSSQL / MySQL, etc.</span>
+
+<span class="sd">Another class `DBHelper` is defined to execute queries on the Commvault databases, like,</span>
+
+<span class="sd">    CommServ Database   (CSDB)</span>
+
+<span class="sd">    WFEngine Database   (WFDB)</span>
+
+
+<span class="sd">Classes defined in this file:</span>
+
+<span class="sd">    DBResponse:         Class for executing an SQL query, and parsing the response received</span>
+
+<span class="sd">    Database:           Base class for all types of Databases - MSSQL / MySQL / SQLite, etc.</span>
+
+<span class="sd">    MSSQL:              Derived class from the Database class, to perform operations, and queries</span>
+<span class="sd">                            specific to Microsoft SQL Server Database</span>
+
+<span class="sd">    MySQL:              Derived class from the Database class, to perform operations, and queries</span>
+<span class="sd">                            specific MySQL Database</span>
+
+<span class="sd">    SQLite:             Derived class from the Database class, to perform operations, and queries</span>
+<span class="sd">                            specific a SQLite Database</span>
+
+<span class="sd">    SAPHANA:            Derived class from the Database class, to perform operations, and queries</span>
+<span class="sd">                            specific to a SAPHANA Database</span>
+
+<span class="sd">    DBHelper:           Base class for CommServ and WFEngine Database operations</span>
+
+<span class="sd">    CommServDatabase:   Derived class from the DBHelper class to perform operations, and SELECT</span>
+<span class="sd">                            queries on the CommServ Database</span>
+
+<span class="sd">    WFEngineDatabase:   Derived class from the DBHelper class to perform operations, and SELECT</span>
+<span class="sd">                            queries on the WFEngine Database</span>
+
+
+<span class="sd">Usage</span>
+<span class="sd">=====</span>
+
+<span class="sd">- First create an object of the specific database, you want to connect to. (MSSQL in this case)</span>
+
+<span class="sd">    &gt;&gt;&gt; from AutomationUtils.database_helper import MSSQL</span>
+<span class="sd">    &gt;&gt;&gt; mssql = MSSQL(server, user, password, database, as_dict, autocommit)</span>
+
+
+<span class="sd">- Executing a query:</span>
+
+<span class="sd">    &gt;&gt;&gt; db_response = mssql.execute(&#39;SELECT * FROM TABLE_NAME&#39;)</span>
+
+
+<span class="sd">- Get list of columns:</span>
+
+<span class="sd">    &gt;&gt;&gt; db_response.columns</span>
+
+
+<span class="sd">- Get the SQL Query that was executed:</span>
+
+<span class="sd">    &gt;&gt;&gt; db_response.query</span>
+
+
+<span class="sd">- Get the count of rows returned in the response</span>
+
+<span class="sd">    &gt;&gt;&gt; db_response.rowcount</span>
+
+
+<span class="sd">- Get the list of rows returned in the response</span>
+
+<span class="sd">    &gt;&gt;&gt; db_response.rows</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">cvhelper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+
+
+<div class="viewcode-block" id="DBResponse"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBResponse">[docs]</a><span class="k">class</span> <span class="nc">DBResponse</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Response received from Database upon running the SQL query.</span>
+
+<span class="sd">        Creates a Cursor object using the connection object provided in the arguments, and</span>
+<span class="sd">            runs the given query on the Database.</span>
+
+<span class="sd">        Then it parses through the Database response, and updates the class attributes.</span>
+
+<span class="sd">            columns:    list of columns of the table, the query was ran for</span>
+
+<span class="sd">            rows:       list of rows returned</span>
+
+<span class="sd">            rowcount:   no. of rows in the result</span>
+
+<span class="sd">            query:      SQL query executed</span>
+
+<span class="sd">            data:       data passed along with the query</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">connection_object</span><span class="p">,</span>
+            <span class="n">query</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">commit</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">is_stored_procedure</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a DBResponse object, after executing a SQL query on the Database.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                connection_object   (object)    --  object of the Connection class to the Database</span>
+
+<span class="sd">                query               (str)       --  string SQL query to be executed</span>
+
+<span class="sd">                data                (sequence)  --  data to be passed to the query</span>
+<span class="sd">                    default: None</span>
+
+<span class="sd">                commit              (bool)      --  commit after executing the query</span>
+<span class="sd">                    default: True</span>
+
+<span class="sd">                is_stored_procedure (bool)      --  whether the query is a stored procedure</span>
+<span class="sd">                    default: False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span> <span class="o">=</span> <span class="n">connection_object</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query</span> <span class="o">=</span> <span class="n">query</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commit</span> <span class="o">=</span> <span class="n">commit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_stored_procedure</span> <span class="o">=</span> <span class="n">is_stored_procedure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_columns</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rowcount</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_get_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the columns of the table for which SQL query was ran,</span>
+<span class="sd">            and updates the columns attribute.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">description</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">all_columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">description</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_columns</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">all_columns</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">column</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Executes the SQL query, and updates the class attributes with the response.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_stored_procedure</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">callproc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">output</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">out</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_rowcount</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rows</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">executemany</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                            <span class="s1">&#39;Data must of type list / tuple / dict&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commit</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to execute the SQL query</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># raises OperationalError Statement not executed or executed statement has no resultset</span>
+            <span class="c1"># pass if it was an INSERT / UPDATE query</span>
+            <span class="k">pass</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_columns</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_stored_procedure</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rowcount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">rowcount</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cursor</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the SQL query executed on the Databse, for this response object.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the input data for the SQL query.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">columns</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list consisting of columns of the Table the SQL query was ran on.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_columns</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">rows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of lists, consisting of the response from the SQL query,</span>
+<span class="sd">            where each list represents a single SQL Table row.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">rowcount</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the number of rows in the response received.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rowcount</span>
+
+<div class="viewcode-block" id="DBResponse.filter_response"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBResponse.filter_response">[docs]</a>    <span class="k">def</span> <span class="nf">filter_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Filters out only the rows where column&#39;s value is equal to the input value.&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Column does not exist. Please check the column name again&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="n">column</span><span class="p">]</span> <span class="o">==</span> <span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="Database"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Database">[docs]</a><span class="k">class</span> <span class="nc">Database</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class for Database related operations.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the current instance.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object - the initialized instance referred by self</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception_type</span><span class="p">,</span> <span class="n">exception_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Closes the connection to the Database.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Closes the connection to the Database.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Treats the database connection object as a read-only attribute.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method not Implemented&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Database.reconnect"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Database.reconnect">[docs]</a>    <span class="k">def</span> <span class="nf">reconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Re-establishes the connection to the database, if the connection is not alive.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">MSSQL</span><span class="p">):</span>
+                    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s1">&#39;SELECT * FROM sys.databases&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">MySQL</span><span class="p">):</span>
+                    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s1">&#39;SHOW DATABASES&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">SQLite</span><span class="p">):</span>
+                    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s1">&#39;.databases&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">SAPHANA</span><span class="p">):</span>
+                    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s1">&#39;SELECT * FROM schemas&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">SAPOracle</span><span class="p">):</span>
+                    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s1">&#39;SELECT status from v$instance&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Oracle</span><span class="p">):</span>
+                    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s1">&#39;SELECT open_mode from v$database&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Database.execute"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Database.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">commit</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Executes the query on the Database and returns the results.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reconnect</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">DBResponse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">commit</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Database.execute_stored_procedure"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Database.execute_stored_procedure">[docs]</a>    <span class="k">def</span> <span class="nf">execute_stored_procedure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">procedure_name</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Executes the query on the Database and returns the results.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reconnect</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">DBResponse</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">,</span> <span class="n">procedure_name</span><span class="p">,</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">is_stored_procedure</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="Database.close"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Database.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Closes the connection to the Database.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="kc">None</span></div></div>
+
+
+<div class="viewcode-block" id="Oracle"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle">[docs]</a><span class="k">class</span> <span class="nc">Oracle</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper class for Oracle Database related operations</span>
+<span class="sd">        The helper is designed to operate idependently of the client side oracle home settings</span>
+
+<span class="sd">        hostname (str)      -- The IP or hostname of the client. It&#39;s better to give the</span>
+<span class="sd">                        IP address of the client in case the DNS entry is not right</span>
+<span class="sd">        instance_name (str) -- Name of the instance</span>
+<span class="sd">        sys_password (str)  -- The SYS user password</span>
+<span class="sd">        sys_user (str)      -- Backup user name</span>
+<span class="sd">            default -- SYS</span>
+<span class="sd">        port (int)          -- port number for the listener.</span>
+<span class="sd">            default -- 1521</span>
+<span class="sd">        service_name (str)  -- service name of the instance</span>
+<span class="sd">            default -- defaults to instance name</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">CONN_SYSBACKUP</span> <span class="o">=</span> <span class="s1">&#39;SYSBACKUP&#39;</span>
+    <span class="n">CONN_SYSDBA</span> <span class="o">=</span> <span class="s1">&#39;SYSDBA&#39;</span>
+    <span class="n">CONN_DB_USER</span> <span class="o">=</span> <span class="s1">&#39;DBUSER&#39;</span>
+    <span class="n">SHUT_TRANSACTION</span> <span class="o">=</span> <span class="s1">&#39;TRANSACTIONAL&#39;</span>
+    <span class="n">SHUT_FINAL</span> <span class="o">=</span> <span class="s1">&#39;FINAL&#39;</span>
+    <span class="n">SHUT_ABORT</span> <span class="o">=</span> <span class="s1">&#39;ABORT&#39;</span>
+    <span class="n">SHUT_IMMEDIATE</span> <span class="o">=</span> <span class="s1">&#39;IMMEDIATE&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span> <span class="n">instance_name</span><span class="p">,</span> <span class="n">sys_password</span><span class="p">,</span> <span class="n">sys_user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">port</span><span class="o">=</span><span class="mi">1521</span><span class="p">,</span> <span class="n">service_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Oracle</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="c1"># Instantiate instance variables to hold oracle specific properties</span>
+        <span class="c1"># with default values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ora_host_name</span> <span class="o">=</span> <span class="n">hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ora_instance</span> <span class="o">=</span> <span class="n">instance_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ora_port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_password</span> <span class="o">=</span> <span class="n">sys_password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ora_version</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">service_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ora_service_name</span> <span class="o">=</span> <span class="n">instance_name</span>  <span class="c1"># Service name defaults to instance name</span>
+        <span class="k">if</span> <span class="n">sys_user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_user</span> <span class="o">=</span> <span class="s1">&#39;sys&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dsn_tns</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Treats the database connection object as a read-only attribute.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">CONN_SYSDBA</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">cx_Oracle</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="k">raise</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dsn_tns</span> <span class="o">=</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">makedsn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ora_port</span><span class="p">,</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">ora_instance</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dsn_tns</span> <span class="o">=</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">makedsn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ora_port</span><span class="p">,</span>
+                                                 <span class="n">service_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_service_name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># DSN conn is must. Else raise exception. Let the caller handle it</span>
+            <span class="k">raise</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;SYSDBA&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_user</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_password</span><span class="p">,</span>
+                                                     <span class="bp">self</span><span class="o">.</span><span class="n">dsn_tns</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">cx_Oracle</span><span class="o">.</span><span class="n">SYSDBA</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;SYSBACKUP&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_user</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_password</span><span class="p">,</span>
+                                                     <span class="bp">self</span><span class="o">.</span><span class="n">dsn_tns</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">cx_Oracle</span><span class="o">.</span><span class="n">SYSBACKUP</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;DBUSER&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_user</span><span class="p">,</span>
+                                                     <span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_password</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dsn_tns</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;Unrecognized mode to connect to database: </span><span class="si">{0}</span><span class="s1">&#39;</span>
+                                     <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mode</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">OperationalError</span><span class="p">:</span>
+            <span class="k">raise</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ora_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">version</span></div>
+
+
+<div class="viewcode-block" id="MSSQL"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.MSSQL">[docs]</a><span class="k">class</span> <span class="nc">MSSQL</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for connecting to Microsoft SQL Server Database.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">server</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">database</span><span class="p">,</span>
+                 <span class="n">as_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructor for creating a connection to MSSQL Database.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                server      (str)   --  sql server to connect</span>
+
+<span class="sd">                user        (str)   --  database user to connect as</span>
+
+<span class="sd">                password    (str)   --  user&#39;s password</span>
+
+<span class="sd">                database    (str)   --  the database to connect to</span>
+
+<span class="sd">                as_dict     (bool)  --  whether rows should be returned as dictionaries,</span>
+<span class="sd">                                            instead of tuples</span>
+<span class="sd">                    default: True</span>
+
+<span class="sd">                autocommit  (bool)  --  whether to commit after a query automatically or not</span>
+<span class="sd">                    default: True</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  -   connection object to the MSSQL server</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if module ``pymssql`` is not installed</span>
+
+<span class="sd">                    if failed to connect to the database</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="n">server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database</span> <span class="o">=</span> <span class="n">database</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span> <span class="o">=</span> <span class="n">as_dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">autocommit</span> <span class="o">=</span> <span class="n">autocommit</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">MSSQL</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establishes a connection to the Microsoft SQL Server Database</span>
+<span class="sd">            using the details provided.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">pymssql</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to import pymssql</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">error</span><span class="o">.</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="n">connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">connection</span> <span class="o">=</span> <span class="n">pymssql</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+                <span class="n">server</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="p">,</span>
+                <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
+                <span class="n">database</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">database</span><span class="p">,</span>
+                <span class="n">as_dict</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">,</span>
+                <span class="n">autocommit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">autocommit</span><span class="p">,</span>
+                <span class="n">login_timeout</span><span class="o">=</span><span class="mi">2</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">pymssql</span><span class="o">.</span><span class="n">OperationalError</span> <span class="k">as</span> <span class="n">operation_error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to connect to the Database</span><span class="se">\n</span><span class="s1">Error: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">operation_error</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to connect to the Database</span><span class="se">\n</span><span class="s1">Error: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+
+<div class="viewcode-block" id="MSSQL.get_version_info"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.MSSQL.get_version_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_version_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Queries the SQL Database for version info for Commvault Client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client_name     (str)   --  name of the Client to get the version of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dict    -   dict consisting of the version info for the client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">version</span><span class="p">,</span> <span class="n">service_pack</span><span class="p">,</span> <span class="n">build</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span><span class="p">,</span> <span class="s1">&#39;NA&#39;</span><span class="p">,</span> <span class="s1">&#39;NA&#39;</span>
+        <span class="n">return_value</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;version&#39;</span><span class="p">:</span> <span class="n">version</span><span class="p">,</span>
+            <span class="s1">&#39;service_pack&#39;</span><span class="p">:</span> <span class="n">service_pack</span><span class="p">,</span>
+            <span class="s1">&#39;build&#39;</span><span class="p">:</span> <span class="n">build</span>
+        <span class="p">}</span>
+
+        <span class="n">sql_query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            SELECT APP_ClientProp.attrVal FROM APP_Client</span>
+<span class="s2">            JOIN APP_ClientProp ON APP_Client.id = APP_ClientProp.componentNameId</span>
+<span class="s2">            WHERE APP_ClientProp.attrName = &#39;Client Version&#39; AND name = &#39;</span><span class="si">{0}</span><span class="s2">&#39;</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+
+        <span class="n">db_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_query</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span> <span class="o">==</span> <span class="p">[]:</span>
+            <span class="k">return</span> <span class="n">return_value</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;attrVal&#39;</span><span class="p">]</span>
+
+        <span class="n">version</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(\d*)\((\w*\d*)\)&quot;</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+        <span class="n">version</span><span class="p">,</span> <span class="n">build</span> <span class="o">=</span> <span class="n">version</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">version</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">build</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;D&#39;</span><span class="p">)</span>
+        <span class="n">build</span> <span class="o">=</span> <span class="s1">&#39;B&#39;</span> <span class="o">+</span> <span class="n">build</span><span class="p">[</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:]</span>
+
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">version</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">9</span><span class="p">:</span>
+            <span class="n">sql_query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                SELECT APP_ClientProp.attrVal FROM APP_Client</span>
+<span class="s2">                JOIN APP_ClientProp on APP_Client.id = APP_ClientProp.componentNameId</span>
+<span class="s2">                WHERE APP_ClientProp.attrName =&#39;SP Version and Patch Info&#39; and name=&#39;</span><span class="si">{0}</span><span class="s2">&#39;</span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+
+            <span class="n">db_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_query</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span> <span class="o">!=</span> <span class="p">[]:</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">service_pack</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;attrVal&#39;</span><span class="p">]</span>
+                <span class="n">search_response</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[^\d]+[:](\d*\w?)&#39;</span><span class="p">,</span> <span class="n">service_pack</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">search_response</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">service_pack</span> <span class="o">=</span> <span class="n">search_response</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">return_value</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;version&#39;</span><span class="p">:</span> <span class="n">version</span><span class="p">,</span>
+            <span class="s1">&#39;service_pack&#39;</span><span class="p">:</span> <span class="n">service_pack</span><span class="p">,</span>
+            <span class="s1">&#39;build&#39;</span><span class="p">:</span> <span class="n">build</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">return_value</span></div>
+
+<div class="viewcode-block" id="MSSQL.get_path"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.MSSQL.get_path">[docs]</a>    <span class="k">def</span> <span class="nf">get_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Queries the SQL Database for the install location on the Client.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client_name     (str)   --  name fo the Client to get the install location of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   install location string for the client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">install_location</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">sql_query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            SELECT APP_ClientProp.attrVal FROM APP_Client</span>
+<span class="s2">            JOIN APP_ClientProp ON APP_Client.id = APP_ClientProp.componentNameId</span>
+<span class="s2">            WHERE APP_ClientProp.attrName = &#39;Patch Local Location&#39; AND name = &#39;</span><span class="si">{0}</span><span class="s2">&#39;</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+
+        <span class="n">db_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_query</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span> <span class="o">!=</span> <span class="p">[]:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">install_location</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;attrVal&#39;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">install_location</span></div></div>
+
+
+<div class="viewcode-block" id="MySQL"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.MySQL">[docs]</a><span class="k">class</span> <span class="nc">MySQL</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for connecting to MySQL Database.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">database</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructor for creating a connection to MySQL Database.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                host        (str)   --  mysql hostname to connect</span>
+
+<span class="sd">                user        (str)   --  database user to connect as</span>
+
+<span class="sd">                password    (str)   --  user&#39;s password</span>
+
+<span class="sd">                port        (int)   --  mysql port number</span>
+
+<span class="sd">                database    (str)   --  the database to connect to</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  -   connection object to the MySQL database</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if module ``MySQLdb`` is not installed</span>
+
+<span class="sd">                    if failed to connect to the database</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span> <span class="o">=</span> <span class="n">hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database_name</span> <span class="o">=</span> <span class="n">database</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MySQL</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establishes a connection to the MySQL Server using the details provided.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">MySQLdb</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to import MySQLdb</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">error</span><span class="o">.</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="n">connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">database_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">connection</span> <span class="o">=</span> <span class="n">MySQLdb</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+                    <span class="n">host</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span>
+                    <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span>
+                    <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                    <span class="n">passwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
+                    <span class="n">db</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">database_name</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">connection</span> <span class="o">=</span> <span class="n">MySQLdb</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+                    <span class="n">host</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span>
+                    <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span>
+                    <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                    <span class="n">passwd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span>
+                <span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to connect to the MySQL Server</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span></div>
+
+
+<div class="viewcode-block" id="SQLite"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.SQLite">[docs]</a><span class="k">class</span> <span class="nc">SQLite</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for connecting to SQLite Database.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructor for creating a connection to SQLite Database.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                database_file_path  (str)   --  full path of the .db file</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  -   connection object to the SQLite server</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if module ``sqlite3`` is not installed</span>
+
+<span class="sd">                    if failed to connect to the database</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database_file_path</span> <span class="o">=</span> <span class="n">database_file_path</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">SQLite</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establishes a connection to a SQLite Database given at the path.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">sqlite3</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to import sqlite3</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">error</span><span class="o">.</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="n">connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">connection</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+                <span class="n">database</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">database_file_path</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to connect to the Database</span><span class="se">\n</span><span class="s1">Error: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span></div>
+
+
+<div class="viewcode-block" id="SAPHANA"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.SAPHANA">[docs]</a><span class="k">class</span> <span class="nc">SAPHANA</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Class for connecting to SAP HANA Database.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">password</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructor for creating a connection to SAP HANA Database.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                host        (str)   --  sap hana hostname to connect</span>
+
+<span class="sd">                port        (str)   --  port number to connect to the db</span>
+
+<span class="sd">                user        (str)   --  database user to connect as</span>
+
+<span class="sd">                password    (str)   --  user&#39;s password</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  -   connection object to the SAP HANA database</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if module ``pyhdb`` is not installed</span>
+
+<span class="sd">                    if failed to connect to the database</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">SAPHANA</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establishes a connection to the SAP HANA Database using the details provided.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">pyhdb</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to import pyhdb</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">error</span><span class="o">.</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="n">connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">connection</span> <span class="o">=</span> <span class="n">pyhdb</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+                <span class="n">host</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span>
+                <span class="n">port</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">),</span>
+                <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to connect to the Database</span><span class="se">\n</span><span class="s1">Error: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span></div>
+
+
+<div class="viewcode-block" id="SAPOracle"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.SAPOracle">[docs]</a><span class="k">class</span> <span class="nc">SAPOracle</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Class for connecting to SAP Oracle Database.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">connectstring</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructor for creating a connection to SAP Oracle Database.</span>
+
+<span class="sd">            Args:</span>
+
+
+<span class="sd">                user        (str)   --  database user to connect as</span>
+
+<span class="sd">                password    (str)   --  user&#39;s password</span>
+<span class="sd">                connectstring    (str)   --  oracle instance connectstring</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  -   connection object to the SAP Oracle database</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if module ``cx_Oracle`` is not installed</span>
+
+<span class="sd">                    if failed to connect to the database</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connectstring</span> <span class="o">=</span> <span class="n">connectstring</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">SAPOracle</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establishes a connection to the SAP for Oracle Database using the details provided.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;import cx_Oracle&quot;</span><span class="p">)</span>
+            <span class="kn">import</span> <span class="nn">cx_Oracle</span>
+
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to import cx_Oracle</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">error</span><span class="o">.</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="n">connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;cx_oracle connect&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">)</span>
+            <span class="n">connection</span> <span class="o">=</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">connectstring</span><span class="p">,</span>
+                <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">SYSDBA</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;connection is&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">connection</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to connect to the Database</span><span class="se">\n</span><span class="s1">Error: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_connection</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PostgreSQL"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.PostgreSQL">[docs]</a><span class="k">class</span> <span class="nc">PostgreSQL</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Class for connecting to PostgreSQL Database.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">databaseName</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructor for creating a connection to PostgreSQL Database.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                host        (str)   --  sap hana hostname to connect</span>
+
+<span class="sd">                port        (str)   --  port number to connect to the db</span>
+
+<span class="sd">                user        (str)   --  database user to connect as</span>
+
+<span class="sd">                password    (str)   --  user&#39;s password</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  -   connection object to the PostgreSQL database</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if module ``psycopg2`` is not installed</span>
+
+<span class="sd">                    if failed to connect to the database</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">databaseName</span> <span class="o">=</span> <span class="n">databaseName</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">PostgreSQL</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Connect to the PostGreSQL Server and return the connection object&quot;&quot;&quot;</span>
+        <span class="n">connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">psycopg2</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to import psycopg2</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">error</span><span class="o">.</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">connection</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+                <span class="n">host</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span>
+                <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span>
+                <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
+                <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
+                <span class="n">dbname</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">databaseName</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to connect to the Database</span><span class="se">\n</span><span class="s1">Error: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span></div>
+
+
+<div class="viewcode-block" id="DBHelper"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBHelper">[docs]</a><span class="k">class</span> <span class="nc">DBHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class to handle Database operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell</span><span class="p">,</span> <span class="n">db_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the dbhelper object</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                commcell    (object)    --  commvault sdk commcell object</span>
+
+<span class="sd">                db_name     (str)       --  database name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_db_name</span> <span class="o">=</span> <span class="n">db_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_output</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_columns</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_executed_query</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_get_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the column names of the table for which SQL query was ran,</span>
+<span class="sd">            and updates the columns attribute.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No query was executed to get list of columns&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_executed_query</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="p">:</span>
+            <span class="c1"># store the query which for which we are retrieving the table</span>
+            <span class="c1"># columns</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_executed_query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span>
+
+            <span class="n">query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s2">&quot;&#39;&#39;&quot;</span><span class="p">)</span>
+
+            <span class="n">get_columns_query</span> <span class="o">=</span> <span class="s2">&quot;SELECT name FROM sys.dm_exec_describe_first_result_set </span><span class="se">\</span>
+<span class="s2">                                (&#39;</span><span class="si">{0}</span><span class="s2">&#39;, NULL, 0)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+            <span class="n">output</span> <span class="o">=</span> <span class="n">cvhelper</span><span class="o">.</span><span class="n">execute_query</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_db_name</span><span class="p">,</span> <span class="n">get_columns_query</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_columns</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">columns</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list consisting of columns of the Table the SQL query was ran on.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_columns</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_columns</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the SQL query executed on the Databse, for this response object.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">rows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of lists, consisting of the response from the SQL query,</span>
+<span class="sd">            where each list represents a single SQL Table row.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span>
+
+<div class="viewcode-block" id="DBHelper.execute"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBHelper.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Executes the query on specified database</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                query   (str)   --  database query to execute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Store the query we are about to execute</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query</span> <span class="o">=</span> <span class="n">query</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span> <span class="o">=</span> <span class="n">cvhelper</span><span class="o">.</span><span class="n">execute_query</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_db_name</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DBHelper.fetch_one_row"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBHelper.fetch_one_row">[docs]</a>    <span class="k">def</span> <span class="nf">fetch_one_row</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the first row from output&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="DBHelper.fetch_all_rows"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBHelper.fetch_all_rows">[docs]</a>    <span class="k">def</span> <span class="nf">fetch_all_rows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns all the rows from output&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rows</span></div>
+
+<div class="viewcode-block" id="DBHelper.filter_response"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBHelper.filter_response">[docs]</a>    <span class="k">def</span> <span class="nf">filter_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Filters out only the rows where column&#39;s value is equal to the input value.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">column</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Column does not exist. Please check the column name again&#39;</span><span class="p">)</span>
+
+        <span class="n">column_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_columns</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">column</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="n">column_index</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+            <span class="s2">&quot;</span><span class="se">\r</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="CommServDatabase"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.CommServDatabase">[docs]</a><span class="k">class</span> <span class="nc">CommServDatabase</span><span class="p">(</span><span class="n">DBHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class to handle commserv database operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the commserv database object&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CommServDatabase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">commcell_object</span><span class="p">,</span> <span class="s2">&quot;CommServ&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WFEngineDatabase"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.WFEngineDatabase">[docs]</a><span class="k">class</span> <span class="nc">WFEngineDatabase</span><span class="p">(</span><span class="n">DBHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class to handle wfengine database operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the commserv database object&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">WFEngineDatabase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">commcell_object</span><span class="p">,</span> <span class="s2">&quot;WFEngine&quot;</span><span class="p">)</span></div>
+
+
+<span class="n">COMMSERV_DB</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="set_csdb"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.set_csdb">[docs]</a><span class="k">def</span> <span class="nf">set_csdb</span><span class="p">(</span><span class="n">db_object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sets the global CS DB object</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            db_object   (object)    --  CommServDatabase object</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if type of db_object is not CommServDatabase</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">COMMSERV_DB</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">db_object</span><span class="p">,</span> <span class="n">CommServDatabase</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid type for csdb&quot;</span><span class="p">)</span>
+
+    <span class="n">COMMSERV_DB</span> <span class="o">=</span> <span class="n">db_object</span></div>
+
+
+<div class="viewcode-block" id="get_csdb"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.get_csdb">[docs]</a><span class="k">def</span> <span class="nf">get_csdb</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns the global csdb object</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (object)    -   CommServDatabase object</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if csdb value is not set to instance of CommServDatabase</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">COMMSERV_DB</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;csdb value not set to instance of CommServDatabase&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">COMMSERV_DB</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,623 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Testcases.52615 &#8212; Commvault Automation 11.12 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for Testcases.52615</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright  Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="sd">&quot;&quot;&quot;&quot;Main file for executing this test case</span>
+
+<span class="sd">TestCase is the only class definied in this file.</span>
+
+<span class="sd">TestCase: Class for executing this test case</span>
+
+<span class="sd">TestCase:</span>
+<span class="sd">    __init__()                      --  initialize TestCase class</span>
+
+<span class="sd">    _run_backup()                   --  run function of this test case</span>
+
+<span class="sd">    _run_restartbackup              -- run restarted function of this test case</span>
+
+<span class="sd">    _run_pendingbackup              -- run make job go to pending function of this test case</span>
+
+<span class="sd">    _run_clientservicerestartbackup -- run client restart function of this test case</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span><span class="o">,</span> <span class="nn">time</span><span class="o">,</span> <span class="nn">requests</span>
+<span class="c1">#from Automation import AutomationUtils</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="k">import</span> <span class="n">CVTestCase</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">constants</span><span class="p">,</span> <span class="n">qcconstants</span><span class="p">,</span> <span class="n">database_helper</span><span class="p">,</span> <span class="n">cvhelper</span><span class="p">,</span> <span class="n">commonutils</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">Database.SAPOracleUtils.saporaclehelper</span> <span class="k">import</span> <span class="n">SAPOraclehelper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+<span class="c1">#from AutomationUtils.interruption import Interruption</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">constants</span>
+
+<div class="viewcode-block" id="TestCase"><a class="viewcode-back" href="../../Testcases.html#Testcases.52615.TestCase">[docs]</a><span class="k">class</span> <span class="nc">TestCase</span><span class="p">(</span><span class="n">CVTestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for executing backup restartability</span>
+<span class="sd">    Test of SAPOracle backup and Restore test case using rman_util device&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes test case class object&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TestCase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;executes suspend/resume/pending and client process kill cases</span><span class="se">\</span>
+<span class="s2">        during backup for SAP for Oracle iDa using rman_util device&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">product</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">products_list</span><span class="o">.</span><span class="n">SAPORACLE</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feature</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">features_list</span><span class="o">.</span><span class="n">DATAPROTECTION</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;SCName&quot;</span><span class="p">:</span><span class="mi">52615</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_run_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Starts backup job</span>
+<span class="sd">        Args:</span>
+
+<span class="sd">             subclient(str)     -- Specify the subclient object name where backups</span>
+<span class="sd">                                             needs to be run</span>
+<span class="sd">            backup_type(str)    --  specify the backup type needs to be run</span>
+<span class="sd">                                   ex:FULL or INCREMENTAL</span>
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if failed to run backup</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Starting Subclient </span><span class="si">{0}</span><span class="s2"> Backup &quot;</span>\
+                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">subclient</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                 <span class="nb">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run </span><span class="si">{0}</span><span class="s2"> backup job with error: </span><span class="si">{1}</span><span class="s2">&quot;</span>\
+                               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished </span><span class="si">{0}</span><span class="s2"> backup job&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">job</span>
+
+    <span class="k">def</span> <span class="nf">_run_restartbackup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Starts backup job</span>
+<span class="sd">         Args:</span>
+
+<span class="sd">             subclient(str)     -- Specify the subclient object name where backups</span>
+<span class="sd">                                             needs to be run</span>
+<span class="sd">            backup_type(str)    --  specify the backup type needs to be run</span>
+<span class="sd">                                   ex:FULL or INCREMENTAL</span>
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if failed to run backup</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Starting Subclient </span><span class="si">{0}</span><span class="s2"> Backup &quot;</span>\
+                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">subclient</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                 <span class="nb">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)))</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">120</span><span class="p">)</span>
+        <span class="sd">&quot;&quot;&quot;suspend job&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">pause</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Suspended&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Suspended&quot;</span><span class="p">:</span>
+            <span class="sd">&quot;&quot;&quot;resuming suspended job&quot;&quot;&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Running&quot;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Suspended&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Suspended&quot;</span><span class="p">:</span>
+                <span class="sd">&quot;&quot;&quot;resumingjob&quot;&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Running&quot;</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run </span><span class="si">{0}</span><span class="s2"> backup job with error: </span><span class="si">{1}</span><span class="s2">&quot;</span>\
+                               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished </span><span class="si">{0}</span><span class="s2"> backup job&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">job</span>
+    <span class="k">def</span> <span class="nf">_run_pendingbackup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Starts backup job</span>
+<span class="sd">         Args:</span>
+
+<span class="sd">             subclient(str)     -- Specify the subclient object name where backups</span>
+<span class="sd">                                             needs to be run</span>
+<span class="sd">            backup_type(str)    --  specify the backup type needs to be run</span>
+<span class="sd">                                   ex:FULL or INCREMENTAL</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if failed to run backup</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Starting Subclient </span><span class="si">{0}</span><span class="s2"> Backup &quot;</span>\
+                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">subclient</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                 <span class="nb">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)))</span>
+        <span class="n">jobid</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Pending&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Pending&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status of  </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hookfile failSAPDataBackupB4Intimate are deleted sucessfully&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Pending&quot;</span><span class="p">))</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hookfile failSAPDataBackupB4Intimate are deleted sucessfully&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Running&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Running&quot;</span><span class="p">:</span>
+            <span class="n">recode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getarchfileisvalid</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">jobid</span><span class="p">),</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">recode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;archivefiles are invalidated sucessfully in Cs db for restarted job&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Pending&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Pending&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status of  </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hookfile failSAPDataConfigBackupB4Intimate are deleted sucessfully&quot;</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Pending&quot;</span><span class="p">))</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hookfile failSAPDataConfigBackupB4Intimate are deleted sucessfully&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Running&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Running&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Running&quot;</span><span class="p">:</span>
+            <span class="n">recode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getarchfileisvalid</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">jobid</span><span class="p">),</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">recode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;archivefiles are invalidated sucessfully in Cs db for restarted job&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Pending&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Pending&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status of  </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hookfile failSAPLogBackupB4Intimate are deleted sucessfully&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hookfile failSAPLogBackupB4Intimate are deleted sucessfully&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Running&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Running&quot;</span><span class="p">:</span>
+            <span class="n">recode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getarchfileisvalid</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">jobid</span><span class="p">),</span> <span class="s1">&#39;4&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">recode</span> <span class="o">!=</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;archivefiles are not invalidated sucessfully</span><span class="se">\</span>
+<span class="s2">                in Cs db for restarted job&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Pending&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Pending&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status of  </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname3</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hookfile failSAPLogConfigBackupB4Intimate are deleted sucessfully&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname3</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hookfile failSAPLogConfigBackupB4Intimate are deleted sucessfully&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Running&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Running&quot;</span><span class="p">:</span>
+            <span class="n">recode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getarchfileisvalid</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">jobid</span><span class="p">),</span> <span class="s1">&#39;4&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">recode</span> <span class="o">!=</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;archivefiles are not invalidated sucessfully</span><span class="se">\</span>
+<span class="s2">                in Cs db for restarted job&quot;</span><span class="p">)</span>
+
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run </span><span class="si">{0}</span><span class="s2"> backup job with error: </span><span class="si">{1}</span><span class="s2">&quot;</span>\
+                               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished </span><span class="si">{0}</span><span class="s2"> backup job&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">job</span>
+
+    <span class="k">def</span> <span class="nf">_run_clientservicerestartbackup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">,</span> <span class="n">_simpanainstance</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Starts backup job</span>
+<span class="sd">         Args:</span>
+
+<span class="sd">             subclient(str)         -- Specify the subclient object name where backups</span>
+<span class="sd">                                             needs to be run</span>
+<span class="sd">            backup_type(str)        --  specify the backup type needs to be run</span>
+<span class="sd">                                       ex:FULL or INCREMENTAL</span>
+
+<span class="sd">            _simpanainstance(str)   -- specify the commvault instance</span>
+<span class="sd">                                       ex:Instance001</span>
+
+<span class="sd">            _ostype(str)            -- specify the os type based on the os type commands</span>
+<span class="sd">                                       run differently</span>
+<span class="sd">                                       ex:windows or unix</span>
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if failed to run backup</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Starting Subclient </span><span class="si">{0}</span><span class="s2"> Backup &quot;</span>\
+                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">subclient</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                 <span class="nb">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)))</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">120</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;running&quot;</span><span class="p">))</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s1">&#39;commvault -instance &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_simpanainstance</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39; restart&#39;</span>
+        <span class="n">retcode</span><span class="p">,</span> <span class="n">retstring</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">retcode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;client services are restarted sucessfully&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;there is some issue with restarting client services &quot;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Pending&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status of  </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                     <span class="nb">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;Running&quot;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Running&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status of  </span><span class="si">{0}</span><span class="s2"> backup with Job ID: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">_wait_for_status</span><span class="p">(</span><span class="s2">&quot;running&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run </span><span class="si">{0}</span><span class="s2"> backup job with error: </span><span class="si">{1}</span><span class="s2">&quot;</span>\
+                               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished </span><span class="si">{0}</span><span class="s2"> backup job&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">job</span>
+
+<div class="viewcode-block" id="TestCase.run"><a class="viewcode-back" href="../../Testcases.html#Testcases.52615.TestCase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;executes suspend/resume/pending and client process kill cases\</span>
+<span class="sd">        during backup for SAP for Oracle iDa using rman_util device&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started executing testcase: </span><span class="si">{0}</span><span class="s2"> self.id &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+            <span class="n">inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Initialize helper objects &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Create SDK objects &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;ClientName&#39;</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully got </span><span class="si">{0}</span><span class="s2"> client object&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;ClientName&#39;</span><span class="p">])))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ostype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">_properties</span><span class="p">[</span><span class="s1">&#39;client&#39;</span><span class="p">][</span><span class="s1">&#39;osInfo&#39;</span><span class="p">][</span><span class="s1">&#39;Type&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully got os type &quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">_ostype</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_clientid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">_get_client_id</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span> <span class="o">=</span> <span class="n">SAPOraclehelper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_saporacle_db_connectpassword</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span>\
+            <span class="n">getsaporacle_db_connectpassword</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">db_connect</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Initialize helper objects &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Create SDK objects &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_spname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">log_sp</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;log storage policy name is  &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_spname</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_simpanainstance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">instance</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;simpana instance we got from client is &quot;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_simpanainstance</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create_tmpdir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">tmp_dir</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;temp dir path is: </span><span class="si">{0}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">create_tmpdir</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pathname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">create_tmpdir</span><span class="p">,</span> <span class="s2">&quot;failSAPDataBackupB4Intimate&quot;</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pathname1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">create_tmpdir</span><span class="p">,</span> <span class="s2">&quot;failSAPDataConfigBackupB4Intimate&quot;</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pathname2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">create_tmpdir</span><span class="p">,</span> <span class="s2">&quot;failSAPLogBackupB4Intimate&quot;</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pathname3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">create_tmpdir</span><span class="p">,</span> <span class="s2">&quot;failSAPLogConfigBackupB4Intimate&quot;</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname3</span><span class="p">)</span>
+            <span class="n">tblspaceg</span> <span class="o">=</span> <span class="s2">&quot;TSP52615&quot;</span>
+            <span class="n">tblnameg</span> <span class="o">=</span> <span class="s2">&quot;T52615&quot;</span>
+
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Will run below test case on: </span><span class="si">{0}</span><span class="s2"> subclient&quot;</span>\
+                     <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;SCName&#39;</span><span class="p">])))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking database state&quot;</span><span class="p">)</span>
+
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getdatabasestate</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">!=</span> <span class="s2">&quot;OPEN&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;database is not in open state&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;database is in open statue&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;getting datafilepath&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dbfile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getdatafile</span><span class="p">(</span><span class="n">tblspaceg</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Datafile location is: </span><span class="si">{0}</span><span class="s2">  dbfile &quot;</span><span class="o">.</span>\
+                          <span class="nb">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dbfile</span><span class="p">)))</span>
+
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating test tables in the database&quot;</span><span class="p">)</span>
+            <span class="n">retcode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">create_test_tables</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dbfile</span><span class="p">,</span>\
+                                                               <span class="n">tblspaceg</span><span class="p">,</span> <span class="n">tblnameg</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retcode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;test data creation is sucessful&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;##check  subclient specified exists in GUI##&quot;</span><span class="p">)</span>
+            <span class="n">subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">subclients</span><span class="o">.</span><span class="n">has_subclient</span><span class="p">(</span><span class="nb">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;SCName&#39;</span><span class="p">])))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">subclient</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">subclient</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully got </span><span class="si">{0}</span><span class="s2"> subclient object &quot;</span><span class="p">)</span>
+                <span class="n">subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">subclients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;SCName&#39;</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Subclient doesn&#39;t exist..so creating new </span><span class="se">\</span>
+<span class="s2">                subclient named: </span><span class="si">{0}</span><span class="s2"> SCName &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;SCName&#39;</span><span class="p">])))</span>
+                <span class="n">subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">subclients</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;SCName&#39;</span><span class="p">])),</span>\
+                                                    <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_spname</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully created  subclient with rman_util device&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">subclient</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running 1st full job with out anyrestart&quot;</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_backup</span><span class="p">(</span><span class="n">subclient</span><span class="p">,</span> <span class="s2">&quot;FULL&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+            <span class="n">jobid</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">jobid</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run FULL backup job with error: &quot;</span>\
+                                <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully ran full backup&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;##getting application size from CS db##&quot;</span><span class="p">)</span>
+            <span class="n">appsize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getjobbackupsize</span><span class="p">(</span><span class="n">jobid</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">appsize</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Appsize we got from cs db is: </span><span class="si">{0}</span><span class="s2"> appsize &quot;</span><span class="o">.</span>\
+                              <span class="nb">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">appsize</span><span class="p">)))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;running second full backup by suspend and resume job&quot;</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_restartbackup</span><span class="p">(</span><span class="n">subclient</span><span class="p">,</span> <span class="s2">&quot;FULL&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run second FULL backup job with </span><span class="se">\</span>
+<span class="s2">                error: </span><span class="si">{0}</span><span class="s2"> delay_reason &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully ran FULL backup&quot;</span><span class="p">)</span>
+            <span class="n">jobid1</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">jobid1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;checking cs db for data archivefiles validation&quot;</span><span class="p">)</span>
+            <span class="n">recode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getarchfileisvalid</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">jobid1</span><span class="p">),</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">recode</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;archivefiles are invalidated sucessfully in Cs db for restarted job&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;There is some issue with data archive files invalidation&quot;</span><span class="p">)</span>
+            <span class="n">recode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getarchfileisvalid</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">jobid1</span><span class="p">),</span> <span class="s1">&#39;4&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">recode</span> <span class="o">!=</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;archivefiles are not validated for log backup phase</span><span class="se">\</span>
+<span class="s2">                in Cs db for restarted job&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;There is some issue with log archive files invalidation&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;##getting application size from CS db for the restarted backup job##&quot;</span><span class="p">)</span>
+            <span class="n">appsize1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getjobdatabasephasebackupsize</span><span class="p">(</span><span class="n">jobid1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">appsize1</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Appsize we got from cs db is &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">appsize1</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;comapre the application size backup b/w </span><span class="se">\</span>
+<span class="s2">            single attempt and restarted job&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">appsize</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">str</span><span class="p">(</span><span class="n">appsize1</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;There is some issue with application</span><span class="se">\</span>
+<span class="s2">                size for restarted backup jobs&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;cleaning up test data before restore &quot;</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">droptablespace</span><span class="p">(</span><span class="n">tblspaceg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;tablespace spaces are cleaned up sucessgully&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;##running 1st inplace restore job###&quot;</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started Current time restore to same client job with Job ID: &quot;</span>\
+                     <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run current time restore job with </span><span class="se">\</span>
+<span class="s2">                error: </span><span class="si">{0}</span><span class="s2"> delay_reason&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished Current time restore to same client&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;restore tablespace and table validation starts here&quot;</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">test_tables_validation</span><span class="p">(</span><span class="n">tblspaceg</span><span class="p">,</span> <span class="n">tblnameg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;tablespace/tables are restored sucessgully&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;###Case#2 Make SAp Oracle backup job goes to pending</span><span class="se">\</span>
+<span class="s2">            at different phases&quot;</span><span class="p">)</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hook File failSAPDataBackupB4Intimate is creatinged sucessfully on client&quot;</span><span class="p">)</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname1</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hook File failSAPDataConfigBackupB4Intimate is creatinged sucessfully on client&quot;</span><span class="p">)</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname2</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hook File failSAPLogBackupB4Intimate is creatinged sucessfully on client&quot;</span><span class="p">)</span>
+            <span class="n">retCode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pathname3</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">retCode</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;hook File failSAPLogConfigBackupB4Intimate is creatinged sucessfully on client&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creates archive logs after restlogs&quot;</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">switchlogfile</span><span class="p">(</span><span class="s1">&#39;10&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;logs are created sucessgully&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;running third full backup by kepping sap oracle hooks</span><span class="se">\</span>
+<span class="s2">            which will hlp make job go to pending state&quot;</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_pendingbackup</span><span class="p">(</span><span class="n">subclient</span><span class="p">,</span> <span class="s2">&quot;FULL&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run third FULL backup job with </span><span class="se">\</span>
+<span class="s2">                error: </span><span class="si">{0}</span><span class="s2"> delay_reason &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully ran FULL backup&quot;</span><span class="p">)</span>
+            <span class="n">jobid2</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">jobid2</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;##getting application size from CS db for the restarted backup job##&quot;</span><span class="p">)</span>
+            <span class="n">appsize2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getjobdatabasephasebackupsize</span><span class="p">(</span><span class="n">jobid2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">appsize2</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Appsize we got from cs db is: </span><span class="si">{0}</span><span class="s2"> appsize2 &quot;</span><span class="o">.</span>\
+                              <span class="nb">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">appsize2</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;comapre the application size backup</span><span class="se">\</span>
+<span class="s2">            b/w single attempt and restarted job&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">appsize</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">str</span><span class="p">(</span><span class="n">appsize2</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;There is some issue with application</span><span class="se">\</span>
+<span class="s2">                size for restarted backup jobs&quot;</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">droptablespace</span><span class="p">(</span><span class="n">tblspaceg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;tablespace spaces are cleaned up sucessgully&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;there is some issue with tablespace cleanup</span><span class="se">\</span>
+<span class="s2">                 created by automation.please cleanup manually&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;running 2nd inplace restore job&quot;</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started Current time restore to same client job with </span><span class="se">\</span>
+<span class="s2">            Job ID: </span><span class="si">{0}</span><span class="s2"> job_id &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run current time restore job with </span><span class="se">\</span>
+<span class="s2">                error: </span><span class="si">{0}</span><span class="s2"> delay_reason &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished Current time restore to same client&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;restore tablespace and table validation starts here&quot;</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">test_tables_validation</span><span class="p">(</span><span class="n">tblspaceg</span><span class="p">,</span> <span class="n">tblnameg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;tablespace/tables are restored sucessgully&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creates archive logs after restlogs&quot;</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">switchlogfile</span><span class="p">(</span><span class="s1">&#39;10&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;logs are created sucessgully&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;running 4th full backup by stopping client services &quot;</span>
+                <span class="s2">&quot;after backup job is submitted&quot;</span>
+            <span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_clientservicerestartbackup</span><span class="p">(</span>
+                <span class="n">subclient</span><span class="p">,</span> <span class="s2">&quot;FULL&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_simpanainstance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run third FULL backup job with </span><span class="se">\</span>
+<span class="s2">                error: </span><span class="si">{0}</span><span class="s2"> delay_reason &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully ran FULL backup&quot;</span><span class="p">)</span>
+            <span class="n">jobid3</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">jobid3</span><span class="p">)</span>
+
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">droptablespace</span><span class="p">(</span><span class="n">tblspaceg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;tablespace spaces are cleaned up sucessgully&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;there is some issue with tablespace cleanup</span><span class="se">\</span>
+<span class="s2">                 created by automation.please cleanup manually&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;running 3rd inplace restore job&quot;</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started Current time restore to same client job with Job ID: &quot;</span>\
+                     <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run current time restore job with error: &quot;</span>\
+                        <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished Current time restore to same client&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;restore tablespace and table validation starts here&quot;</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">test_tables_validation</span><span class="p">(</span><span class="n">tblspaceg</span><span class="p">,</span> <span class="n">tblnameg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;tablespace/tables are restored sucessgully&quot;</span><span class="p">)</span>
+            <span class="n">appsize3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">getjobdatabasephasebackupsize</span><span class="p">(</span><span class="n">jobid3</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">appsize3</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Appsize we got from cs db is: </span><span class="si">{0}</span><span class="s2"> appsize3 &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">appsize3</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;comapre the application size backup </span><span class="se">\</span>
+<span class="s2">            b/w single attempt and restarted job&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">appsize</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">str</span><span class="p">(</span><span class="n">appsize3</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;There is some issue with application</span><span class="se">\</span>
+<span class="s2">                size for restarted backup jobs&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creates archive logs after restlogs&quot;</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saporacle_helper</span><span class="o">.</span><span class="n">droptablespace</span><span class="p">(</span><span class="n">tblspaceg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;tablespace spaces are cleaned up sucessgully&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;there is some issue with tablespace cleanup</span><span class="se">\</span>
+<span class="s2">                 created by automation.please cleanup manually&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed with error: </span><span class="si">{0}</span><span class="s1"> exp &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result_string</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

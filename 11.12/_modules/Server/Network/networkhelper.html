@@ -1,0 +1,1148 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Server.Network.networkhelper &#8212; Commvault Automation 11.12 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for Server.Network.networkhelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for performing network operations</span>
+
+<span class="sd">NetworkHelper is the only class defined in this file</span>
+
+<span class="sd">NetworkHelper: Helper class to perform network operations</span>
+
+<span class="sd">NetworkHelper:</span>
+<span class="sd">    __init__()                      --  initializes network helper object</span>
+
+<span class="sd">    enable_firewall()               -- Enables firewall on given machine list</span>
+
+<span class="sd">    disable_firewall                -- disabls firewall on given machine list</span>
+
+<span class="sd">    exclude_machine()               -- adds a machine to firewall exclusion list of remote</span>
+<span class="sd">                                       client machine</span>
+
+<span class="sd">    remove_machine()                -- removes machine from firewall exclusion list of remote</span>
+<span class="sd">                                       client machine</span>
+
+<span class="sd">    set_one_way()                   -- sets one-way firewall between two entities</span>
+
+<span class="sd">    set_two_way()                   -- sets two-way firewall between two entities</span>
+
+<span class="sd">    set_via_proxy()                 -- sets via proxy route between two entities</span>
+
+<span class="sd">    push_config_client()            -- performs push network configuration on a list of clients</span>
+
+<span class="sd">    push_config_clientgroup()       -- performs push network configuration on a list of</span>
+<span class="sd">                                        client groups</span>
+
+<span class="sd">    set_via_gateway()               -- sets via gateway route on a client/client group</span>
+
+<span class="sd">    enable_proxy()                  -- marks a client/client group as proxy</span>
+
+<span class="sd">    enable_roaming_client()         -- enables roaming client option on a client/client group</span>
+
+<span class="sd">    set_tunnelport()                -- sets the specified port as tunnel port on given list of</span>
+<span class="sd">                                        clients/client groups</span>
+
+<span class="sd">    remove_network_config()         -- removes network configuration on the given list of</span>
+<span class="sd">                                        clients/client groups</span>
+
+<span class="sd">    set_gui_tppm()                  -- configure GUI tppm</span>
+
+<span class="sd">    set_wswc_tppm()                 -- configure webserver-webconsole tppm</span>
+
+<span class="sd">    validate()                      -- performs check readiness and backup , restore jobs</span>
+<span class="sd">                                        on the client</span>
+
+<span class="sd">    validate_tunnel_port()          -- validates the default tunnel port set on the client</span>
+<span class="sd">                                        or client group</span>
+
+<span class="sd">    validate_keep_alive()           -- validates the default keep alive interval on the client</span>
+<span class="sd">                                        or client group</span>
+
+<span class="sd">    validate_tunnel_init()          -- validates the default tunnel init interval on the client</span>
+<span class="sd">                                        or client group</span>
+
+<span class="sd">    validate_other_defaults()       -- validates default values for force ssl, proxy, bind open</span>
+<span class="sd">                                        ports and roaming client on a client or client group</span>
+
+<span class="sd">    cleanup_network()               --  handles all network clean-up part</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="kn">from</span> <span class="nn">Server.serverhelper</span> <span class="k">import</span> <span class="n">ServerTestCases</span><span class="p">,</span> <span class="n">ServerBase</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="k">import</span> <span class="n">CVEntities</span><span class="p">,</span> <span class="n">OptionsSelector</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">networkconstants</span>
+
+
+<div class="viewcode-block" id="NetworkHelper"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper">[docs]</a><span class="k">class</span> <span class="nc">NetworkHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to perform network operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes networkhelper object &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span> <span class="o">=</span> <span class="n">testcase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span> <span class="o">=</span> <span class="n">testcase</span><span class="o">.</span><span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverbase</span> <span class="o">=</span> <span class="n">ServerBase</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="n">ServerTestCases</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">entities</span> <span class="o">=</span> <span class="n">CVEntities</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;disable_firewall&quot;</span><span class="p">:</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;clients&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                <span class="s2">&quot;ports&quot;</span><span class="p">:</span> <span class="p">[]</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;delete_machine&quot;</span><span class="p">:</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;clients&quot;</span><span class="p">:</span> <span class="p">[]</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;remove_network_config&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;entities&quot;</span><span class="p">:</span> <span class="p">[]</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Representation string for the instance of the NetworkHelper class.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;NetworkHelper class instance for test case: &#39;</span><span class="si">{0}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+<div class="viewcode-block" id="NetworkHelper.exclude_machine"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.exclude_machine">[docs]</a>    <span class="k">def</span> <span class="nf">exclude_machine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clients</span><span class="p">,</span> <span class="n">machine_to_exclude</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds machine to firewall exclusion list in all the given client list</span>
+
+<span class="sd">             Args:</span>
+<span class="sd">                clients               (list)   --  client list to add the exclusion</span>
+
+<span class="sd">                machine_to_exclude    (str)   --  hostname or IP address of the machine to exclude</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None:</span>
+<span class="sd">                    if machine is added successfully to firewall exclusion list</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurred while adding firewall exclusion</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">client</span> <span class="ow">in</span> <span class="n">clients</span><span class="p">:</span>
+            <span class="c1"># update cleanup dictionary before success to handle exception</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;delete_machine&#39;</span><span class="p">][</span><span class="s1">&#39;clients&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+
+            <span class="c1"># create a machine object to execute the command</span>
+            <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;adding firewall exclusion on client </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client</span><span class="p">))</span>
+            <span class="n">machine_obj</span><span class="o">.</span><span class="n">add_firewall_machine_exclusion</span><span class="p">(</span><span class="n">machine_to_exclude</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.enable_firewall"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.enable_firewall">[docs]</a>    <span class="k">def</span> <span class="nf">enable_firewall</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine_names</span><span class="p">,</span> <span class="n">tunnel_ports</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds inbound rule to allow port and start firewall service in all the given clients</span>
+<span class="sd">             Args:</span>
+<span class="sd">                machine_names   (list)   --  list of client names</span>
+
+<span class="sd">                tunnel_ports    (list)   --  list of tunnel ports</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None:</span>
+<span class="sd">                    if inbound rule is added and firewall is started successfully</span>
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurred while adding rule or starting firewall</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">machine_name</span><span class="p">,</span> <span class="n">tunnel_port</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">machine_names</span><span class="p">,</span> <span class="n">tunnel_ports</span><span class="p">):</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;disable_firewall&#39;</span><span class="p">][</span><span class="s1">&#39;clients&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">machine_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;disable_firewall&#39;</span><span class="p">][</span><span class="s1">&#39;ports&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">tunnel_port</span><span class="p">))</span>
+
+            <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Adding firewall allow port rule on client </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">machine_name</span><span class="p">))</span>
+            <span class="n">machine_obj</span><span class="o">.</span><span class="n">add_firewall_allow_port_rule</span><span class="p">(</span><span class="n">tunnel_port</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;starting firewall on client </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">machine_name</span><span class="p">))</span>
+            <span class="n">machine_obj</span><span class="o">.</span><span class="n">start_firewall</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.disable_firewall"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.disable_firewall">[docs]</a>    <span class="k">def</span> <span class="nf">disable_firewall</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine_names</span><span class="p">,</span> <span class="n">tunnel_ports</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;removes inbound rule to allow port and stop firewall service in all the given clients</span>
+<span class="sd">             Args:</span>
+<span class="sd">                machine_names   (list)   --  list of client names</span>
+
+<span class="sd">                tunnel_ports    (list)   --  list of tunnel ports</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None:</span>
+<span class="sd">                    if inbound rule is removed and firewall is started successfully</span>
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurred while removing rule or stopping firewall</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">machine_name</span><span class="p">,</span> <span class="n">tunnel_port</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">machine_names</span><span class="p">,</span> <span class="n">tunnel_ports</span><span class="p">):</span>
+            <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;removing firewall allow port rule on client </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">machine_name</span><span class="p">))</span>
+            <span class="n">machine_obj</span><span class="o">.</span><span class="n">remove_firewall_allow_port_rule</span><span class="p">(</span><span class="n">tunnel_port</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;disabling firewall on client </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">machine_name</span><span class="p">))</span>
+            <span class="n">machine_obj</span><span class="o">.</span><span class="n">stop_firewall</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.remove_machine"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.remove_machine">[docs]</a>    <span class="k">def</span> <span class="nf">remove_machine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clients</span><span class="p">,</span> <span class="n">excluded_machine</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;removes machine from firewall exclusion list in all the given client list</span>
+
+<span class="sd">             Args:</span>
+<span class="sd">                clients             (list)  --  list of client names</span>
+
+<span class="sd">                excluded_machine    (str)   --  hostname or IP address of the machine to exclude</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None:</span>
+<span class="sd">                    if machine is removed successfully from firewall exclusion list</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurred while removing firewall exclusion</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">client</span> <span class="ow">in</span> <span class="n">clients</span><span class="p">:</span>
+            <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;removing firewall exclusion on client </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client</span><span class="p">))</span>
+            <span class="n">machine_obj</span><span class="o">.</span><span class="n">remove_firewall_machine_exclusion</span><span class="p">(</span><span class="n">excluded_machine</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.set_one_way"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.set_one_way">[docs]</a>    <span class="k">def</span> <span class="nf">set_one_way</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity1</span><span class="p">,</span> <span class="n">entity2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets one-way firewall between two entities (client/client group)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                entity1(dict)  -- dict of entity name</span>
+<span class="sd">                {&#39;clientName&#39;:val}</span>
+
+<span class="sd">                entity2(dict)  -- dict of entity name</span>
+<span class="sd">                {&#39;clientGroupName&#39;:val}</span>
+
+<span class="sd">                Note: pass the key name based on entity</span>
+
+<span class="sd">            Example:</span>
+<span class="sd">                entity1:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;clientName&#39;: &#39;centOS&#39;,</span>
+<span class="sd">                }</span>
+
+<span class="sd">                entity2:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;clientGroupName&#39;: &#39;Laptop Clients&#39;</span>
+<span class="sd">                }</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the required key is missing in the input value passed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting one-way firewall&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">obj1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">obj1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;client&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span>\
+                    <span class="n">append</span><span class="p">({</span><span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">]})</span>
+                <span class="n">incoming_connection1</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;BLOCKED&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="kc">True</span>
+                    <span class="p">}]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">]})</span>
+                <span class="n">incoming_connection1</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;BLOCKED&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="kc">False</span>
+                    <span class="p">}]</span>
+
+            <span class="n">obj2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">obj2</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;client&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span>\
+                    <span class="n">append</span><span class="p">({</span><span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">]})</span>
+                <span class="n">incoming_connection2</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;RESTRICTED&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="kc">True</span>
+                    <span class="p">}]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">]})</span>
+                <span class="n">incoming_connection2</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;RESTRICTED&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="kc">False</span>
+                    <span class="p">}]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting </span><span class="si">{0}</span><span class="s2"> as restricted on incoming connections of </span><span class="si">{1}</span><span class="s2">&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">entity2</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity1</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+
+            <span class="n">obj1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_incoming_connections</span><span class="p">(</span>
+                <span class="n">incoming_connection2</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting </span><span class="si">{0}</span><span class="s2"> as blocked on incoming connections of </span><span class="si">{1}</span><span class="s2">&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">entity1</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity2</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+
+            <span class="n">obj2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_incoming_connections</span><span class="p">(</span><span class="n">incoming_connection1</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.set_two_way"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.set_two_way">[docs]</a>    <span class="k">def</span> <span class="nf">set_two_way</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity1</span><span class="p">,</span> <span class="n">entity2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets two-way firewall between two client/client group</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                entity1(dict)  -- dict of entity name</span>
+<span class="sd">                {&#39;clientName&#39;:val}</span>
+
+<span class="sd">                entity2(dict)  -- dict of entity name</span>
+<span class="sd">                {&#39;clientGroupName&#39;:val}</span>
+
+<span class="sd">                Note: pass the key name based on entity</span>
+
+<span class="sd">            Example:</span>
+<span class="sd">                entity1:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;clientName&#39;: &#39;centOS&#39;,</span>
+<span class="sd">                }</span>
+
+<span class="sd">                entity2:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;clientGroupName&#39;: &#39;Laptop Clients&#39;</span>
+<span class="sd">                }</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the required key is missing in the input value passed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting two-way firewall&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">obj1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">obj1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;client&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">]})</span>
+                <span class="n">incoming_connection1</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;RESTRICTED&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="kc">True</span>
+                    <span class="p">}]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientGroupName&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">]})</span>
+                <span class="n">incoming_connection1</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;RESTRICTED&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="kc">False</span>
+                    <span class="p">}]</span>
+
+            <span class="n">obj2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">obj2</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;client&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">]})</span>
+                <span class="n">incoming_connection2</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;RESTRICTED&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="kc">True</span>
+                    <span class="p">}]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientGroupName&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">]})</span>
+                <span class="n">incoming_connection2</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;RESTRICTED&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">],</span>
+                        <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="kc">False</span>
+                    <span class="p">}]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting </span><span class="si">{0}</span><span class="s2"> as restricted on incoming connections of </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>
+                          <span class="nb">format</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">entity2</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity1</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">obj1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_incoming_connections</span><span class="p">(</span><span class="n">incoming_connection2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting </span><span class="si">{0}</span><span class="s2"> as restricted on incoming connections of </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>
+                          <span class="nb">format</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">entity1</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity2</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">obj2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_incoming_connections</span><span class="p">(</span><span class="n">incoming_connection1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting done...&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.set_via_proxy"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.set_via_proxy">[docs]</a>    <span class="k">def</span> <span class="nf">set_via_proxy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity1</span><span class="p">,</span> <span class="n">entity2</span><span class="p">,</span> <span class="n">proxy</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets firewall via proxy between two client/client group</span>
+
+<span class="sd">                Args:</span>
+<span class="sd">                entity1(dict)  -- dict of entity name and it&#39;s type</span>
+<span class="sd">                {&#39;entity&#39;:val,&#39;isClient&#39;:val}</span>
+
+<span class="sd">                entity2(dict)  -- dict of entity name and it&#39;s type</span>
+<span class="sd">                {&#39;entity&#39;:val,&#39;isClient&#39;:val}</span>
+
+<span class="sd">                proxy(dict)    -- dict of entity name and it&#39;s type</span>
+<span class="sd">                {&#39;entity&#39;:val,&#39;isClient&#39;:val}</span>
+
+<span class="sd">            Example:</span>
+
+<span class="sd">                {</span>
+<span class="sd">                &#39;entity&#39;: &#39;centOS&#39;,</span>
+<span class="sd">                &#39;isClient&#39; : True</span>
+<span class="sd">                }</span>
+
+
+
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the required key is missing in the input value passed</span>
+
+
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting firewall via proxy between the clients&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;isClient&#39;</span><span class="p">]:</span>
+                <span class="n">obj1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">]})</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">obj1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">client_groups</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientGroupName&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">]})</span>
+
+            <span class="k">if</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;isClient&#39;</span><span class="p">]:</span>
+                <span class="n">obj2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">]})</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">obj2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">client_groups</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientGroupName&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">]})</span>
+
+            <span class="k">if</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;isClient&#39;</span><span class="p">]:</span>
+                <span class="n">obj3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">]})</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">obj3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">client_groups</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="p">[</span><span class="s1">&#39;remove_network_config&#39;</span><span class="p">][</span><span class="s1">&#39;entities&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s1">&#39;clientGroupName&#39;</span><span class="p">:</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">]})</span>
+
+            <span class="n">incoming_connection</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;RESTRICTED&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;isClient&#39;</span><span class="p">]</span>
+                <span class="p">},</span>
+                <span class="p">{</span>
+                    <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;RESTRICTED&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;isClient&#39;</span><span class="p">]</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+
+            <span class="n">obj3</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">proxy</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">obj3</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_incoming_connections</span><span class="p">(</span><span class="n">incoming_connection</span><span class="p">)</span>
+
+            <span class="n">incoming_connection</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="s1">&#39;BLOCKED&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;entity&#39;</span><span class="p">:</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">],</span>
+                    <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;isClient&#39;</span><span class="p">]</span>
+                <span class="p">}]</span>
+
+            <span class="n">obj1</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_incoming_connections</span><span class="p">(</span><span class="n">incoming_connection</span><span class="p">)</span>
+            <span class="n">obj2</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_incoming_connections</span><span class="p">(</span><span class="n">incoming_connection</span><span class="p">)</span>
+
+            <span class="n">outgoing_routes1</span> <span class="o">=</span> <span class="p">[{</span>
+                <span class="s1">&#39;routeType&#39;</span><span class="p">:</span> <span class="s1">&#39;VIA_PROXY&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;remoteEntity&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;remoteProxy&#39;</span><span class="p">:</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;isClient&#39;</span><span class="p">]</span>
+            <span class="p">}]</span>
+
+            <span class="n">obj2</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_outgoing_routes</span><span class="p">(</span><span class="n">outgoing_routes1</span><span class="p">)</span>
+
+            <span class="n">outgoing_routes2</span> <span class="o">=</span> <span class="p">[{</span>
+                <span class="s1">&#39;routeType&#39;</span><span class="p">:</span> <span class="s1">&#39;VIA_PROXY&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;remoteEntity&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;remoteProxy&#39;</span><span class="p">:</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;entity&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;isClient&#39;</span><span class="p">]</span>
+            <span class="p">}]</span>
+
+            <span class="n">obj1</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_outgoing_routes</span><span class="p">(</span><span class="n">outgoing_routes2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting done...&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.push_config_client"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.push_config_client">[docs]</a>    <span class="k">def</span> <span class="nf">push_config_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clients</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs a push network configuration on the list of clients</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                clients : list of client names</span>
+
+<span class="sd">                Example:</span>
+<span class="sd">                    [&quot;auto&quot;, &quot;v11-restapi&quot;]</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;*&quot;</span> <span class="o">*</span>
+            <span class="mi">10</span> <span class="o">+</span>
+            <span class="s2">&quot;Performing push network configuration on the list of clients&quot;</span> <span class="o">+</span>
+            <span class="s2">&quot;*&quot;</span> <span class="o">*</span>
+            <span class="mi">10</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">client</span> <span class="ow">in</span> <span class="n">clients</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Performing push network configuration on Client </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client</span><span class="p">))</span>
+
+            <span class="n">_client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+
+            <span class="n">_client_obj</span><span class="o">.</span><span class="n">push_network_config</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.push_config_clientgroup"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.push_config_clientgroup">[docs]</a>    <span class="k">def</span> <span class="nf">push_config_clientgroup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clientgroups</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs a push network configuration on the list of client groups</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                clients : list of client names</span>
+
+<span class="sd">                Example:</span>
+<span class="sd">                    [&quot;Testgp&quot;]</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;*&quot;</span> <span class="o">*</span>
+            <span class="mi">10</span> <span class="o">+</span>
+            <span class="s2">&quot;Performing push network configuration on the list of client groups&quot;</span> <span class="o">+</span>
+            <span class="s2">&quot;*&quot;</span> <span class="o">*</span>
+            <span class="mi">10</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">clientgroup</span> <span class="ow">in</span> <span class="n">clientgroups</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Performing push network configuration on Client Group </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">clientgroup</span><span class="p">))</span>
+
+            <span class="n">_clientgroup_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">client_groups</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">clientgroup</span><span class="p">)</span>
+
+            <span class="n">_clientgroup_obj</span><span class="o">.</span><span class="n">push_network_config</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.set_via_gateway"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.set_via_gateway">[docs]</a>    <span class="k">def</span> <span class="nf">set_via_gateway</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity1</span><span class="p">,</span> <span class="n">entity2</span><span class="p">,</span> <span class="n">gateway_info</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the route via gateway</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                entity1(dict)  -- dict of entity name</span>
+<span class="sd">                                This should be entity on which gateway route has to be defined.</span>
+<span class="sd">                {&#39;clientName&#39;:val} or {&#39;clientGroupName&#39;:val}</span>
+
+
+<span class="sd">                entity2(dict)  -- dict of client name and number of streams.</span>
+<span class="sd">                                  Entity value can be a client name only.</span>
+<span class="sd">                                  This is the remote entity for which gateway will be set.</span>
+<span class="sd">                {&#39;clientName&#39;:val,&#39;streams&#39;:val}</span>
+
+<span class="sd">                gateway_info(dict) -- dict of gateway port and gateway host</span>
+<span class="sd">                {&#39;gatewayPort&#39;:val,&#39;gatewayHost&#39;:val}</span>
+
+<span class="sd">            Example:</span>
+<span class="sd">                entity1:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;clientName&#39;: &#39;Test&#39;</span>
+<span class="sd">                }</span>
+
+<span class="sd">                entity2:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;clientName&#39;: &#39;centOS&#39;,</span>
+<span class="sd">                &#39;streams&#39; : 2</span>
+<span class="sd">                }</span>
+
+<span class="sd">                entity3:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;gatewayPort&#39;: 443,</span>
+<span class="sd">                &#39;gatewayHost&#39; : &#39;1.2.3.4&#39;</span>
+<span class="sd">                }</span>
+
+
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the required key is missing in the input value passed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting Gateway route on </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>
+                          <span class="nb">format</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity1</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="n">outgoing_routes</span> <span class="o">=</span> <span class="p">[{</span>
+                <span class="s1">&#39;routeType&#39;</span><span class="p">:</span> <span class="s1">&#39;VIA_GATEWAY&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;remoteEntity&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;streams&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;streams&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;gatewayPort&#39;</span><span class="p">:</span> <span class="n">gateway_info</span><span class="p">[</span><span class="s1">&#39;gatewayPort&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;gatewayHost&#39;</span><span class="p">:</span> <span class="n">gateway_info</span><span class="p">[</span><span class="s1">&#39;gatewayHost&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;isClient&#39;</span><span class="p">:</span> <span class="kc">True</span>
+            <span class="p">}]</span>
+
+            <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_outgoing_routes</span><span class="p">(</span><span class="n">outgoing_routes</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.enable_proxy"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.enable_proxy">[docs]</a>    <span class="k">def</span> <span class="nf">enable_proxy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Marks a client or a client group as proxy</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                entity(dict)  -- dict of entity name</span>
+
+<span class="sd">                {&#39;clientName&#39;:val} or {&#39;clientGroupName&#39;:val}</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Enabling proxy on </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                                                         <span class="nb">list</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">proxy</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.enable_roaming_client"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.enable_roaming_client">[docs]</a>    <span class="k">def</span> <span class="nf">enable_roaming_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Marks a client or a client group as roaming client</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                entity(dict)  -- list of dict of entity name</span>
+
+<span class="sd">                Example:</span>
+<span class="sd">                [{&#39;clientName&#39;:val}, {&#39;clientGroupName&#39;:val}]</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Enabling roaming client on&quot;</span>
+                          <span class="s2">&quot; </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+
+            <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">roaming_client</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.set_tunnelport"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.set_tunnelport">[docs]</a>    <span class="k">def</span> <span class="nf">set_tunnelport</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entities</span><span class="p">,</span> <span class="n">tunnelports</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the specified port as the tunnel port on the given client/ client group</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                entities(dict)  -- list of dict of entity name</span>
+<span class="sd">                [{&#39;clientGroupName&#39;:val},{&#39;clientName&#39;:val}]</span>
+
+<span class="sd">                Note: pass the key name based on entity</span>
+
+<span class="sd">                tunnelports   --  list of tunnel ports</span>
+
+<span class="sd">                example:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;clientName&#39;: &#39;shezavm11&#39;,</span>
+<span class="sd">                }</span>
+<span class="sd">                [&#39;9999&#39;,&#39;9999&#39;]</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the required key is missing in the input value passed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">tunnelport</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">entities</span><span class="p">,</span> <span class="n">tunnelports</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting tunnel port for &quot;</span>
+                              <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+
+                <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">tunnel_connection_port</span> <span class="o">=</span> <span class="n">tunnelport</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.remove_network_config"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.remove_network_config">[docs]</a>    <span class="k">def</span> <span class="nf">remove_network_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Removes network configuration on a client or client group</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                entities(dict)  -- list of dict of entity name</span>
+<span class="sd">                [{&#39;clientGroupName&#39;:val}, {&#39;clientName&#39;:val}]</span>
+
+<span class="sd">                Note: pass the key name based on entity</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Removing network configuration on </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+
+            <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">configure_network_settings</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.set_gui_tppm"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.set_gui_tppm">[docs]</a>    <span class="k">def</span> <span class="nf">set_gui_tppm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity1</span><span class="p">,</span> <span class="n">entity2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets one-way firewall between two clients and then sets GUI tppm between them</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                entity1(dict)  -- dict containing CS client name</span>
+<span class="sd">                {&#39;clientName&#39;:val}</span>
+
+<span class="sd">                entity2(dict)  -- dict of proxy entity name and it&#39;s local port number</span>
+<span class="sd">                {&#39;proxyEntity&#39;:val,&#39;portNumber&#39;:val}</span>
+
+
+<span class="sd">            Example:</span>
+
+<span class="sd">                entity1:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;clientName&#39;: &#39;v11-restapi&#39;</span>
+<span class="sd">                }</span>
+
+<span class="sd">                entity2:</span>
+<span class="sd">                {</span>
+<span class="sd">                &#39;proxyEntity&#39;: &#39;testproxy&#39;</span>
+<span class="sd">                &#39;portNumber&#39;: 9999</span>
+<span class="sd">                }</span>
+
+
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the required key is missing in the input value passed</span>
+
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting GUI TPPM with proxy </span><span class="si">{0}</span><span class="s2"> and local port on proxy as </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>
+                          <span class="nb">format</span><span class="p">(</span><span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;proxyEntity&#39;</span><span class="p">],</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;portNumber&#39;</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_one_way</span><span class="p">({</span><span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">]},</span>
+                             <span class="p">{</span><span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;proxyEntity&#39;</span><span class="p">]})</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">enable_proxy</span><span class="p">({</span><span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;proxyEntity&#39;</span><span class="p">]})</span>
+
+            <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">])</span>
+
+            <span class="n">tppm</span> <span class="o">=</span> <span class="p">[{</span>
+                <span class="s1">&#39;tppmType&#39;</span><span class="p">:</span> <span class="s1">&#39;COMMSERVE&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;portNumber&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;portNumber&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;proxyEntity&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;proxyEntity&#39;</span><span class="p">]</span>
+            <span class="p">}]</span>
+
+            <span class="n">obj</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_tppm_settings</span><span class="p">(</span><span class="n">tppm</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.set_wswc_tppm"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.set_wswc_tppm">[docs]</a>    <span class="k">def</span> <span class="nf">set_wswc_tppm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity1</span><span class="p">,</span> <span class="n">entity2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets one-way firewall between two clients and then sets webserver-webconsole</span>
+<span class="sd">            tppm between them</span>
+
+<span class="sd">                    Args:</span>
+<span class="sd">                        entity1(dict)  -- dict containing webserver client name</span>
+<span class="sd">                        {&#39;webserver&#39;:val}</span>
+
+<span class="sd">                        entity2(dict)  -- dict containing webconsole client name and</span>
+<span class="sd">                                          it&#39;s local port number</span>
+<span class="sd">                        {&#39;webconsole&#39;:val,&#39;portNumber&#39;:val}</span>
+
+
+<span class="sd">                    Example:</span>
+
+<span class="sd">                        entity1:</span>
+<span class="sd">                        {</span>
+<span class="sd">                        &#39;webserver&#39;: &#39;v11-restapi&#39;</span>
+<span class="sd">                        }</span>
+
+<span class="sd">                        entity2:</span>
+<span class="sd">                        {</span>
+<span class="sd">                        &#39;webconsole&#39;: &#39;testproxy&#39;</span>
+<span class="sd">                        &#39;portNumber&#39;: 9999</span>
+<span class="sd">                        }</span>
+
+
+<span class="sd">                Raises:</span>
+<span class="sd">                        Exception:</span>
+<span class="sd">                            if the required key is missing in the input value passed</span>
+
+
+<span class="sd">                &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting Webserver-Webconsole TPPM with webconsole </span><span class="si">{0}</span><span class="s2"> &quot;</span>
+                          <span class="s2">&quot;and local port on webconsole as </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span>
+                          <span class="nb">format</span><span class="p">(</span><span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;webconsole&#39;</span><span class="p">],</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;portNumber&#39;</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_one_way</span><span class="p">({</span><span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;webserver&#39;</span><span class="p">],</span> <span class="p">},</span>
+                             <span class="p">{</span><span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;webconsole&#39;</span><span class="p">]})</span>
+
+            <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity1</span><span class="p">[</span><span class="s1">&#39;webserver&#39;</span><span class="p">])</span>
+
+            <span class="n">tppm</span> <span class="o">=</span> <span class="p">[{</span>
+                <span class="s1">&#39;tppmType&#39;</span><span class="p">:</span> <span class="s1">&#39;WEB_SERVER_FOR_IIS_SERVER&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;portNumber&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;portNumber&#39;</span><span class="p">],</span>
+                <span class="s1">&#39;proxyEntity&#39;</span><span class="p">:</span> <span class="n">entity2</span><span class="p">[</span><span class="s1">&#39;webconsole&#39;</span><span class="p">]</span>
+            <span class="p">}]</span>
+
+            <span class="n">obj</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">set_tppm_settings</span><span class="p">(</span><span class="n">tppm</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.validate"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_names</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Function to perform backup and restore job on a client</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">client_name</span> <span class="ow">in</span> <span class="n">client_names</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Going to perform backup and restore jobs for client </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">client_name</span><span class="p">))</span>
+            <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+            <span class="n">agent_obj</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">agents</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;File System&#39;</span><span class="p">)</span>
+            <span class="n">backupset_obj</span> <span class="o">=</span> <span class="n">agent_obj</span><span class="o">.</span><span class="n">backupsets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;defaultBackupSet&#39;</span><span class="p">)</span>
+            <span class="n">subclients</span> <span class="o">=</span> <span class="n">backupset_obj</span><span class="o">.</span><span class="n">subclients</span><span class="o">.</span><span class="n">all_subclients</span>
+            <span class="n">subclient_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">subclients</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">subclient_name</span> <span class="o">=</span> <span class="n">subclient_names</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">subclient_obj</span> <span class="o">=</span> <span class="n">backupset_obj</span><span class="o">.</span><span class="n">subclients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">subclient_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Going to trigger backup job on Subclient: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient_name</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;*&quot;</span> <span class="o">*</span>
+                <span class="mi">10</span> <span class="o">+</span>
+                <span class="s2">&quot; Starting Subclient FULL Backup &quot;</span> <span class="o">+</span>
+                <span class="s2">&quot;*&quot;</span> <span class="o">*</span>
+                <span class="mi">10</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="n">subclient_obj</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="s2">&quot;FULL&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Started subclient FULL backup with job id: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Failed to run Full backup job with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished subclient full backup&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Run Restore in place &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="c1"># run restore in place job</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="n">subclient_obj</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">(</span><span class="n">subclient_obj</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started restore in place job with job id: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run restore in place job with error: &quot;</span> <span class="o">+</span>
+                                <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished restore in place job&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully completed backup and restore jobs for client&quot;</span>
+                          <span class="s2">&quot; </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_name</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.validate_tunnel_port"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.validate_tunnel_port">[docs]</a>    <span class="k">def</span> <span class="nf">validate_tunnel_port</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates the default tunnel port on a client or client group</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                entities(dict)  -- list of dict of entity name</span>
+<span class="sd">                {&#39;clientGroupName&#39;:val}  or {&#39;clientName&#39;:val}</span>
+
+<span class="sd">                Note: pass the key name based on entity</span>
+
+<span class="sd">             Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the required key is missing in the input value passed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting default tunnel port set on </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">entity</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+
+                <span class="n">tunnel_port</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">tunnel_connection_port</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Tunnel port is: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tunnel_port</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="n">tunnel_port</span> <span class="o">==</span> <span class="n">networkconstants</span><span class="o">.</span><span class="n">TUNNEL_CONNECTION_PORT</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> <span class="n">tunnel_port</span> <span class="o">==</span> \
+                        <span class="n">networkconstants</span><span class="o">.</span><span class="n">TUNNEL_CONNECTION_PORT</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validated default tunnel port&quot;</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="s2">&quot;Failed to validate default tunnel port&quot;</span>
+                    <span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.validate_keep_alive"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.validate_keep_alive">[docs]</a>    <span class="k">def</span> <span class="nf">validate_keep_alive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates the default keep alive interval on a client or client group</span>
+
+<span class="sd">                    Args:</span>
+<span class="sd">                        entities(dict)  -- list of dict of entity name</span>
+<span class="sd">                        {&#39;clientGroupName&#39;:val}  or {&#39;clientName&#39;:val}</span>
+
+<span class="sd">                        Note: pass the key name based on entity</span>
+
+<span class="sd">                     Raises:</span>
+<span class="sd">                        Exception:</span>
+<span class="sd">                            if the required key is missing in the input value passed</span>
+
+<span class="sd">                &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting default keep alive interval set on </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+
+                <span class="n">keep_alive</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">keep_alive_seconds</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Keep alive interval is: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">keep_alive</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="n">keep_alive</span> <span class="o">==</span> <span class="n">networkconstants</span><span class="o">.</span><span class="n">KEEP_ALIVE_SECONDS</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validated default keep alive interval&quot;</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="s2">&quot;Failed to validate default keep alive interval&quot;</span>
+                    <span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.validate_tunnel_init"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.validate_tunnel_init">[docs]</a>    <span class="k">def</span> <span class="nf">validate_tunnel_init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates the default tunnel init interval on a client or client group</span>
+
+<span class="sd">                    Args:</span>
+<span class="sd">                        entities(dict)  -- list of dict of entity name</span>
+<span class="sd">                        {&#39;clientGroupName&#39;:val}  or {&#39;clientName&#39;:val}</span>
+
+<span class="sd">                        Note: pass the key name based on entity</span>
+
+<span class="sd">                     Raises:</span>
+<span class="sd">                        Exception:</span>
+<span class="sd">                            if the required key is missing in the input value passed</span>
+
+<span class="sd">                &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting default tunnel init interval set on&quot;</span>
+                              <span class="s2">&quot; </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]))</span>
+
+                <span class="n">tunnel_init</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">tunnel_init_seconds</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Tunnel init interval is: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tunnel_init</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="n">tunnel_init</span> <span class="o">==</span> <span class="n">networkconstants</span><span class="o">.</span><span class="n">TUNNEL_INIT_SECONDS</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validated default tunnel init interval&quot;</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="s2">&quot;Failed to validate default tunnel init interval&quot;</span>
+                    <span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NetworkHelper.validate_other_defaults"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.validate_other_defaults">[docs]</a>    <span class="k">def</span> <span class="nf">validate_other_defaults</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates the default values for force ssl, proxy, bind open ports and roaming client</span>
+<span class="sd">                    on a client or client group</span>
+
+<span class="sd">                    Args:</span>
+<span class="sd">                        entities(dict)  -- list of dict of entity name</span>
+<span class="sd">                        {&#39;clientGroupName&#39;:val}  or {&#39;clientName&#39;:val}</span>
+
+<span class="sd">                        Note: pass the key name based on entity</span>
+
+<span class="sd">                     Raises:</span>
+<span class="sd">                        Exception:</span>
+<span class="sd">                            if the required key is missing in the input value passed</span>
+
+<span class="sd">                &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities</span><span class="p">:</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_object</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">5</span> <span class="o">+</span> <span class="s2">&quot;Validating default values for force_ssl, is_dmz, &quot;</span>
+                              <span class="s2">&quot;bind_open_ports and is_roaming set on&quot;</span>
+                              <span class="s2">&quot; </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="mi">5</span> <span class="o">*</span> <span class="s2">&quot;*&quot;</span><span class="p">)</span>
+
+                <span class="n">options_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">networkconstants</span><span class="o">.</span><span class="n">FORCE_SSL</span><span class="p">,</span>
+                                  <span class="n">networkconstants</span><span class="o">.</span><span class="n">IS_DMZ</span><span class="p">,</span>
+                                  <span class="n">networkconstants</span><span class="o">.</span><span class="n">BIND_OPEN_PORTS_ONLY</span><span class="p">,</span>
+                                  <span class="n">networkconstants</span><span class="o">.</span><span class="n">IS_ROAMING_CLIENT</span><span class="p">]</span>
+
+                <span class="n">options_functions</span> <span class="o">=</span> <span class="p">[</span><span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">force_ssl</span><span class="p">,</span>
+                                     <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">proxy</span><span class="p">,</span>
+                                     <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">bind_open_ports</span><span class="p">,</span>
+                                     <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">network</span><span class="o">.</span><span class="n">roaming_client</span><span class="p">]</span>
+
+                <span class="k">for</span> <span class="p">(</span><span class="n">option_value</span><span class="p">,</span> <span class="n">option_function</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                        <span class="n">options_values</span><span class="p">,</span> <span class="n">options_functions</span><span class="p">):</span>
+
+                    <span class="n">option_val</span> <span class="o">=</span> <span class="n">option_function</span>
+
+                    <span class="k">if</span> <span class="n">option_val</span> <span class="o">==</span> <span class="n">option_value</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validated default value&quot;</span><span class="p">)</span>
+
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                            <span class="s2">&quot;Failed to validate default value&quot;</span>
+                        <span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_entity_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns object for client or client group</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the required key is missing in the input value passed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;clientName&#39;</span> <span class="ow">in</span> <span class="n">entity</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">]),</span> <span class="s1">&#39;client&#39;</span>
+
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">client_groups</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">entity</span><span class="p">[</span><span class="s1">&#39;clientGroupName&#39;</span><span class="p">]),</span> <span class="s1">&#39;client group&#39;</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+<div class="viewcode-block" id="NetworkHelper.cleanup_network"><a class="viewcode-back" href="../../../Server.Network.html#Server.Network.networkhelper.NetworkHelper.cleanup_network">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_network</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Does all the clean up for any test case</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot;Starting network clean-up phase&quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">disable_firewall</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;disable_firewall&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;clients&#39;</span><span class="p">,</span>
+                                                                                      <span class="p">[]),</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;disable_firewall&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ports&#39;</span><span class="p">,</span>
+                                                                                      <span class="p">[]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">remove_machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;delete_machine&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;clients&#39;</span><span class="p">,</span> <span class="p">[]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">remove_network_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s1">&#39;remove_network_config&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;entities&#39;</span><span class="p">,</span> <span class="p">[]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">push_config_client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">network_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;delete_machine&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;clients&#39;</span><span class="p">,</span> <span class="p">[]))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Network clean-up phase completed&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">network_config</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;disable_firewall&quot;</span><span class="p">:{</span>
+                <span class="s2">&quot;clients&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                <span class="s2">&quot;ports&quot;</span><span class="p">:</span> <span class="p">[]</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;delete_machine&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;clients&quot;</span><span class="p">:</span> <span class="p">[]</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;remove_network_config&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;entities&quot;</span><span class="p">:</span> <span class="p">[]</span>
+            <span class="p">}</span>
+        <span class="p">}</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
