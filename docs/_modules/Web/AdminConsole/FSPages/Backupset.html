@@ -1,0 +1,259 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Web.AdminConsole.FSPages.Backupset &#8212; Commvault Automation 11.13 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Web.AdminConsole.FSPages.Backupset</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module provides the function or operations that can be performed on the</span>
+<span class="sd">backup set  of the File System iDA on the AdminConsole</span>
+
+<span class="sd">Class:</span>
+
+<span class="sd">    Backupset() -&gt; FileSystem() -&gt; ClientDetails() -&gt; Clients() --</span>
+<span class="sd">        -&gt; Server() -&gt; AdminPage() -&gt; LoginPage() -&gt; AdminConsoleBase() -&gt; object()</span>
+
+<span class="sd">Functions:</span>
+
+<span class="sd">add_fs_subclient()                  -- Adds a new subclient</span>
+<span class="sd">check_if_subclient_exists()         -- check whether the subclient exists or not</span>
+<span class="sd">action_bkp_set_backup_history()     -- opens the backup history of the backup set</span>
+<span class="sd">action_bkp_set_restore_history()    -- opens the restore history of the backup set</span>
+<span class="sd">add_subclient()                     -- add a subclient</span>
+<span class="sd">open_subclient()                    -- open the subclient</span>
+<span class="sd">action_backup()                     -- trigger the backup job for the subclient</span>
+<span class="sd">job_id()                            -- returns the job id of the job started</span>
+<span class="sd">submit_backup()                     -- submits a backup job of the specified type, full, incr, etc.</span>
+<span class="sd">job_completion()                    -- returns the status of job upon completion, completed,</span>
+<span class="sd">                                        killed, etc.</span>
+<span class="sd">subclient_restore()                 -- opens the subclient content for restore browse</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">Web.AdminConsole.Helper.Imports</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">Web.AdminConsole.FSPages.BackupsetLevel</span> <span class="k">import</span> <span class="n">BackupsetLevel</span>
+
+
+<div class="viewcode-block" id="Backupset"><a class="viewcode-back" href="../../../../Web.AdminConsole.FSPages.html#Web.AdminConsole.FSPages.Backupset.Backupset">[docs]</a><span class="k">class</span> <span class="nc">Backupset</span><span class="p">(</span><span class="n">BackupsetLevel</span><span class="p">):</span>
+
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This class provides the function or operations that can be performed on the</span>
+<span class="sd">    backup set  of the File System iDA on the AdminConsole</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="nd">@adminconsole_handler</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">add_fs_subclient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scname</span><span class="p">,</span> <span class="n">storage_policy</span><span class="p">,</span> <span class="n">folders</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds a new subclient with the given name for the given storage policy</span>
+<span class="sd">            with the specified content.</span>
+
+<span class="sd">            scname          : a string, name of the subclient we need to add</span>
+<span class="sd">            storage_policy   : a string, storage policy we want to associate with the client</span>
+<span class="sd">            folders         : a file/folder, the files and folders,</span>
+<span class="sd">                                we want to associate with this client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating a new subclient &quot;</span> <span class="o">+</span> <span class="n">scname</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_if_entity_exists</span><span class="p">(</span><span class="s2">&quot;link&quot;</span><span class="p">,</span> <span class="s2">&quot;Add subclient&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_link_text</span><span class="p">(</span>
+                <span class="s2">&quot;Add subclient&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_name</span><span class="p">(</span>
+                <span class="s2">&quot;subclientName&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">scname</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+                <span class="s2">&quot;//span[@class=&#39;multiSelect inlineBlock&#39;]/button&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+            <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">),</span> <span class="o">=</span> <span class="n">storage_policy</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+                <span class="s2">&quot;//span[contains(text(), &#39;&quot;</span> <span class="o">+</span> <span class="n">v</span> <span class="o">+</span> <span class="s2">&quot;&#39;)]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_link_text</span><span class="p">(</span>
+                <span class="s2">&quot;Content&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fill_form_by_id</span><span class="p">(</span>
+                <span class="s2">&quot;customPath&quot;</span><span class="p">,</span> <span class="n">folders</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+                <span class="s2">&quot;//*[@id=&#39;subclient-content-tab&#39;]/div[1]/div[1]/div/i&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+                <span class="s2">&quot;//*[@id=&#39;createSubclientForm&#39;]/div[2]/button[2]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exp</span> <span class="o">=</span> <span class="s2">&quot;The Add Subclient option is not visible&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+
+    <span class="nd">@adminconsole_handler</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">action_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="p">,</span> <span class="n">bkp_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs the given backup on the subclient.</span>
+
+<span class="sd">            subclient : a string, name of the subclient</span>
+<span class="sd">            bkp_type   : a string, type of backup to perform on this subclient</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Going to backup subclient &quot;</span> <span class="o">+</span> <span class="n">subclient</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+            <span class="s2">&quot;//a[contains(text(),&#39;&quot;</span> <span class="o">+</span>
+            <span class="n">subclient</span> <span class="o">+</span>
+            <span class="s2">&quot;&#39;)]/../../div[4]/div/a[@class=&#39;dropdown-toggle&#39;]/span&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_if_entity_exists</span><span class="p">(</span><span class="s2">&quot;link&quot;</span><span class="p">,</span> <span class="s2">&quot;Backup&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+                <span class="s2">&quot;//a[contains(text(),&#39;&quot;</span> <span class="o">+</span>
+                <span class="n">subclient</span> <span class="o">+</span>
+                <span class="s2">&quot;&#39;)]/../../div[4]/div/ul/li[1]/a[contains(text(),&#39;Backup&#39;)]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">submit_backup</span><span class="p">(</span><span class="n">bkp_type</span><span class="p">)</span>
+            <span class="n">retcode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">retcode</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="n">retcode</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">retcode</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">retcode</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="n">retcode</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exp</span> <span class="o">=</span> <span class="s2">&quot;There is no option to backup the collection&quot;</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+
+    <span class="nd">@adminconsole_handler</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">submit_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Submits a backup job of the given type.</span>
+
+<span class="sd">            backup_type  : a string, type of backup to perform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Submitting backup of type &quot;</span> <span class="o">+</span> <span class="n">backup_type</span><span class="p">)</span>
+        <span class="n">backup_type</span> <span class="o">=</span> <span class="n">backup_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">backup_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;full&quot;</span><span class="p">,</span> <span class="s2">&quot;incremental&quot;</span><span class="p">,</span> <span class="s2">&quot;differential&quot;</span><span class="p">]:</span>
+            <span class="n">backup_type</span> <span class="o">=</span> <span class="n">backup_type</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">backup_type</span> <span class="o">==</span> <span class="s2">&quot;synthetic full&quot;</span><span class="p">:</span>
+            <span class="n">backup_type</span> <span class="o">=</span> <span class="s2">&quot;SYNTHETIC_FULL&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exp</span> <span class="o">=</span> <span class="s2">&quot;Please type the correct backup option&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+            <span class="s2">&quot;//input[@type=&#39;radio&#39; and @value=&#39;&quot;</span> <span class="o">+</span> <span class="n">backup_type</span> <span class="o">+</span> <span class="s2">&quot;&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+            <span class="s2">&quot;/html/body/div[1]/div/div/div[2]/div[2]/button[3]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+
+    <span class="nd">@adminconsole_handler</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">subclient_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Opens the subclient content for restore browse.</span>
+
+<span class="sd">            subclient   : a string, name of the subclient</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Restoring the entire subclient &quot;</span> <span class="o">+</span> <span class="n">subclient</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_if_entity_exists</span><span class="p">(</span><span class="s2">&quot;link&quot;</span><span class="p">,</span> <span class="n">subclient</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_if_entity_exists</span><span class="p">(</span>
+                    <span class="s2">&quot;xpath&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;//div/a[contains(text(),&#39;&quot;</span> <span class="o">+</span>
+                    <span class="n">subclient</span> <span class="o">+</span>
+                    <span class="s2">&quot;&#39;)]/ancestor::div[@class=&#39;ng-isolate-scope&#39;]/div[3]/span/a[</span><span class="se">\</span>
+<span class="s2">                    contains(text(),&#39;Restore&#39;)]&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+                    <span class="s2">&quot;//div/a[contains(text(),&#39;&quot;</span> <span class="o">+</span>
+                    <span class="n">subclient</span> <span class="o">+</span>
+                    <span class="s2">&quot;&#39;)]/ancestor::div[@class=&#39;ng-isolate-scope&#39;]/div[3]/span/a[</span><span class="se">\</span>
+<span class="s2">                    contains(text(),&#39;Restore&#39;)]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">exp</span> <span class="o">=</span> <span class="s2">&quot;The subclient &quot;</span> <span class="o">+</span> <span class="n">subclient</span> <span class="o">+</span> <span class="s2">&quot; has not been backedup yet&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exp</span> <span class="o">=</span> <span class="s2">&quot;There is no subclient with name &quot;</span> <span class="o">+</span> <span class="n">subclient</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+
+    <span class="nd">@adminconsole_handler</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">delete_subclient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Delete FS Subclient</span>
+
+<span class="sd">            subclient_name : a string, name of the subclient</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_link_text</span><span class="p">(</span><span class="n">subclient_name</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//a[contains(text(), &#39;Delete&#39;)]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+            <span class="s2">&quot;//input[@type=&#39;text&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="s2">&quot;DELETE&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span>
+            <span class="s2">&quot;//button[text() = &#39;Save&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

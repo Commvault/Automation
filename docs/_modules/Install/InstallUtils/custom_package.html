@@ -1,0 +1,317 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Install.InstallUtils.custom_package &#8212; Commvault Automation 11.13 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Install.InstallUtils.custom_package</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+
+<span class="sd">&quot;&quot;&quot;Main file for custom package related operations from cloud</span>
+
+<span class="sd">CustomPackage:</span>
+<span class="sd">    __init__()                  --  initialize instance of the CustomPackage class</span>
+
+<span class="sd">    create()                    --  Create a custom package using cloud form</span>
+
+<span class="sd">    download()                  --  Download custom package from download center</span>
+
+<span class="sd">    proxy_list()                --  Gets the list of Available clients from Proxy client group</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+
+<span class="kn">from</span> <span class="nn">cvpysdk</span> <span class="k">import</span> <span class="n">commcell</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">Install.InstallUtils</span> <span class="k">import</span> <span class="n">installer_constants</span>
+<span class="kn">from</span> <span class="nn">Install.InstallUtils.install_xml_helper</span> <span class="k">import</span> <span class="n">CustomPackageCloudXML</span>
+
+<span class="kn">from</span> <span class="nn">Server.JobManager.jobmanager_helper</span> <span class="k">import</span> <span class="n">JobManager</span>
+
+<div class="viewcode-block" id="CustomPackage"><a class="viewcode-back" href="../../../Install.InstallUtils.html#Install.InstallUtils.custom_package.CustomPackage">[docs]</a><span class="k">class</span> <span class="nc">CustomPackage</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; This class provides custom package related operations from cloud &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cloud_user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cloud_password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">commcell_obj</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;initialize instance of the CustomPackage class</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            cloud_user        (str)    -- Cloud user name for accessing cloud.commvault.com</span>
+
+<span class="sd">            cloud_password    (str)    -- Cloud password for accessing cloud.commvault.com</span>
+
+<span class="sd">            commcell_obj      (obj)    -- Commcell object for forevercell commcell</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_forevercell</span> <span class="o">=</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">FOREVERCELL_HOSTNAME</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cloud_workflow</span> <span class="o">=</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">FOREVERCELL_WORKFLOW_NAME</span>
+
+        <span class="k">if</span> <span class="n">commcell_obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cloud_user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">cloud_user</span> <span class="o">=</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">FOREVERCELL_USER</span>
+                <span class="n">cloud_password</span> <span class="o">=</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">FOREVERCELL_PASSWORD</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating forevercell commcell object for cloud user </span><span class="si">{0}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cloud_user</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">commcell</span><span class="o">.</span><span class="n">Commcell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_forevercell</span><span class="p">,</span> <span class="n">cloud_user</span><span class="p">,</span> <span class="n">cloud_password</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: Failed to initialize commcell object for forevercell </span><span class="si">{1}</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">commcell_obj</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_manager</span> <span class="o">=</span> <span class="n">JobManager</span><span class="p">(</span><span class="n">commcell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_id</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="CustomPackage.create"><a class="viewcode-back" href="../../../Install.InstallUtils.html#Install.InstallUtils.custom_package.CustomPackage.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dict</span><span class="p">,</span> <span class="n">workflow</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method helps to create a custom package using cloud form</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_dict (dict) -- Input dictionary for creating packages with key,value pairs.</span>
+
+<span class="sd">                                 Supported keywords:</span>
+<span class="sd">                                    commserv_client_name: Commserve client name for which package</span>
+<span class="sd">                                                            needs to be created.</span>
+
+<span class="sd">                                    commserv_host_name: Commserve host name for client name</span>
+
+<span class="sd">                                    commserver_version: Commserve&#39;s current service pack version</span>
+
+<span class="sd">                                    commcell_username: User name for logging in commcell</span>
+
+<span class="sd">                                    commcell_password: Password for logging in commcell</span>
+
+<span class="sd">                                    authcode: Organization authcode for which to create package</span>
+<span class="sd">                                                (optional)</span>
+
+<span class="sd">                                    SP revision: Service pack revision for which package needs to</span>
+<span class="sd">                                                    be created. (Optional. If not provided, this</span>
+<span class="sd">                                                    would not be populated with package creation)</span>
+
+<span class="sd">                                    proxy_list: Proxy string list for clients in given format</span>
+<span class="sd">                                                [cl1:cl1_hostname:4333, cl2:cl2_hostname:4333]</span>
+
+<span class="sd">            workflow          (str)     -- Name of the workflow to execute for package creation</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Request id for the package creation request.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            SDKException:</span>
+<span class="sd">                - if failed to create package</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="n">workflow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cloud_workflow</span> <span class="k">if</span> <span class="n">workflow</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">workflow</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating custom package from Workflow [</span><span class="si">{0}</span><span class="s2">] on cloud&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow</span><span class="p">))</span>
+
+            <span class="n">workflows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">workflows</span>
+            <span class="n">custom_workflow</span> <span class="o">=</span> <span class="n">workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
+            <span class="n">custom_pkg_xml</span> <span class="o">=</span> <span class="n">CustomPackageCloudXML</span><span class="p">(</span><span class="n">input_dict</span><span class="p">)</span>
+            <span class="n">input_xml</span> <span class="o">=</span> <span class="n">custom_pkg_xml</span><span class="o">.</span><span class="n">generate_xml</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing workflow to create custom package with input xml: [</span><span class="si">{0}</span><span class="s2">]&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">input_xml</span><span class="p">))</span>
+
+            <span class="n">response</span> <span class="o">=</span> <span class="n">custom_workflow</span><span class="o">.</span><span class="n">execute_workflow</span><span class="p">(</span><span class="n">input_xml</span><span class="p">)</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="s1">&#39;jobId&#39;</span><span class="p">]</span>
+            <span class="n">request_id</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="s1">&#39;requestId&#39;</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job ID [</span><span class="si">{0}</span><span class="s2">] and Request ID [</span><span class="si">{1}</span><span class="s2">] received from workflow [</span><span class="si">{2}</span><span class="s2">]&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">request_id</span><span class="p">),</span> <span class="n">workflow</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_job_manager</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_job_manager</span><span class="o">.</span><span class="n">wait_for_state</span><span class="p">(</span><span class="s1">&#39;completed&#39;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Custom Package created successfully&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">request_id</span> <span class="o">=</span> <span class="n">request_id</span>
+            <span class="k">return</span> <span class="n">request_id</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CustomPackage.download"><a class="viewcode-back" href="../../../Install.InstallUtils.html#Install.InstallUtils.custom_package.CustomPackage.download">[docs]</a>    <span class="k">def</span> <span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proxy_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">download_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method helps to download custom package from cloud Download Center</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            proxy_list        (list)    -- Custom client proxy string with format:</span>
+<span class="sd">                                            [cl1:cl1_hostname:4333, cl2:cl2_hostname:4333]</span>
+
+<span class="sd">            download_dir      (str)     -- Download custom package created from cloud.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (str)    Download directory where the custom package is downloaded</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            SDKException:</span>
+<span class="sd">                - if failed to download package</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">download_packages</span> <span class="o">=</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">PACKAGES_TO_DOWNLOAD</span>
+            <span class="n">download_dir</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">TEMP_DIR</span> <span class="k">if</span> <span class="n">download_dir</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">download_dir</span>
+
+            <span class="k">for</span> <span class="n">_package</span> <span class="ow">in</span> <span class="n">download_packages</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">proxy_list</span> <span class="ow">and</span> <span class="n">_package</span> <span class="o">==</span> <span class="s2">&quot;Proxy Packages&quot;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Proxy not provided. Skip downloading proxy packages&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+
+                <span class="n">pkg_name</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> [requestid: </span><span class="si">{1}</span><span class="s2">] [test]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_package</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Downloading package [</span><span class="si">{0}</span><span class="s2">] at [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pkg_name</span><span class="p">,</span> <span class="n">download_dir</span><span class="p">))</span>
+
+                <span class="k">for</span> <span class="n">_platform</span> <span class="ow">in</span> <span class="n">download_packages</span><span class="p">[</span><span class="n">_package</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Downloading binary: [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_platform</span><span class="p">))</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">download_center</span><span class="o">.</span><span class="n">download_package</span><span class="p">(</span>
+                        <span class="n">pkg_name</span><span class="p">,</span> <span class="n">download_dir</span><span class="p">,</span> <span class="n">_platform</span>
+                    <span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Downloaded all packages at [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">download_dir</span><span class="p">))</span>
+
+            <span class="k">return</span> <span class="n">download_dir</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CustomPackage.proxy_list"><a class="viewcode-back" href="../../../Install.InstallUtils.html#Install.InstallUtils.custom_package.CustomPackage.proxy_list">[docs]</a>    <span class="k">def</span> <span class="nf">proxy_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_obj</span><span class="p">,</span> <span class="n">proxy_client_group</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">proxy_port</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; This Method gets the list of Available clients from Proxy client group</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                commcell_obj        (obj)    -- Commcell object for CS</span>
+
+<span class="sd">                proxy_client_group  (str)    -- Proxy client group to check for proxy clients</span>
+
+<span class="sd">                proxy_port          (int)    -- Common proxy port configured for client</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (str)    Generated custom network proxy string and returns back.</span>
+<span class="sd">                        Format : [client1:client1_hostname:4333, client2:client2_hostname:4333]</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            SDKException:</span>
+<span class="sd">                - if failed to generate proxy list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">proxy_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">if</span> <span class="n">proxy_client_group</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">proxy_client_group</span> <span class="o">=</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">PROXY_GROUP_NAME</span>
+
+            <span class="k">if</span> <span class="n">proxy_port</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">proxy_port</span> <span class="o">=</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">PROXY_DEFAULT_PORT</span>
+
+            <span class="n">client_group_obj</span> <span class="o">=</span> <span class="n">commcell_obj</span><span class="o">.</span><span class="n">client_groups</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">proxy_client_group</span><span class="p">)</span>
+            <span class="n">clients_in_proxy_group</span> <span class="o">=</span> <span class="n">client_group_obj</span><span class="o">.</span><span class="n">associated_clients</span>
+
+            <span class="k">for</span> <span class="n">client_name</span> <span class="ow">in</span> <span class="n">clients_in_proxy_group</span><span class="p">:</span>
+                <span class="n">host_name</span> <span class="o">=</span> <span class="n">commcell_obj</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">all_clients</span><span class="p">[</span><span class="n">client_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()][</span><span class="s1">&#39;hostname&#39;</span><span class="p">]</span>
+                <span class="c1">#By default we are assuming constant port number, If the port number changes per</span>
+                <span class="c1"># client in future then, we need to use clientobj.network.port to get the</span>
+                <span class="c1"># proxy port number.</span>
+                <span class="n">proxy_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">client_name</span><span class="o">+</span><span class="s2">&quot;:&quot;</span><span class="o">+</span><span class="n">host_name</span><span class="o">+</span><span class="s2">&quot;:&quot;</span><span class="o">+</span><span class="n">proxy_port</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Proxy client list for client group [</span><span class="si">{0}</span><span class="s2">]: [</span><span class="si">{1}</span><span class="s2">]&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">proxy_client_group</span><span class="p">,</span> <span class="n">proxy_list</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">proxy_list</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">request_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Read only attribute for request_id&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request_id</span>
+
+    <span class="nd">@request_id</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">request_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Sets the request_id attribute of the class&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_id</span> <span class="o">=</span> <span class="n">value</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -6,10 +6,10 @@
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>FileSystem.FSUtils.fshelper &#8212; Commvault Automation 11.12 documentation</title>
+    <title>FileSystem.FSUtils.fshelper &#8212; Commvault Automation 11.13 documentation</title>
     <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/documentation_options.js"></script>
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
@@ -28,6 +28,8 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
+          
+
           <div class="body" role="main">
             
   <h1>Source code for FileSystem.FSUtils.fshelper</h1><div class="highlight"><pre>
@@ -40,7 +42,7 @@
 
 <span class="sd">&quot;&quot;&quot;Helper file for performing File System operations</span>
 
-<span class="sd">ScanType and FSHelper are 2 classes defined in this file.</span>
+<span class="sd">ScanType , Index enabled and FSHelper are 3 classes defined in this file.</span>
 
 <span class="sd">ScanType: Enum constants for all the scan types</span>
 <span class="sd">            currently supported for file system subclients</span>
@@ -51,6 +53,8 @@
 <span class="sd">    __init__()              --  initializes file system helper object</span>
 
 <span class="sd">    create_backupset()      --  creates new backupset</span>
+
+<span class="sd">    create_instance()       --  creates new instance for filesystem big data apps</span>
 
 <span class="sd">    create_subclient()      --  creates new subclient</span>
 
@@ -95,8 +99,21 @@
 <span class="sd">    pseudo_client_cleanup() --  Removes pseudo-client from CS for Usercentric </span>
 <span class="sd">                                laptop clients</span>
 
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    get_subclient_content() --  Generates the subclient content list</span>
 
+<span class="sd">    volume_level_restore()     -- To perform blocklevel volume level restore on client</span>
+<span class="sd"> </span>
+<span class="sd">    backup_copy()              -- Run backup copy from Subclient level</span>
+<span class="sd">    validate_trueup()       -- Checks if trueup ran or not;</span>
+<span class="sd">                            based on conditional variable it also checks</span>
+<span class="sd">                            if trueup picked up files for backup.</span>
+
+<span class="sd">	run_systemstate_backup()  --  Checks for the system state property and runs a backup</span>
+
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
 <span class="kn">from</span> <span class="nn">difflib</span> <span class="k">import</span> <span class="n">Differ</span>
@@ -107,6 +124,7 @@
 <span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="k">import</span> <span class="n">CVTestCase</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils.windows_machine</span> <span class="k">import</span> <span class="n">WindowsMachine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="k">import</span> <span class="n">get_csdb</span>
 
 
 <div class="viewcode-block" id="ScanType"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.ScanType">[docs]</a><span class="k">class</span> <span class="nc">ScanType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
@@ -116,6 +134,13 @@
     <span class="n">OPTIMIZED</span> <span class="o">=</span> <span class="mi">2</span>
     <span class="n">CHANGEJOURNAL</span> <span class="o">=</span> <span class="mi">3</span></div>
 
+<div class="viewcode-block" id="IndexEnabled"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.IndexEnabled">[docs]</a><span class="k">class</span> <span class="nc">IndexEnabled</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;With Blocklevel we check Meta Data COllection on or not&quot;&quot;&quot;</span>
+
+    <span class="n">NOINDEX</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">INDEX</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+
 
 <div class="viewcode-block" id="FSHelper"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper">[docs]</a><span class="k">class</span> <span class="nc">FSHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Helper class to perform file system operations&quot;&quot;&quot;</span>
@@ -124,10 +149,12 @@
         <span class="sd">&quot;&quot;&quot;Initialize instance of the FSHelper class.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span> <span class="o">=</span> <span class="n">testcase</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span> <span class="o">=</span> <span class="n">get_csdb</span><span class="p">()</span>
 
 <div class="viewcode-block" id="FSHelper.populate_tc_inputs"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.populate_tc_inputs">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">populate_tc_inputs</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initializes all the test case inputs after validation</span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            cv_testcase    (obj)    --    Object of CVTestCase</span>
 <span class="sd">            mandatory      (bool)   --    whether to check for mandatory inputs</span>
@@ -146,7 +173,13 @@
                 <span class="s2">&quot;Valid test case object must be passed as argument&quot;</span>
             <span class="p">)</span>
 
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_name</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ClientName&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;TestPath&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path2</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;TestPath2&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path3</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;TestPath3&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">restore_path</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;RestorePath&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">storage_policy</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;StoragePolicyName&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">snap_engine</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;snapengine&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">cv_testcase</span><span class="o">.</span><span class="n">storage_policy</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
             <span class="s1">&#39;StoragePolicyName&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">cv_testcase</span><span class="o">.</span><span class="n">unicode</span> <span class="o">=</span> <span class="kc">False</span>
@@ -165,6 +198,12 @@
         <span class="n">cv_testcase</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Password&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">cv_testcase</span><span class="o">.</span><span class="n">runid</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="p">())</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">is_client_big_data_apps</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">is_client_network_share</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">master_node</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">no_of_streams</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">instance_name</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="c1"># wait time after populating the data for journals to catch up</span>
         <span class="n">cv_testcase</span><span class="o">.</span><span class="n">WAIT_TIME</span> <span class="o">=</span> <span class="mi">30</span>
@@ -232,11 +271,76 @@
             <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;FolderTimeStamp&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;yes&#39;</span><span class="p">:</span>
                 <span class="n">cv_testcase</span><span class="o">.</span><span class="n">dirtime</span> <span class="o">=</span> <span class="kc">True</span>
 
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;MasterNode&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">basestring</span><span class="p">):</span>
+            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">master_node</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;MasterNode&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;DataAccessNodes&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;DataAccessNodes&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;NoOfStreams&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">no_of_streams</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;NoOfStreams&#39;</span><span class="p">]</span>
+
         <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">agent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">agent_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;file system&quot;</span><span class="p">:</span>
+            
+            <span class="c1"># Agent Name == File system</span>
+            <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">agent_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;file system&quot;</span><span class="p">:</span>      
                 <span class="n">cv_testcase</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                     <span class="s2">&quot;DefaultInstanceName&quot;</span>
                 <span class="p">)</span>
+
+                <span class="c1"># For Network share client, the data access nodes will be set in input JSON</span>
+                <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">is_client_network_share</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="c1"># select the first node in data access nodes as master node</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_node</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+                    <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;The data access node list cannot be empty&quot;</span><span class="p">)</span>
+                    
+                    <span class="c1"># use cvd for connecting with the master node</span>
+                    <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span>
+                            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_node</span><span class="p">,</span>
+                            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">commcell</span>
+                        <span class="p">)</span>
+
+                    <span class="c1"># for network share clients, set number of streams to be 2* number of data access nodes</span>
+                    <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">no_of_streams</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">no_of_streams</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">)</span>
+
+                <span class="c1"># for filesystem clients set number of streams to be 1</span>
+                <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">no_of_streams</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">no_of_streams</span> <span class="o">=</span> <span class="mi">1</span>
+            
+            <span class="c1"># Agent Name = Big Data Apps</span>
+            <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">agent_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;big data apps&quot;</span><span class="p">:</span>
+                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">is_client_big_data_apps</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_node</span> <span class="o">=</span> <span class="kc">None</span>
+                
+                <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">master_node</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">master_node</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_node</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">master_node</span>
+                <span class="k">elif</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_node</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="s2">&quot;The Master node and the data access nodes both cannot be empty&quot;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">master_node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">master_node</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+                <span class="c1"># use cvd for all communications with the master node</span>
+                <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span>
+                        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_node</span><span class="p">,</span>
+                        <span class="n">cv_testcase</span><span class="o">.</span><span class="n">commcell</span>
+                    <span class="p">)</span>
+
+                <span class="c1"># If no of streams is not given in input. Configure 2 * no of data access nodes for big data apps</span>
+                <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">no_of_streams</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">no_of_streams</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">)</span>
+                
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
                 <span class="s2">&quot;Agent object is not initialized for test case. &quot;</span>
@@ -251,6 +355,7 @@
                <span class="p">):</span>
                 <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span>
                     <span class="n">cv_testcase</span><span class="o">.</span><span class="n">hostname</span><span class="p">,</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span>
                     <span class="n">username</span><span class="o">=</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
                     <span class="n">password</span><span class="o">=</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">password</span>
                 <span class="p">)</span>
@@ -268,10 +373,18 @@
             <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.winfshelper</span> <span class="k">import</span> <span class="n">WinFSHelper</span>
             <span class="n">cv_testcase</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">WinFSHelper</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">os_list</span><span class="o">.</span><span class="n">UNIX</span>
             <span class="n">cv_testcase</span><span class="o">.</span><span class="n">slash_format</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span>
-            <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.unixfshelper</span> <span class="k">import</span> <span class="n">UnixFSHelper</span>
-            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">UnixFSHelper</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">)</span></div>
+            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">os_list</span><span class="o">.</span><span class="n">UNIX</span>
+            <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span> <span class="o">!=</span> <span class="s1">&#39;OS400&#39;</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.unixfshelper</span> <span class="k">import</span> <span class="n">UnixFSHelper</span>
+                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">UnixFSHelper</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.ibmihelper</span> <span class="k">import</span> <span class="n">IBMiHelper</span>
+                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">IBMiHelper</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span> <span class="o">==</span> <span class="s1">&#39;OpenVMS&#39;</span><span class="p">:</span>
+            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">mount_openvms_testpath</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path</span><span class="p">)</span>
+            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">test_path</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path</span></div>
 
 <div class="viewcode-block" id="FSHelper.create_backupset"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.create_backupset">[docs]</a>    <span class="k">def</span> <span class="nf">create_backupset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Creates new backupset with specified parameters</span>
@@ -329,6 +442,76 @@
                 <span class="s1">&#39;Backupset Creation Failed with error: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
             <span class="p">)</span></div>
 
+<div class="viewcode-block" id="FSHelper.create_instance"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.create_instance">[docs]</a>    <span class="k">def</span> <span class="nf">create_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates new Instance with specified parameters</span>
+<span class="sd">             under the current Client.</span>
+
+<span class="sd">            Checks if the Instance exists or not.</span>
+<span class="sd">            If the Instance exists, deletes the existing Instance</span>
+<span class="sd">            and creates new one with the testcase id.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                name   (str)  -- name of the Instance</span>
+
+<span class="sd">                delete (bool) -- indicates whether</span>
+<span class="sd">                                 existing Instance should be deleted</span>
+<span class="sd">                    default: False</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception - Any error occured during Instance creation</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking if Instance&quot;</span>
+                          <span class="s2">&quot; </span><span class="si">{0}</span><span class="s2"> exists.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+            <span class="n">instances_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">_agent</span><span class="o">.</span><span class="n">instances</span>
+            <span class="k">if</span> <span class="n">instances_object</span><span class="o">.</span><span class="n">has_instance</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">delete</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s2">&quot;Instance exists, deleting Instance </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">instances_object</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Creating Instance </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Instance exists, using existing&quot;</span>
+                        <span class="s2">&quot; Instance </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="n">instances_object</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">backupset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">backupsets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                        <span class="s2">&quot;DefaultBackupSet&quot;</span><span class="p">)</span>
+                    <span class="k">return</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Instance doesn&#39;t exist, creating Instance&quot;</span>
+                              <span class="s2">&quot; </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+
+
+            <span class="n">data_access_nodes_json</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">access_node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">:</span>
+                <span class="n">data_access_nodes_json</span><span class="o">.</span><span class="n">append</span><span class="p">({</span> <span class="s2">&quot;clientName&quot;</span> <span class="p">:</span> <span class="n">access_node</span> <span class="p">})</span>
+
+            <span class="n">json</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;instanceName&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;MasterNode&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">master_node</span><span class="p">,</span>
+                <span class="s2">&quot;dataAccessNodes&quot;</span><span class="p">:</span> <span class="n">data_access_nodes_json</span>
+            <span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">instances_object</span><span class="o">.</span><span class="n">add_big_data_apps_instance</span><span class="p">(</span><span class="n">json</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">backupset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">backupsets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;DefaultBackupSet&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s1">&#39;Instance Creation Failed with error: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Instance Creation Failed with error: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+            <span class="p">)</span></div>
+
 <div class="viewcode-block" id="FSHelper.create_subclient"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.create_subclient">[docs]</a>    <span class="k">def</span> <span class="nf">create_subclient</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
             <span class="n">name</span><span class="p">,</span>
@@ -342,7 +525,9 @@
             <span class="n">data_readers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
             <span class="n">allow_multiple_readers</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">read_buffer_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
-            <span class="n">delete</span><span class="o">=</span><span class="kc">False</span>
+            <span class="n">block_level_backup</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">data_access_nodes</span><span class="o">=</span><span class="kc">None</span>
     <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Creates subclient under current testcase backupset</span>
 <span class="sd">            with specified parameters</span>
@@ -387,7 +572,16 @@
 <span class="sd">                                                        OPTIMIZED</span>
 <span class="sd">                                                        CHANGEJOURNAL</span>
 <span class="sd">                    default: ScanType.RECURSIVE</span>
-
+<span class="sd">                </span>
+<span class="sd">                data_access_nodes(list)          -- creates a subclient with these data</span>
+<span class="sd">                                                    access nodes for NFS share or big data apps</span>
+<span class="sd">                    </span>
+<span class="sd">                    default : None</span>
+<span class="sd">                    </span>
+<span class="sd">                block_level_backup (str)         -- blocklevel backup data switch                  </span>
+<span class="sd">                    default: None</span>
+<span class="sd">                    </span>
+<span class="sd">                    </span>
 <span class="sd">            Returns:</span>
 <span class="sd">                None</span>
 
@@ -437,7 +631,9 @@
                 <span class="n">scan_type</span><span class="o">=</span><span class="n">scan_type</span><span class="p">,</span>
                 <span class="n">data_readers</span><span class="o">=</span><span class="n">data_readers</span><span class="p">,</span>
                 <span class="n">allow_multiple_readers</span><span class="o">=</span><span class="n">allow_multiple_readers</span><span class="p">,</span>
-                <span class="n">read_buffer_size</span><span class="o">=</span><span class="n">read_buffer_size</span>
+                <span class="n">block_level_backup</span><span class="o">=</span><span class="n">block_level_backup</span><span class="p">,</span>
+                <span class="n">read_buffer_size</span><span class="o">=</span><span class="n">read_buffer_size</span><span class="p">,</span>
+                <span class="n">data_access_nodes</span><span class="o">=</span><span class="n">data_access_nodes</span>
             <span class="p">)</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
@@ -459,7 +655,12 @@
             <span class="n">scan_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">data_readers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">allow_multiple_readers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">read_buffer_size</span><span class="o">=</span><span class="kc">None</span>
+            <span class="n">read_buffer_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">block_level_backup</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">createFileLevelIndex</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">data_access_nodes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+			<span class="n">backup_system_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            
     <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Updates subclient property of current</span>
 <span class="sd">            testcase subclient with specified parameters</span>
@@ -500,6 +701,18 @@
 
 <span class="sd">                read_buffer_size (int)           -- read buffer size in KB</span>
 <span class="sd">                    default: None</span>
+<span class="sd">                </span>
+<span class="sd">                data_access_nodes (list)         -- sets the list passed as data access nodes</span>
+<span class="sd">                                                    or backup nodes for this subclient</span>
+<span class="sd">                blockLevelBackup                 -- enable/Disable Blocklevel Option</span>
+<span class="sd">                    default:None</span>
+<span class="sd"> </span>
+<span class="sd">                createFileLevelIndex         -- Enable/Diable Metadata option</span>
+<span class="sd">                     default:False</span>
+
+<span class="sd">				backup_system_state             --  Enable/Disable system state option</span>
+<span class="sd">					 default:None</span>
+<span class="sd">                     </span>
 <span class="sd">            Returns:</span>
 <span class="sd">                None</span>
 
@@ -523,12 +736,32 @@
             <span class="k">if</span> <span class="n">trueup_days</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">trueup_days</span> <span class="o">=</span> <span class="n">trueup_days</span>
             <span class="k">if</span> <span class="n">data_readers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">data_readers</span> <span class="o">=</span> <span class="n">data_readers</span>
+                <span class="k">if</span> <span class="n">data_access_nodes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">data_readers</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">data_access_nodes</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">data_readers</span> <span class="o">=</span> <span class="n">data_readers</span>
             <span class="k">if</span> <span class="n">allow_multiple_readers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">allow_multiple_readers</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">allow_multiple_readers</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">data_access_nodes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">allow_multiple_readers</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">allow_multiple_readers</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">allow_multiple_readers</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">read_buffer_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">read_buffer_size</span> <span class="o">=</span> <span class="n">read_buffer_size</span>
+            
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">is_client_big_data_apps</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">set_data_access_nodes</span><span class="p">(</span><span class="n">data_access_nodes</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">is_client_network_share</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">set_backup_nodes</span><span class="p">(</span><span class="n">data_access_nodes</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">block_level_backup</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">block_level_backup_option</span> <span class="o">=</span> <span class="n">block_level_backup</span>
+            <span class="k">if</span> <span class="n">createFileLevelIndex</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">create_file_level_index_option</span> <span class="o">=</span> <span class="n">createFileLevelIndex</span>
+
+            <span class="k">if</span> <span class="n">backup_system_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">system_state_option</span> <span class="o">=</span> <span class="n">backup_system_state</span>
+
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
@@ -805,11 +1038,8 @@
 <div class="viewcode-block" id="FSHelper.restore_in_place"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.restore_in_place">[docs]</a>    <span class="k">def</span> <span class="nf">restore_in_place</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
             <span class="n">paths</span><span class="p">,</span>
-            <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">restore_data_and_acl</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">copy_precedence</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">from_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">to_time</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Restores the files/folders specified</span>
 <span class="sd">            in the input paths list to the same location.</span>
 
@@ -817,26 +1047,80 @@
 <span class="sd">                paths                   (list)  --  list of full paths</span>
 <span class="sd">                                                    of files/folders to restore</span>
 
-<span class="sd">                overwrite               (bool)  --  unconditional overwrite</span>
-<span class="sd">                                                    files during restore</span>
-<span class="sd">                    default: True</span>
+<span class="sd">                Kwargs:</span>
+<span class="sd">                Keyword argument of restore options:</span>
+<span class="sd">                    Example:</span>
+<span class="sd">                        {</span>
 
-<span class="sd">                restore_data_and_acl    (bool)  --  restore data and ACL files</span>
-<span class="sd">                    default: True</span>
+<span class="sd">                        overwrite           (bool)  -- unconditional overwrite</span>
+<span class="sd">                                                      files during restore</span>
+<span class="sd">                            default: True</span>
 
-<span class="sd">                copy_precedence         (int)   --  copy precedence value</span>
-<span class="sd">                                                    of storage policy copy</span>
-<span class="sd">                    default: None</span>
+<span class="sd">                        restore_data_and_acl (bool)--restore data and ACL files</span>
 
-<span class="sd">                from_time           (str)       --  time to</span>
+<span class="sd">                            default: True</span>
+
+<span class="sd">                        copy_precedence      (int)   -- copy precedence value</span>
+<span class="sd">                                                        of storage policy copy</span>
+<span class="sd">                            default: None</span>
+
+<span class="sd">                        from_time            (str)    -- time from</span>
 <span class="sd">                                                    retore the contents after</span>
-<span class="sd">                    format: YYYY-MM-DD HH:MM:SS</span>
-<span class="sd">                    default: None</span>
+<span class="sd">                            format: YYYY-MM-DD HH:MM:SS</span>
 
-<span class="sd">                to_time           (str)         --  time to</span>
+<span class="sd">                            default: None</span>
+
+<span class="sd">                        to_time           (str)     --time to</span>
 <span class="sd">                                                    retore the contents before</span>
-<span class="sd">                    format: YYYY-MM-DD HH:MM:SS</span>
-<span class="sd">                    default: None</span>
+<span class="sd">                            format: YYYY-MM-DD HH:MM:SS</span>
+<span class="sd">                            default: None</span>
+
+<span class="sd">                        restoreDataInsteadOfStub  (bool) True:restore data</span>
+<span class="sd">                                                         False: restore stub</span>
+
+<span class="sd">                            default: True</span>
+
+<span class="sd">                        restoreOnlyStubExists     (bool)</span>
+<span class="sd">                                                    True:</span>
+<span class="sd">                                                        restore will bring item</span>
+<span class="sd">                                                        back only the related</span>
+<span class="sd">                                                        stub existed</span>
+
+<span class="sd">                                                    False:</span>
+<span class="sd">                                                            will restore item</span>
+<span class="sd">                                                            regardless of stub</span>
+<span class="sd">                            default: False</span>
+
+<span class="sd">                        overwriteFiles             (bool)</span>
+<span class="sd">                                                    True:</span>
+<span class="sd">                                                        match media is newer</span>
+<span class="sd">                                                    False:</span>
+<span class="sd">                                                        restore regardless</span>
+<span class="sd">                                                        of media is newer</span>
+<span class="sd">                            default: True</span>
+
+<span class="sd">                        doNotOverwriteFileOnDisk   (bool)</span>
+<span class="sd">                                                    True:</span>
+<span class="sd">                                                        will not overwrite</span>
+<span class="sd">                                                        the file on disk</span>
+<span class="sd">                                                    False:</span>
+<span class="sd">                                                        will ignore the file</span>
+<span class="sd">                                                        on disk and overwrite</span>
+<span class="sd">                            default: False</span>
+
+<span class="sd">                        disableStubRestore  (bool)</span>
+<span class="sd">                                            True: will not allow stub restore</span>
+<span class="sd">                                                in case dangle stub existed</span>
+<span class="sd">                                            False: will restore dangling stub</span>
+<span class="sd">                            default True</span>
+
+
+<span class="sd">                        _schedule_pattern (dict)  -- schedule create job option</span>
+
+<span class="sd">                            default :None</span>
+<span class="sd">                        }</span>
+
+
 
 <span class="sd">            Returns:</span>
 <span class="sd">                object - instance of the Job class for this restore job</span>
@@ -845,18 +1129,36 @@
 <span class="sd">                Exception - Any error occurred while running restore</span>
 <span class="sd">                            or restore didn&#39;t complete successfully.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-
         <span class="k">try</span><span class="p">:</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Run Restore in place &quot;</span><span class="p">)</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Run Restore in place &quot;</span><span class="p">)</span>
+            <span class="n">_fs_options</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">_overwrite</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;overwrite&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">_restore_data_and_acl</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;restore_data_and_acl&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">_copy_precedence</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;copy_precedence&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">_from_time</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;from_time&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">_to_time</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;to_time&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;restoreDataInsteadOfStub&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;restoreDataInsteadOfStub&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;restoreOnlyStubExists&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;restoreOnlyStubExists&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;overwriteFiles&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;overwriteFiles&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;doNotOverwriteFileOnDisk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;doNotOverwriteFileOnDisk&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;disableStubRestore&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;disableStubRestore&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">_schedule_pattern</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;schedule_pattern&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
             <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">(</span>
                 <span class="n">paths</span><span class="o">=</span><span class="n">paths</span><span class="p">,</span>
-                <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">,</span>
-                <span class="n">restore_data_and_acl</span><span class="o">=</span><span class="n">restore_data_and_acl</span><span class="p">,</span>
-                <span class="n">copy_precedence</span><span class="o">=</span><span class="n">copy_precedence</span><span class="p">,</span>
-                <span class="n">from_time</span><span class="o">=</span><span class="n">from_time</span><span class="p">,</span>
-                <span class="n">to_time</span><span class="o">=</span><span class="n">to_time</span>
+                <span class="n">overwrite</span><span class="o">=</span><span class="n">_overwrite</span><span class="p">,</span>
+                <span class="n">restore_data_and_acl</span><span class="o">=</span><span class="n">_restore_data_and_acl</span><span class="p">,</span>
+                <span class="n">copy_precedence</span><span class="o">=</span><span class="n">_copy_precedence</span><span class="p">,</span>
+                <span class="n">from_time</span><span class="o">=</span><span class="n">_from_time</span><span class="p">,</span>
+                <span class="n">to_time</span><span class="o">=</span><span class="n">_to_time</span><span class="p">,</span>
+                <span class="n">fs_options</span><span class="o">=</span><span class="n">_fs_options</span><span class="p">,</span>
+                <span class="n">schedule_pattern</span><span class="o">=</span><span class="n">_schedule_pattern</span>
             <span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
@@ -895,7 +1197,12 @@
             <span class="n">preserve_level</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
             <span class="n">proxy_client</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">impersonate_user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">impersonate_password</span><span class="o">=</span><span class="kc">None</span>
+            <span class="n">impersonate_password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">is_vlr_restore</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">is_client_big_data_apps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">destination_instance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">no_of_streams</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">restore_nodes</span><span class="o">=</span><span class="kc">None</span>
     <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Restores the files/folders specified</span>
 <span class="sd">            in the input paths list to the input client,</span>
@@ -955,6 +1262,30 @@
 <span class="sd">                                                        in base64 encoded form</span>
 <span class="sd">                    default: None</span>
 
+<span class="sd">                is_vlr_restore          (bool)      -- Blocklevel Switch to run restore of </span>
+<span class="sd">                                                        Volume</span>
+<span class="sd">                    default: False</span>
+
+
+<span class="sd">                is_client_big_data_apps(bool) -- to indicate if the destintation client</span>
+<span class="sd">                                            is of type DISTRIBUTED_IDA</span>
+<span class="sd">                    </span>
+<span class="sd">                    default : None</span>
+<span class="sd">                </span>
+<span class="sd">                destination_instance (str) -- destination instance if the destination</span>
+<span class="sd">                                            client is of type DISTRIBUTED_IDA</span>
+<span class="sd">                                            </span>
+<span class="sd">                    default : None</span>
+<span class="sd">                    </span>
+<span class="sd">                no_of_streams (int)      -- number of streams used for restore</span>
+<span class="sd">                    </span>
+<span class="sd">                    default : 1</span>
+<span class="sd">                    </span>
+<span class="sd">                restore_nodes (list)     -- the data access nodes used for restore in case of </span>
+<span class="sd">                                            multi-node restore.</span>
+<span class="sd">                                            </span>
+<span class="sd">                    default : None</span>
+
 <span class="sd">            Returns:</span>
 <span class="sd">                object - instance of the Job class for this restore job</span>
 
@@ -970,19 +1301,49 @@
             <span class="k">if</span> <span class="n">client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client</span>
 
+            <span class="n">multinode_restore</span> <span class="o">=</span> <span class="kc">None</span>
+
             <span class="c1"># set fs_options</span>
             <span class="n">fs_options</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;preserve_level&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">preserve_level</span>
             <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;restore_ACL&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">restore_ACL</span>
+            <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;no_of_streams&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">no_of_streams</span>
 
             <span class="k">if</span> <span class="n">proxy_client</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;proxy_client&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">proxy_client</span>
+
+            <span class="k">if</span> <span class="n">is_vlr_restore</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;is_vlr_restore&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">is_vlr_restore</span>
+
 
             <span class="k">if</span> <span class="n">impersonate_user</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;impersonate_user&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">impersonate_user</span>
 
             <span class="k">if</span> <span class="n">impersonate_password</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;impersonate_password&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">impersonate_password</span>
+
+            <span class="c1"># Multi-node restores if restore_nodes is set </span>
+            <span class="k">if</span> <span class="n">restore_nodes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;multinode_restore&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">multinode_restore</span> <span class="o">=</span> <span class="kc">True</span>
+
+            
+            <span class="k">if</span> <span class="n">multinode_restore</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                
+                <span class="n">restore_nodes_json</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">access_node</span> <span class="ow">in</span> <span class="n">restore_nodes</span><span class="p">:</span>
+                    <span class="n">restore_nodes_json</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;clientName&quot;</span> <span class="p">:</span> <span class="n">access_node</span><span class="p">})</span>
+                
+                <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;data_access_nodes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">restore_nodes_json</span>
+                
+                <span class="k">if</span> <span class="n">is_client_big_data_apps</span><span class="p">:</span>
+                    <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;destination_instance&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">destination_instance</span>
+                
+                <span class="k">if</span> <span class="n">is_client_big_data_apps</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;destination_appTypeId&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">64</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_node</span>
+                    <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;destination_appTypeId&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">29</span>
 
             <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">restore_out_of_place</span><span class="p">(</span>
                 <span class="n">client</span><span class="o">=</span><span class="n">client</span><span class="p">,</span>
@@ -1023,7 +1384,8 @@
                           <span class="n">scan_type</span><span class="o">=</span><span class="n">ScanType</span><span class="o">.</span><span class="n">RECURSIVE</span><span class="p">,</span>
                           <span class="n">backup_level</span><span class="o">=</span><span class="s2">&quot;Incremental&quot;</span><span class="p">,</span>
                           <span class="n">incremental_backup</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                          <span class="n">incremental_level</span><span class="o">=</span><span class="s1">&#39;BEFORE_SYNTH&#39;</span>
+                          <span class="n">incremental_level</span><span class="o">=</span><span class="s1">&#39;BEFORE_SYNTH&#39;</span><span class="p">,</span>
+                          <span class="n">scan_marking</span><span class="o">=</span><span class="kc">False</span>
                           <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Initiates backup and performs the applicable verifications</span>
 <span class="sd">             on current test case subclient</span>
@@ -1049,6 +1411,10 @@
 <span class="sd">                        BEFORE_SYNTH / AFTER_SYNTH</span>
 <span class="sd">                        only applicable in case of Synthetic_full backup</span>
 <span class="sd">                    default: BEFORE_SYNTH</span>
+
+<span class="sd">                scan_marking     (bool)     --  to check whether the job ran as Scan Marking Job</span>
+<span class="sd">                    default: False</span>
+
 <span class="sd">            Returns:</span>
 <span class="sd">                list    - instances of the Job class for the backup job ran</span>
 
@@ -1096,6 +1462,12 @@
                     <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Job &quot;</span>
                                     <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
                                     <span class="o">+</span> <span class="s2">&quot; incorrectly used scan optimization&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">scan_marking</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">verify_scan_marking</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Job &quot;</span>
+                                    <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+                                    <span class="o">+</span> <span class="s2">&quot; didn&#39;t complete in scan phase as expected.&quot;</span><span class="p">)</span>
 
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job completed successfully without any failures&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">jobs</span></div>
@@ -1106,7 +1478,12 @@
                            <span class="n">tmp_path</span><span class="p">,</span>
                            <span class="n">data_path_leaf</span><span class="p">,</span>
                            <span class="n">job</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">cleanup</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                           <span class="n">cleanup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                           <span class="n">is_client_big_data_apps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">destination_instance</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">no_of_streams</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                           <span class="n">proxy_client</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">restore_nodes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Initiates restore for data backed up in the given job</span>
 <span class="sd">            and performs the applicable verifications</span>
 
@@ -1127,6 +1504,29 @@
 <span class="sd">                cleanup (bool)           -- to indicate if restored data</span>
 <span class="sd">                                             should be cleaned up</span>
 <span class="sd">                    default : True</span>
+<span class="sd">                </span>
+<span class="sd">                is_client_big_data_apps(bool) -- to indicate if the destintation client</span>
+<span class="sd">                                            is of type DISTRIBUTED_IDA</span>
+<span class="sd">                    </span>
+<span class="sd">                    default : None</span>
+<span class="sd">                </span>
+<span class="sd">                destination_instance (str) -- destination instance if the destination</span>
+<span class="sd">                                            client is of type DISTRIBUTED_IDA</span>
+<span class="sd">                                            </span>
+<span class="sd">                    default : None</span>
+<span class="sd">                    </span>
+<span class="sd">                no_of_streams (int)      -- number of streams used for restore</span>
+<span class="sd">                    </span>
+<span class="sd">                    default : 1</span>
+
+<span class="sd">                proxy_client(str)        -- Proxy for restore</span>
+<span class="sd"> </span>
+<span class="sd">                    default : None</span>
+<span class="sd">                    </span>
+<span class="sd">                restore_nodes (list)     -- the data access nodes used for restore in case of </span>
+<span class="sd">                                            multi-node restore.</span>
+<span class="sd">                                            </span>
+<span class="sd">                    default : None</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                None</span>
@@ -1167,7 +1567,12 @@
             <span class="n">destination_path</span><span class="o">=</span><span class="n">dest_path</span><span class="p">,</span>
             <span class="n">paths</span><span class="o">=</span><span class="n">paths</span><span class="p">,</span>
             <span class="n">from_time</span><span class="o">=</span><span class="n">restore_from_time</span><span class="p">,</span>
-            <span class="n">to_time</span><span class="o">=</span><span class="n">restore_to_time</span><span class="p">)</span>
+            <span class="n">to_time</span><span class="o">=</span><span class="n">restore_to_time</span><span class="p">,</span>
+            <span class="n">is_client_big_data_apps</span><span class="o">=</span><span class="n">is_client_big_data_apps</span><span class="p">,</span>
+            <span class="n">destination_instance</span><span class="o">=</span><span class="n">destination_instance</span><span class="p">,</span>
+            <span class="n">no_of_streams</span><span class="o">=</span><span class="n">no_of_streams</span><span class="p">,</span>
+            <span class="n">proxy_client</span><span class="o">=</span><span class="n">proxy_client</span><span class="p">,</span>
+            <span class="n">restore_nodes</span><span class="o">=</span><span class="n">restore_nodes</span><span class="p">)</span>
 
         <span class="n">compare_source</span> <span class="o">=</span> <span class="n">data_path</span>
         <span class="n">compare_destination</span> <span class="o">=</span> <span class="n">dest_path</span> <span class="o">+</span> <span class="n">slash_format</span> <span class="o">+</span> <span class="n">data_path_leaf</span>
@@ -1253,6 +1658,15 @@
         <span class="n">index_items</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_items_subclient</span><span class="p">(</span>
             <span class="n">from_time</span><span class="o">=</span><span class="n">from_time</span><span class="p">,</span> <span class="n">to_time</span><span class="o">=</span><span class="n">to_time</span>
         <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span> <span class="ow">is</span> <span class="s1">&#39;OpenVMS&#39;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">index_item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">index_items</span><span class="p">):</span>
+                <span class="n">index_item</span> <span class="o">=</span> <span class="n">index_item</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.;&quot;</span><span class="p">,</span> <span class="s2">&quot;;&quot;</span><span class="p">)</span>
+                <span class="n">pos</span> <span class="o">=</span> <span class="n">index_item</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">pos</span> <span class="ow">is</span> <span class="ow">not</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">index_item</span> <span class="o">=</span> <span class="n">index_item</span><span class="p">[:</span><span class="n">pos</span><span class="p">]</span>
+                <span class="n">index_items</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">index_item</span>
+
         <span class="n">machine_items</span> <span class="o">=</span> <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">get_items_list</span><span class="p">(</span>
             <span class="n">machine_path</span><span class="p">,</span>
             <span class="n">include_parents</span><span class="o">=</span><span class="kc">True</span>
@@ -1271,15 +1685,7 @@
                           <span class="n">incr_path</span><span class="p">,</span>
                           <span class="n">slash_format</span><span class="p">,</span>
                           <span class="n">scan_type</span><span class="o">=</span><span class="n">ScanType</span><span class="o">.</span><span class="n">RECURSIVE</span><span class="p">,</span>
-                          <span class="n">dirs</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-                          <span class="n">files</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-                          <span class="n">file_size</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
-                          <span class="n">levels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-                          <span class="n">hlinks</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                          <span class="n">slinks</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                          <span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                          <span class="n">sparse_hole_size</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span>
-                          <span class="n">options</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+                          <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Adds new data for incremental with provisions for modification</span>
 <span class="sd">            after this function execution call mod_data_incr for modifications</span>
 
@@ -1295,39 +1701,43 @@
 <span class="sd">                                                        CHANGEJOURNAL</span>
 <span class="sd">                    default: ScanType.RECURSIVE</span>
 
-<span class="sd">                dirs                (int)   --  number of directories</span>
-<span class="sd">                                                in each level</span>
-<span class="sd">                    default: 3</span>
+<span class="sd">                **kwargs (dict)             -- dictionary of optional arguments</span>
 
-<span class="sd">                files               (int)   --  number of files</span>
-<span class="sd">                                                in each directory</span>
-<span class="sd">                    default: 5</span>
+<span class="sd">                Available kwargs Options:</span>
 
-<span class="sd">                file_size           (int)   --  Size of the files in KB</span>
-<span class="sd">                    default: 20</span>
+<span class="sd">                    dirs                (int)   --  number of directories</span>
+<span class="sd">                                                    in each level</span>
+<span class="sd">                        default: 3</span>
 
-<span class="sd">                levels              (int)   --  number of levels to be created</span>
-<span class="sd">                    default: 1</span>
+<span class="sd">                    files               (int)   --  number of files</span>
+<span class="sd">                                                    in each directory</span>
+<span class="sd">                        default: 5</span>
 
-<span class="sd">                hlinks              (bool)  --  whether to create</span>
-<span class="sd">                                                hardlink files</span>
-<span class="sd">                    default: True</span>
+<span class="sd">                    file_size           (int)   --  Size of the files in KB</span>
+<span class="sd">                        default: 20</span>
 
-<span class="sd">                slinks              (bool)  --  whether to create</span>
-<span class="sd">                                                symbolic link files</span>
-<span class="sd">                    default: True</span>
+<span class="sd">                    levels              (int)   --  number of levels to be created</span>
+<span class="sd">                        default: 1</span>
 
-<span class="sd">                sparse              (bool)  --  whether to create sparse files</span>
-<span class="sd">                    default: True</span>
+<span class="sd">                    hlinks              (bool)  --  whether to create</span>
+<span class="sd">                                                    hardlink files</span>
+<span class="sd">                        default: True</span>
 
-<span class="sd">                sparse_hole_size    (int)   --  Size of the holes</span>
-<span class="sd">                                                in sparse files in KB</span>
-<span class="sd">                    default: 1024</span>
+<span class="sd">                    slinks              (bool)  --  whether to create</span>
+<span class="sd">                                                    symbolic link files</span>
+<span class="sd">                        default: True</span>
 
-<span class="sd">                options             (str)   --  to specify any other</span>
-<span class="sd">                                                additional parameters</span>
-<span class="sd">                                                to the script.</span>
-<span class="sd">                    default: &quot;&quot;</span>
+<span class="sd">                    sparse              (bool)  --  whether to create sparse files</span>
+<span class="sd">                        default: True</span>
+
+<span class="sd">                    sparse_hole_size    (int)   --  Size of the holes</span>
+<span class="sd">                                                    in sparse files in KB</span>
+<span class="sd">                        default: 1024</span>
+
+<span class="sd">                    options             (str)   --  to specify any other</span>
+<span class="sd">                                                    additional parameters</span>
+<span class="sd">                                                    to the script.</span>
+<span class="sd">                        default: &quot;&quot;</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                None</span>
@@ -1338,6 +1748,16 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
         <span class="n">testcase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span>
+
+        <span class="n">dirs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dirs&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;files&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">file_size</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file_size&#39;</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+        <span class="n">levels</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;levels&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">hlinks</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;hlinks&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">slinks</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;slinks&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">sparse</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sparse&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">sparse_hole_size</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sparse_hole_size&#39;</span><span class="p">,</span> <span class="mi">1024</span><span class="p">)</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;options&#39;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
 
         <span class="n">data_options</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">data_options</span><span class="p">[</span><span class="s1">&#39;acls&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">testcase</span><span class="o">.</span><span class="n">acls</span>
@@ -1355,7 +1775,12 @@
         <span class="n">testcase</span><span class="o">.</span><span class="n">incr_acl_change</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">testcase</span><span class="o">.</span><span class="n">incr_xattr_change</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">==</span> <span class="s1">&#39;UNIX&#39;</span><span class="p">:</span>
+        <span class="c1"># IBMi and OpenVMS do not support unix style user permissions</span>
+        <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;OS400&#39;</span><span class="p">,</span> <span class="s1">&#39;OpenVMS&#39;</span><span class="p">]:</span>
+            <span class="n">testcase</span><span class="o">.</span><span class="n">incr_permissions_change</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># OS400 and OpenVMS do not support ACL, XATTR and doesn&#39;t preserve hardlink counts</span>
+        <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">==</span> <span class="s1">&#39;UNIX&#39;</span> <span class="ow">and</span> <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;OS400&#39;</span><span class="p">,</span> <span class="s1">&#39;OpenVMS&#39;</span><span class="p">]:</span>
             <span class="n">testcase</span><span class="o">.</span><span class="n">incr_hlinks_change</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}{1}</span><span class="s2">hlinkschange&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                 <span class="n">incr_path</span><span class="p">,</span> <span class="n">slash_format</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">acls</span><span class="p">:</span>
@@ -1435,7 +1860,12 @@
         <span class="n">change_data_options</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">data_options</span><span class="p">)</span>
         <span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;slinks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">slinks</span>
         <span class="c1"># ADDING WINDOWS AS WELL</span>
-        <span class="k">if</span> <span class="p">(</span><span class="n">testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">==</span> <span class="s1">&#39;UNIX&#39;</span> <span class="ow">or</span> <span class="n">testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">==</span> <span class="s1">&#39;WINDOWS&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">==</span> <span class="s1">&#39;UNIX&#39;</span> <span class="ow">or</span>
+            <span class="n">testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">==</span> <span class="s1">&#39;WINDOWS&#39;</span> <span class="ow">or</span>
+            <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span> <span class="o">==</span> <span class="s1">&#39;OS400&#39;</span> <span class="ow">or</span>
+            <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span> <span class="o">==</span> <span class="s1">&#39;OpenVMS&#39;</span>
+        <span class="p">):</span>
             <span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;slinks&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">generate_test_data</span><span class="p">(</span>
             <span class="n">testcase</span><span class="o">.</span><span class="n">incr_modify</span><span class="p">,</span>
@@ -1453,22 +1883,23 @@
             <span class="n">long_path</span><span class="o">=</span><span class="n">data_options</span><span class="p">[</span><span class="s1">&#39;long_path&#39;</span><span class="p">],</span>
             <span class="n">problematic</span><span class="o">=</span><span class="n">data_options</span><span class="p">[</span><span class="s1">&#39;problematic&#39;</span><span class="p">],</span>
             <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
-        <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">generate_test_data</span><span class="p">(</span>
-            <span class="n">testcase</span><span class="o">.</span><span class="n">incr_permissions_change</span><span class="p">,</span>
-            <span class="n">dirs</span><span class="o">=</span><span class="n">dirs</span><span class="p">,</span>
-            <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">,</span>
-            <span class="n">file_size</span><span class="o">=</span><span class="n">file_size</span><span class="p">,</span>
-            <span class="n">levels</span><span class="o">=</span><span class="n">levels</span><span class="p">,</span>
-            <span class="n">hlinks</span><span class="o">=</span><span class="n">hlinks</span><span class="p">,</span>
-            <span class="n">sparse</span><span class="o">=</span><span class="n">sparse</span><span class="p">,</span>
-            <span class="n">sparse_hole_size</span><span class="o">=</span><span class="n">sparse_hole_size</span><span class="p">,</span>
-            <span class="n">slinks</span><span class="o">=</span><span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;slinks&#39;</span><span class="p">],</span>
-            <span class="n">acls</span><span class="o">=</span><span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;acls&#39;</span><span class="p">],</span>
-            <span class="n">unicode</span><span class="o">=</span><span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;unicode&#39;</span><span class="p">],</span>
-            <span class="n">xattr</span><span class="o">=</span><span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;xattr&#39;</span><span class="p">],</span>
-            <span class="n">long_path</span><span class="o">=</span><span class="n">data_options</span><span class="p">[</span><span class="s1">&#39;long_path&#39;</span><span class="p">],</span>
-            <span class="n">problematic</span><span class="o">=</span><span class="n">data_options</span><span class="p">[</span><span class="s1">&#39;problematic&#39;</span><span class="p">],</span>
-            <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">incr_permissions_change</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">generate_test_data</span><span class="p">(</span>
+                <span class="n">testcase</span><span class="o">.</span><span class="n">incr_permissions_change</span><span class="p">,</span>
+                <span class="n">dirs</span><span class="o">=</span><span class="n">dirs</span><span class="p">,</span>
+                <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">,</span>
+                <span class="n">file_size</span><span class="o">=</span><span class="n">file_size</span><span class="p">,</span>
+                <span class="n">levels</span><span class="o">=</span><span class="n">levels</span><span class="p">,</span>
+                <span class="n">hlinks</span><span class="o">=</span><span class="n">hlinks</span><span class="p">,</span>
+                <span class="n">sparse</span><span class="o">=</span><span class="n">sparse</span><span class="p">,</span>
+                <span class="n">sparse_hole_size</span><span class="o">=</span><span class="n">sparse_hole_size</span><span class="p">,</span>
+                <span class="n">slinks</span><span class="o">=</span><span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;slinks&#39;</span><span class="p">],</span>
+                <span class="n">acls</span><span class="o">=</span><span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;acls&#39;</span><span class="p">],</span>
+                <span class="n">unicode</span><span class="o">=</span><span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;unicode&#39;</span><span class="p">],</span>
+                <span class="n">xattr</span><span class="o">=</span><span class="n">change_data_options</span><span class="p">[</span><span class="s1">&#39;xattr&#39;</span><span class="p">],</span>
+                <span class="n">long_path</span><span class="o">=</span><span class="n">data_options</span><span class="p">[</span><span class="s1">&#39;long_path&#39;</span><span class="p">],</span>
+                <span class="n">problematic</span><span class="o">=</span><span class="n">data_options</span><span class="p">[</span><span class="s1">&#39;problematic&#39;</span><span class="p">],</span>
+                <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">incr_hlinks_change</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">generate_test_data</span><span class="p">(</span>
                 <span class="n">testcase</span><span class="o">.</span><span class="n">incr_hlinks_change</span><span class="p">,</span>
@@ -1557,10 +1988,11 @@
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Renaming files on path:&quot;</span> <span class="o">+</span> <span class="n">testcase</span><span class="o">.</span><span class="n">incr_file_rename</span><span class="p">)</span>
         <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">modify_test_data</span><span class="p">(</span>
             <span class="n">testcase</span><span class="o">.</span><span class="n">incr_file_rename</span><span class="p">,</span> <span class="n">rename</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Changing permissions of files on path:&quot;</span>
-                 <span class="o">+</span> <span class="n">testcase</span><span class="o">.</span><span class="n">incr_permissions_change</span><span class="p">)</span>
-        <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">modify_test_data</span><span class="p">(</span>
-            <span class="n">testcase</span><span class="o">.</span><span class="n">incr_permissions_change</span><span class="p">,</span> <span class="n">permissions</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">incr_permissions_change</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Changing permissions of files on path:&quot;</span>
+                         <span class="o">+</span> <span class="n">testcase</span><span class="o">.</span><span class="n">incr_permissions_change</span><span class="p">)</span>
+            <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">modify_test_data</span><span class="p">(</span>
+                <span class="n">testcase</span><span class="o">.</span><span class="n">incr_permissions_change</span><span class="p">,</span> <span class="n">permissions</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">incr_hlinks_change</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Adding hardlinks to files on path:&quot;</span>
                      <span class="o">+</span> <span class="n">testcase</span><span class="o">.</span><span class="n">incr_hlinks_change</span><span class="p">)</span>
@@ -1681,10 +2113,235 @@
                             <span class="n">job_obj</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="n">wait_for_job_to_kill</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Jobs running on pseudo-client killed&quot;</span><span class="p">)</span>
             <span class="n">commcell_obj</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">pseudo_client_name</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Pseudo-client cleaned up&quot;</span><span class="p">)</span></div></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Pseudo-client cleaned up&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FSHelper.get_subclient_content"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.get_subclient_content">[docs]</a>    <span class="k">def</span> <span class="nf">get_subclient_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_path</span><span class="p">,</span> <span class="n">slash_format</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generates the subclient content list.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            test_path (str) : The testpath provided for the test case</span>
+
+<span class="sd">            slash_format (str) : The slash format for the platform</span>
+
+<span class="sd">            subclient_name (str) : The name of the subcllient for which data is generated.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list : list of subclient contents for this test case</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">test_path</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">)</span>
+        <span class="n">temp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">temp</span></div>
+
+<div class="viewcode-block" id="FSHelper.verify_scan_marking"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.verify_scan_marking">[docs]</a>    <span class="k">def</span> <span class="nf">verify_scan_marking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;Verifies whether the job ran onle Scan phase i.e., Scan Marking Job</span>
+<span class="sd">        Args :</span>
+<span class="sd">            jobId   -- to verify the given job ran only Scan phase</span>
+
+<span class="sd">        Return:</span>
+<span class="sd">            True        -- if ran only Scan phases and the job is in Compeleted State</span>
+
+<span class="sd">            False       -- if didn&#39;t ran Scan Marking Job</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># query to get the number of phases ran</span>
+        <span class="n">str_query</span> <span class="o">=</span> <span class="s2">&quot; select count(distinct(phase)) from JMBkpAtmptStats with (NOLOCK) where status=1 and jobID=</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">str_query</span><span class="p">)</span>
+        <span class="n">cur</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+        <span class="c1"># if count is one it means only one phase was ran else multiple phases were ran</span>
+        <span class="k">if</span> <span class="n">cur</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+            <span class="c1"># query to get which phase was ran</span>
+            <span class="n">str_query</span> <span class="o">=</span> <span class="s2">&quot; select distinct(phase) from JMBkpAtmptStats with (NOLOCK) where status=1 and jobID=</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">str_query</span><span class="p">)</span>
+            <span class="n">cur</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">cur</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;4&#39;</span><span class="p">:</span>  <span class="c1"># 4 is number for Scan phase</span>
+                <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="FSHelper.backup_copy"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.backup_copy">[docs]</a>    <span class="k">def</span> <span class="nf">backup_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Runs Offline backup copy for the given storage policy</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">storage_policy_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">storage_policies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">storage_policy</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">storage_policy_obj</span><span class="o">.</span><span class="n">run_backup_copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Backup copy workflow job id is : </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run  Workflow job </span><span class="si">{0}</span><span class="s2"> for backup copy with error: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished backup copy workflow Job :</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="s1">&#39;Completed&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;job: </span><span class="si">{0}</span><span class="s2"> for Backup copy operation is completed with errors, Reason: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="FSHelper.volume_level_restore"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.volume_level_restore">[docs]</a>    <span class="k">def</span> <span class="nf">volume_level_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">destination_path</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">job</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cleanup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">from_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                             <span class="n">to_time</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Modifies the data added by add_new_data_incr</span>
+<span class="sd">            call add_new_data_incr before calling this.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                destination_path(str)  --- Destination Path you want to restore</span>
+
+<span class="sd">                client_name(str)       --- On client which you want to perform Volume level Restore</span>
+
+
+<span class="sd">                from_time (str)        --- From time for Restore</span>
+
+<span class="sd">                    default : None</span>
+
+<span class="sd">                to_time (str)           --- to time for Restore</span>
+
+<span class="sd">                    default : None</span>
+
+
+<span class="sd">                    default: ScanType.RECURSIVE</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception - Any error occurred while</span>
+<span class="sd">                            modifying the data</span>
+
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">testcase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="n">client_machine</span> <span class="o">=</span> <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span>
+
+        <span class="n">paths</span><span class="p">,</span> <span class="n">properties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">browse</span><span class="p">(</span><span class="n">browse_view_name</span><span class="o">=</span><span class="s1">&#39;VOLUMEVIEW&#39;</span><span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;browse paths Recieved  </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">paths</span><span class="p">))</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;browse paths Recieved  </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">properties</span><span class="p">))</span>
+        <span class="p">(</span><span class="n">vlrdrive</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">destination_path</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Drive used to restore volume level </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">vlrdrive</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">restore_out_of_place</span><span class="p">(</span>
+            <span class="n">client</span><span class="o">=</span><span class="n">client_name</span><span class="p">,</span>
+            <span class="n">destination_path</span><span class="o">=</span><span class="n">vlrdrive</span><span class="p">,</span>
+            <span class="n">paths</span><span class="o">=</span><span class="n">paths</span><span class="p">,</span>
+            <span class="n">from_time</span><span class="o">=</span><span class="n">from_time</span><span class="p">,</span>
+            <span class="n">to_time</span><span class="o">=</span><span class="n">to_time</span><span class="p">,</span>
+            <span class="n">is_vlr_restore</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot; Volume level Restore Done&quot;</span><span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Comparing source:&quot;</span>
+                 <span class="o">+</span> <span class="n">source_path</span>
+                 <span class="o">+</span> <span class="s2">&quot; destination:&quot;</span>
+                 <span class="o">+</span> <span class="n">destination_path</span><span class="p">)</span>
+
+        <span class="n">result</span><span class="p">,</span> <span class="n">diff_output</span> <span class="o">=</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">compare_meta_data</span><span class="p">(</span>
+            <span class="n">source_path</span><span class="p">,</span> <span class="n">destination_path</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Meta data comparison successful&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Meta data comparison failed&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Diff output: </span><span class="se">\n</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">diff_output</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Meta data comparison failed&quot;</span><span class="p">)</span>
+
+        <span class="n">result</span><span class="p">,</span> <span class="n">diff_output</span> <span class="o">=</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">compare_checksum</span><span class="p">(</span>
+            <span class="n">source_path</span><span class="p">,</span> <span class="n">destination_path</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checksum comparison successful&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Checksum comparison failed&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Diff output: </span><span class="se">\n</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">diff_output</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Checksum comparison failed&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">==</span> <span class="s1">&#39;UNIX&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">acls</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">,</span> <span class="n">diff_output</span> <span class="o">=</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">compare_acl</span><span class="p">(</span>
+                    <span class="n">source_path</span><span class="p">,</span>
+                    <span class="n">destination_path</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ACL comparison successful&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;ACL comparison failed&quot;</span><span class="p">)</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Diff output: </span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">diff_output</span><span class="p">))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;ACL comparison failed&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">xattr</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">,</span> <span class="n">diff_output</span> <span class="o">=</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">compare_xattr</span><span class="p">(</span>
+                    <span class="n">source_path</span><span class="p">,</span>
+                    <span class="n">destination_path</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;XATTR comparison successful&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;XATTR comparison failed&quot;</span><span class="p">)</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Diff output: </span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">diff_output</span><span class="p">))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;XATTR comparison failed&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cleanup</span><span class="p">:</span>
+            <span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">destination_path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FSHelper.validate_trueup"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.validate_trueup">[docs]</a>    <span class="k">def</span> <span class="nf">validate_trueup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">,</span> <span class="n">check_for_trueupfiles</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Given job object, it runs a query in JMMisc table and</span>
+<span class="sd">            checks if itemtype 38 and 44 are present in query result.</span>
+<span class="sd">            ItemType - 38 - Confirms if true up ran or not.</span>
+<span class="sd">            ItemType - 44 - Confirms if true up picked up files or not.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job (object)                -- instance of the Job class</span>
+<span class="sd">                                for the backup job to query.</span>
+<span class="sd">            check_for_trueupfiles (bool)  -- conditional variable to check</span>
+<span class="sd">                        if trueup ran and picked up files.</span>
+<span class="sd">                            default: False</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            bool     - If checkForTrueupFiles is False</span>
+<span class="sd">                        Returns True if trueup Ran</span>
+<span class="sd">                        If checkForTrueupFiles is True</span>
+<span class="sd">                        Returns True if trueup Ran and picked up files.</span>
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if any error occurred during SQL query execution.</span>
+
+<span class="sd">            &quot;&quot;&quot;</span>
+        <span class="n">trueup_ran_query</span> <span class="o">=</span> <span class="s2">&quot;select count(*) from JMMisc NOLOCK where jobid&quot;</span>\
+                           <span class="s2">&quot; = </span><span class="si">{0}</span><span class="s2"> and itemType = </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="s2">&quot;38&quot;</span><span class="p">)</span>
+        <span class="n">trueup_files_query</span> <span class="o">=</span> <span class="s2">&quot;select count(*) from JMMisc NOLOCK where jobid =&quot;</span>\
+                             <span class="s2">&quot; </span><span class="si">{0}</span><span class="s2"> and itemType = </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="s2">&quot;44&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">check_for_trueupfiles</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">trueup_ran_query</span><span class="p">)</span>
+                <span class="n">trueup_ran</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">rows</span>
+                <span class="k">if</span> <span class="n">trueup_ran</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">trueup_files_query</span><span class="p">)</span>
+                    <span class="n">trueup_pickedup</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">rows</span>
+                    <span class="k">if</span> <span class="n">trueup_pickedup</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="kc">True</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">trueup_ran_query</span><span class="p">)</span>
+                <span class="n">trueup_ran</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">rows</span>
+                <span class="k">if</span> <span class="n">trueup_ran</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to execute Trueup SQL Query for &quot;</span>
+                <span class="s2">&quot;validating trueup </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+                <span class="p">)</span></div>
+
+<div class="viewcode-block" id="FSHelper.run_systemstate_backup"><a class="viewcode-back" href="../../../FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.run_systemstate_backup">[docs]</a>    <span class="k">def</span> <span class="nf">run_systemstate_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checking if system state is enabled and running a backup&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_subclient</span><span class="p">(</span><span class="n">backup_system_state</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_backup</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span></div></div>
 </pre></div>
 
           </div>
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
@@ -1717,8 +2374,8 @@
       &copy;2018, Commvault Systems® Inc. All Rights Reserved.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
       
     </div>
 

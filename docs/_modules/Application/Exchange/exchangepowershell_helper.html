@@ -1,0 +1,503 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Application.Exchange.exchangepowershell_helper &#8212; Commvault Automation 11.13 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Application.Exchange.exchangepowershell_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main file for performing Exchange Powershell related operations.</span>
+
+<span class="sd">ExchangePowerShell:</span>
+
+<span class="sd">        create_database()           -   Creates a databases</span>
+
+<span class="sd">        create_mailboxes()          -   Creates mailboxes on the specified database</span>
+
+<span class="sd">        mountordismount_database()  -   Mount or dismount the database</span>
+
+<span class="sd">        overwrite_exdb()            -   Selects the option for a database</span>
+
+<span class="sd">        import_pst()                -   Imports pst to a mailbox</span>
+
+<span class="sd">        get_mailbox_name()          -   Gets the names of mailboxes within the specified database</span>
+
+<span class="sd">        exdbcopy_operations()       -   Suspend/resume/remove copy for a passive copy</span>
+
+<span class="sd">        remove_database()           -   Removes the database</span>
+
+<span class="sd">        check_mailbox()             -   Checks whether the mailbox is present or not</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">machine</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">Application.Exchange.ExchangeMailbox</span> <span class="k">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="k">import</span> <span class="n">LOG_DIR</span>
+
+
+<div class="viewcode-block" id="ExchangePowerShell"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell">[docs]</a><span class="k">class</span> <span class="nc">ExchangePowerShell</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;class to run exchange powershell command &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">,</span> <span class="n">cas_server_name</span><span class="p">,</span> <span class="n">exchange_server</span><span class="p">,</span>
+                 <span class="n">exchange_adminname</span><span class="p">,</span> <span class="n">exchange_adminpwd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the ExchangePowerShell object</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                ex_object (object)      -- instance of the exchange object</span>
+
+<span class="sd">                cas_server_name(str)    -- Exchange cas server name</span>
+
+<span class="sd">                exchange_server(str)    -- Exchange Server name</span>
+
+<span class="sd">                exchange_adminpwd(str)  -- Exchange administrator password</span>
+
+<span class="sd">                exchange_adminname(str) -- Exchange administrator username</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ex_object</span> <span class="o">=</span> <span class="n">ex_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span> <span class="o">=</span> <span class="n">cas_server_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span> <span class="o">=</span> <span class="n">exchange_server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span> <span class="o">=</span> <span class="n">exchange_adminname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span> <span class="o">=</span> <span class="n">exchange_adminpwd</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">utils_path</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">UTILS_PATH</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">powershell_path</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">SCRIPT_PATH</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_files</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">RETRIEVED_FILES_PATH</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ex_object</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ExchangePowerShell.create_database"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell.create_database">[docs]</a>    <span class="k">def</span> <span class="nf">create_database</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">,</span> <span class="n">db_edbfolder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">db_logfolder</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to create a database on the given exchange server</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                database_name(str)  -- Database name used to create</span>
+
+<span class="sd">                db_edbfolder(str)   -- by default creates at C:\exchangedatabases. if given</span>
+<span class="sd">                    creates the path given by user</span>
+
+<span class="sd">                db_logfolder(str)   -- by default creates at C:\exchangedatabases. if given</span>
+<span class="sd">                    creates the path given by user</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception -- Any error occured while creating databases</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">db_edbfolder</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">db_logfolder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">db_edbfolder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">EXCHANGE_DATABASES</span><span class="p">,</span> <span class="n">database_name</span><span class="p">)</span>
+                <span class="n">db_logfolder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">EXCHANGE_DATABASES</span><span class="p">,</span> <span class="n">database_name</span><span class="p">)</span>
+
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Creating Database using powershell.&#39;</span>
+                     <span class="s1">&#39;Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">CREATE_DATABASES</span><span class="p">))</span>
+
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span><span class="p">,</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span><span class="p">,</span>
+                <span class="s2">&quot;DatabaseEDBFolderPath&quot;</span><span class="p">:</span> <span class="n">db_edbfolder</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeDatabase&quot;</span><span class="p">:</span> <span class="n">database_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">,</span>
+                <span class="s2">&quot;DatabaselogFolderPath&quot;</span><span class="p">:</span> <span class="n">db_logfolder</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeCASServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span>
+            <span class="p">}</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_script</span><span class="p">(</span>
+                <span class="n">constants</span><span class="o">.</span><span class="n">CREATE_DATABASES</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to create databases&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in create_databases(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ExchangePowerShell.create_mailboxes"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell.create_mailboxes">[docs]</a>    <span class="k">def</span> <span class="nf">create_mailboxes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">display_name</span><span class="p">,</span> <span class="n">database_name</span><span class="p">,</span>
+                         <span class="n">domain_name</span><span class="p">,</span> <span class="n">number_of_mailboxes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to create mailboxes on the database</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                display_name(str)       -- Name  used to create mailboxes</span>
+
+<span class="sd">                database_name(str)      -- Mailboxes will be created on this database</span>
+
+<span class="sd">                domain_name(str)        -- Exchange domain name</span>
+
+<span class="sd">                number_of_mailboxes(str)  -- Number of mailboxes to be cerated</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception -- Any error occured while creating mailboxes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Creating mailboxes using powershell. &#39;</span>
+                <span class="s1">&#39;Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">CREATE_MAILBOXES</span><span class="p">))</span>
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span><span class="p">,</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span><span class="p">,</span>
+                <span class="s2">&quot;displayName&quot;</span><span class="p">:</span> <span class="n">display_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeDatabase&quot;</span><span class="p">:</span> <span class="n">database_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeServerDomain&quot;</span><span class="p">:</span> <span class="n">domain_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeServerName&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">,</span>
+                <span class="s2">&quot;MailboxesNumber&quot;</span><span class="p">:</span> <span class="n">number_of_mailboxes</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeCASServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span>
+            <span class="p">}</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_script</span><span class="p">(</span>
+                <span class="n">constants</span><span class="o">.</span><span class="n">CREATE_MAILBOXES</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to create mailboxes&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in create_mailboxes(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ExchangePowerShell.mountordismount_database"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell.mountordismount_database">[docs]</a>    <span class="k">def</span> <span class="nf">mountordismount_database</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">,</span> <span class="n">op_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to mount or dismount the database</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                database_name(str)      -- Database name for mounting or dismounting</span>
+
+<span class="sd">                op_type(str)            -- operation to be performaed on database.</span>
+<span class="sd">                                            Mount or dismount</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises :</span>
+<span class="sd">                Exception               --Any error occured when mounting or</span>
+<span class="sd">                dismounting the database</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;dismounting/moutning database using powershell. &#39;</span>
+                <span class="s1">&#39;Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">MOUNTDISMOUNT_EXDB</span><span class="p">))</span>
+
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span><span class="p">,</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeDatabase&quot;</span><span class="p">:</span> <span class="n">database_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeServerName&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">,</span>
+                <span class="s2">&quot;operation&quot;</span><span class="p">:</span> <span class="n">op_type</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeCASServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span>
+            <span class="p">}</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_script</span><span class="p">(</span>
+                <span class="n">constants</span><span class="o">.</span><span class="n">MOUNTDISMOUNT_EXDB</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to mount or dismount the database&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in mountordismount_database(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ExchangePowerShell.overwrite_exdb"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell.overwrite_exdb">[docs]</a>    <span class="k">def</span> <span class="nf">overwrite_exdb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to select overwrite option for the database</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                database_name(str)      -- Database name for selecting overwrite option</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception               -- Any error occured when selecting overwrite</span>
+<span class="sd">                option for the database</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;overwriting database using powershell. &#39;</span>
+                <span class="s1">&#39;Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">OVERWRITE</span><span class="p">))</span>
+
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span><span class="p">,</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeDatabase&quot;</span><span class="p">:</span> <span class="n">database_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeServerName&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeCASServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span>
+            <span class="p">}</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_script</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">OVERWRITE</span><span class="p">,</span>
+                                                      <span class="n">prop_dict</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to select the overwrite option for a database&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in overwrite_exdb(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ExchangePowerShell.import_pst"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell.import_pst">[docs]</a>    <span class="k">def</span> <span class="nf">import_pst</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">display_name</span><span class="p">,</span> <span class="n">pst_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to import pst for a given mailbox</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                display_name(str)      -- Mailbox name to import pst</span>
+
+<span class="sd">                pst_path(str)          -- Path of pst which should be a UNC path</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception               -- Any error occured when importing pst</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;import pst using powershell. &#39;</span>
+                <span class="s1">&#39;Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">IMPORT_PST</span><span class="p">))</span>
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span><span class="p">,</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span><span class="p">,</span>
+                <span class="s2">&quot;aliasName&quot;</span><span class="p">:</span> <span class="n">display_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeCAServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span><span class="p">,</span>
+                <span class="s2">&quot;PstPath&quot;</span><span class="p">:</span> <span class="n">pst_path</span>
+            <span class="p">}</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_script</span><span class="p">(</span>
+                <span class="n">constants</span><span class="o">.</span><span class="n">IMPORT_PST</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;import pst for mailbox   &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">display_name</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to import pst&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in import_pst(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ExchangePowerShell.get_mailbox_name"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell.get_mailbox_name">[docs]</a>    <span class="k">def</span> <span class="nf">get_mailbox_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">,</span> <span class="n">outputfilename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to get tha mailbox names for a given database and write to a output file</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            database_name(str)      --  Database name to get the associated mailbox names</span>
+
+<span class="sd">            outputfilename(str)     --  path of the outputfile for write the output</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            outputfilepath(str)     --  Returns the outfilepath which is used in test case</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception               -- Any error occured when getting the mailbox names</span>
+<span class="sd">            for a database</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">LOG_DIR</span><span class="p">,</span> <span class="n">outputfilename</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;getting mailbox names for the database using powershell. &#39;</span>
+                <span class="s1">&#39;Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">GET_MBNAMES</span><span class="p">))</span>
+
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span><span class="p">,</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeDatabase&quot;</span><span class="p">:</span> <span class="n">database_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeServerName&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">,</span>
+                <span class="s2">&quot;output&quot;</span><span class="p">:</span> <span class="n">output_path</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeCASServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span>
+            <span class="p">}</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_script</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">GET_MBNAMES</span><span class="p">,</span>
+                                                      <span class="n">prop_dict</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to get mailbox names&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">output_path</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in get_mailbox_name(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ExchangePowerShell.exdbcopy_operations"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell.exdbcopy_operations">[docs]</a>    <span class="k">def</span> <span class="nf">exdbcopy_operations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">,</span> <span class="n">passive_server</span><span class="p">,</span> <span class="n">op_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to peform operations on passive copies for database</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                database_name(str)      -- Database name for performing copy operations</span>
+
+<span class="sd">                passive_server(str)     -- Server name where the copy is present</span>
+
+<span class="sd">                op_type(str)            -- operation to be performaed on database.</span>
+<span class="sd">                                                    Mount or dismount</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception               -- Any error occured during suspending/resume/removing</span>
+<span class="sd">                database copy</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;suspending/resuming/removing database copy using powershell. &#39;</span>
+                <span class="s1">&#39;Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">EXDBCOPY_OPS</span><span class="p">))</span>
+
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span><span class="p">,</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeDatabase&quot;</span><span class="p">:</span> <span class="n">database_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeServerName&quot;</span><span class="p">:</span> <span class="n">passive_server</span><span class="p">,</span>
+                <span class="s2">&quot;operation&quot;</span><span class="p">:</span> <span class="n">op_type</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeCASServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span>
+            <span class="p">}</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_script</span><span class="p">(</span>
+                <span class="n">constants</span><span class="o">.</span><span class="n">EXDBCOPY_OPS</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to perfrom operation on passive copy for the database&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in exdbcopy_operations(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ExchangePowerShell.remove_database"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell.remove_database">[docs]</a>    <span class="k">def</span> <span class="nf">remove_database</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to remove database</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            database_name(str)  --Database name to be rmeoved</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception           -- Any error occured while removing databases</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;removing database using powershell. &#39;</span>
+                <span class="s1">&#39;Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">REMOVE_DATABASE</span><span class="p">))</span>
+
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span><span class="p">,</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeDatabase&quot;</span><span class="p">:</span> <span class="n">database_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeServerName&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeCASServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span>
+            <span class="p">}</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_script</span><span class="p">(</span>
+                <span class="n">constants</span><span class="o">.</span><span class="n">REMOVE_DATABASE</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to remove databases&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in remove_database(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ExchangePowerShell.check_mailbox"><a class="viewcode-back" href="../../../Application.Exchange.html#Application.Exchange.exchangepowershell_helper.ExchangePowerShell.check_mailbox">[docs]</a>    <span class="k">def</span> <span class="nf">check_mailbox</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mailbox_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to remove database</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            mailbox_name(str)  -- Check the mailbox name whether it is present or not</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception           -- Any error occured while checking for mailbox</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;checking whether mailbox is present or not. &#39;</span>
+                <span class="s1">&#39;Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">constants</span><span class="o">.</span><span class="n">CHECK_MAILBOX</span><span class="p">))</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_pwd</span><span class="p">,</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_adminname</span><span class="p">,</span>
+                <span class="s2">&quot;MailboxName&quot;</span><span class="p">:</span> <span class="n">mailbox_name</span><span class="p">,</span>
+                <span class="s2">&quot;ExchangeCASServer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cas_server_name</span>
+            <span class="p">}</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_script</span><span class="p">(</span>
+                <span class="n">constants</span><span class="o">.</span><span class="n">CHECK_MAILBOX</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+            <span class="n">retrieved_name</span> <span class="o">=</span> <span class="p">((</span><span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">))</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;Name&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">temp_mb</span> <span class="ow">in</span> <span class="n">retrieved_name</span><span class="p">:</span>
+                <span class="n">temp_mb1</span> <span class="o">=</span> <span class="n">temp_mb</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="n">temp_mb1</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_mb1</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+                <span class="k">if</span> <span class="n">temp_mb1</span> <span class="o">==</span> <span class="n">mailbox_name</span><span class="p">:</span>
+                    <span class="n">flag</span> <span class="o">=</span> <span class="mi">1</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="n">flag</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Mailbox is not found&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in check_mailbox(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

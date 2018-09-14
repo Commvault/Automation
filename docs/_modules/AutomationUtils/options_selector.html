@@ -6,10 +6,10 @@
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>AutomationUtils.options_selector &#8212; Commvault Automation 11.12 documentation</title>
+    <title>AutomationUtils.options_selector &#8212; Commvault Automation 11.13 documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
@@ -28,14 +28,15 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
+          
+
           <div class="body" role="main">
             
   <h1>Source code for AutomationUtils.options_selector</h1><div class="highlight"><pre>
 <span></span><span class="c1"># -*- coding: utf-8 -*-</span>
 
-
 <span class="c1"># --------------------------------------------------------------------------</span>
-<span class="c1"># Copyright ©2016 Commvault Systems, Inc.</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
 <span class="c1"># See LICENSE.txt in the project root for</span>
 <span class="c1"># license information.</span>
 <span class="c1"># --------------------------------------------------------------------------</span>
@@ -77,8 +78,10 @@
 
 <span class="sd">    get_ma()                        --  Gets the media agent data from DB for given query type</span>
 
-<span class="sd">    get_ready_clients()             -- Takes a list of clients and returns a tuple of</span>
+<span class="sd">    get_ready_clients()             --  Takes a list of clients and returns a tuple of</span>
 <span class="sd">                                        ready clients and number of clients</span>
+
+<span class="sd">    get_client_ids()                 --  Gets the client data from DB for given query type</span>
 
 <span class="sd">    exec_commserv_query()           --  Executes DB query against Commserve DB</span>
 
@@ -87,6 +90,12 @@
 <span class="sd">    create_directory()              --  Creates a directory on file system for client</span>
 
 <span class="sd">    create_test_data()              --  Creates test data on client</span>
+
+<span class="sd">    check_reg_key()                 --  Check/Gets the registry key value for given registry key</span>
+<span class="sd">                                            on a client.</span>
+
+<span class="sd">    get_machine_object()            --  Creates/Returns machine object based on user defined</span>
+<span class="sd">                                            input of client name as string or machine object.</span>
 
 <span class="sd">    _get_resultset()                --  Gets the resultset from the DB</span>
 
@@ -113,6 +122,9 @@
 <span class="sd">                                    client group properties</span>
 
 <span class="sd">    update_clientgroup()        -- Updates the properties of an existing client group</span>
+
+<span class="sd">    create_sp_copy()</span>
+<span class="sd">                                -- Creates a storage policy copy for the given storage policy.</span>
 
 <span class="sd">    post_delete()                -- Performs the post delete configuration for the entity.</span>
 
@@ -154,9 +166,7 @@
 
 <span class="sd">    post_create()                -- Performs the post creation configuration for the entity</span>
 
-<span class="sd">    get_properties(entity_config,</span>
-<span class="sd">                   created_entities)</span>
-<span class="sd">                                 -- Takes in dictionary of entity properties to be created and</span>
+<span class="sd">    get_properties()             -- Takes in dictionary of entity properties to be created and</span>
 <span class="sd">                                        dictionary of created entities and sets the entity</span>
 <span class="sd">                                        properties based on input association and defaults.</span>
 
@@ -171,20 +181,22 @@
 
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">copy</span>
-<span class="kn">from</span> <span class="nn">pprint</span> <span class="k">import</span> <span class="n">pformat</span>
 <span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">random</span>
 <span class="kn">import</span> <span class="nn">inspect</span>
+
 <span class="kn">from</span> <span class="nn">past.types.basestring</span> <span class="k">import</span> <span class="n">basestring</span>
 
 <span class="kn">from</span> <span class="nn">cvpysdk.commcell</span> <span class="k">import</span> <span class="n">Commcell</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.policies.storage_policies</span> <span class="k">import</span> <span class="n">StoragePolicy</span>
 
 <span class="kn">from</span> <span class="nn">Server.serverhandlers</span> <span class="k">import</span> <span class="n">argtypes</span><span class="p">,</span> <span class="n">returntype</span>
+
 <span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">logger</span>
-<span class="kn">from</span> <span class="nn">.machine</span> <span class="k">import</span> <span class="n">Machine</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">database_constants</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">.machine</span> <span class="k">import</span> <span class="n">Machine</span>
 <span class="kn">from</span> <span class="nn">.database_helper</span> <span class="k">import</span> <span class="n">get_csdb</span>
 
 
@@ -201,6 +213,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">commcell</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">arg_map</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">testdata_folder</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Representation string for the instance of the OptionsSelector class.&quot;&quot;&quot;</span>
@@ -218,7 +231,7 @@
         <span class="k">if</span> <span class="n">logmessage</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">logmessage</span><span class="p">))</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sleeping for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">_time</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sleeping for [</span><span class="si">%s</span><span class="s2">] seconds&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">_time</span><span class="p">))</span>
         <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">_time</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="OptionsSelector.get_var"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.get_var">[docs]</a>    <span class="nd">@staticmethod</span>
@@ -578,7 +591,7 @@
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_client</span><span class="p">(</span><span class="n">query_type</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="n">ready</span><span class="p">,</span> <span class="s1">&#39;mediaagent&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="OptionsSelector.get_ready_clients"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.get_ready_clients">[docs]</a>    <span class="k">def</span> <span class="nf">get_ready_clients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clients</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="OptionsSelector.get_ready_clients"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.get_ready_clients">[docs]</a>    <span class="k">def</span> <span class="nf">get_ready_clients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clients</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">os_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Takes a list of clients and returns a list of ready clients</span>
 
 <span class="sd">            Args:</span>
@@ -592,6 +605,9 @@
 <span class="sd">                validate (bool)  -- Validate if number of clients which passed</span>
 <span class="sd">                                    readiness check equals &#39;num&#39; [Total clients</span>
 <span class="sd">                                    to be fetched]</span>
+
+<span class="sd">                os_type (string) -- OS info for the clients for which readiness has to be checked</span>
+<span class="sd">                                    Eg, &quot;Unix&quot;</span>
 <span class="sd">            Returns:</span>
 <span class="sd">                (tuple)        -- (Clients list passed readiness check,</span>
 <span class="sd">                                    total clients passed)</span>
@@ -603,6 +619,14 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">clientlist</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="n">num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">clients</span><span class="p">)</span> <span class="k">if</span> <span class="n">num</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">num</span>
+            <span class="n">_clients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span>
+
+            <span class="k">if</span> <span class="n">os_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">os_type_clients</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">client</span> <span class="ow">in</span> <span class="n">clients</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">os_type</span> <span class="ow">in</span> <span class="n">_clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client</span><span class="p">)</span><span class="o">.</span><span class="n">os_info</span><span class="p">:</span>
+                        <span class="n">os_type_clients</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+                <span class="n">clients</span> <span class="o">=</span> <span class="n">os_type_clients</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Number of ready clients to fetch = [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">num</span><span class="p">))</span>
 
@@ -610,7 +634,6 @@
                 <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
                     <span class="k">continue</span>
 
-                <span class="n">_clients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span>
                 <span class="n">client_</span> <span class="o">=</span> <span class="n">_clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing readiness check on [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client</span><span class="p">))</span>
 
@@ -636,6 +659,45 @@
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> failed to get ready client(s) with&quot;</span>
                             <span class="s2">&quot; error </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="OptionsSelector.get_client_ids"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.get_client_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_client_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                       <span class="n">query_type</span><span class="o">=</span><span class="s1">&#39;GROUP_ID&#39;</span><span class="p">,</span>
+                       <span class="n">entity</span><span class="o">=</span><span class="s1">&#39;client&#39;</span><span class="p">,</span>
+                       <span class="n">id_value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fetches the details from Commserve DB with specific requirement.</span>
+<span class="sd">           Requirement is mapped to query_type</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                query_type(str)         -- query type to execute, to fetch data from Commserver DB</span>
+
+<span class="sd">                entity    (str)         --  Supported string -&gt; &#39;client&#39; Default is &#39;client&#39;</span>
+
+<span class="sd">                id_value  (str)         --  value to be passed to filter the query</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (tuple) -- tuple with (&lt;first column list&gt;, Complete resultset)</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if failed to execute DB query.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="n">exception_</span> <span class="o">=</span> <span class="s2">&quot;Failed to get [</span><span class="si">{0}</span><span class="s2">] details with error&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started executing DB query for entity: </span><span class="si">{0}</span><span class="s2"> with query_typ: </span><span class="si">{1}</span><span class="s2">&quot;</span>
+                           <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">query_type</span><span class="p">))</span>
+            <span class="n">class_name</span> <span class="o">=</span> <span class="n">database_constants</span><span class="o">.</span><span class="n">CLASS_MAP</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span>
+            <span class="n">class_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">database_constants</span><span class="p">,</span> <span class="n">class_name</span><span class="p">)</span>
+            <span class="n">dbquery</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">class_obj</span><span class="p">,</span> <span class="n">query_type</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span><span class="o">.</span><span class="n">value</span>
+            <span class="k">if</span> <span class="n">id_value</span><span class="p">:</span>
+                <span class="n">dbquery</span> <span class="o">=</span> <span class="n">dbquery</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">id_value</span><span class="p">)</span>
+            <span class="n">rs_tuple</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exec_commserv_query</span><span class="p">(</span><span class="n">dbquery</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">rs_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">exception_</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
 
 <div class="viewcode-block" id="OptionsSelector.exec_commserv_query"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.exec_commserv_query">[docs]</a>    <span class="k">def</span> <span class="nf">exec_commserv_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Executes a DB query against Commserv Database</span>
@@ -667,11 +729,12 @@
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
 
-<div class="viewcode-block" id="OptionsSelector.remove_directory"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.remove_directory">[docs]</a>    <span class="k">def</span> <span class="nf">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">targethost</span><span class="p">,</span> <span class="n">directory</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="OptionsSelector.remove_directory"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.remove_directory">[docs]</a>    <span class="k">def</span> <span class="nf">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">targethost</span><span class="p">,</span> <span class="n">directory</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;Removes a directory on a commcell client</span>
 
 <span class="sd">            Args:</span>
-<span class="sd">                targethost    (str)    -- Machine on which the directory has to be</span>
+<span class="sd">                targethost    (str)/(Machine object)</span>
+<span class="sd">                                       -- Machine on which the directory has to be</span>
 <span class="sd">                                            removed</span>
 
 <span class="sd">                directory     (str)    -- Directory that needs to be removed</span>
@@ -684,38 +747,31 @@
 <span class="sd">                    if failed to remove directory</span>
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="k">try</span><span class="p">:</span>
+            <span class="n">machine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">targethost</span><span class="p">)</span>
+            <span class="n">machine_name</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">machine_name</span>
 
-            <span class="n">machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">targethost</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Removing directory [</span><span class="si">{0}</span><span class="s2">] on [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span>
-                                                                      <span class="n">targethost</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Removing directory [</span><span class="si">{0}</span><span class="s2">] on [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">machine_name</span><span class="p">))</span>
 
             <span class="n">machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully removed directory [</span><span class="si">{0}</span><span class="s2">] on [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span>\
-                                <span class="nb">format</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">targethost</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully removed directory [</span><span class="si">{0}</span><span class="s2">] on [</span><span class="si">{1}</span><span class="s2">]&quot;</span>
+                           <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">machine_name</span><span class="p">))</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">silent</span><span class="p">:</span>
-                <span class="k">pass</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span>
-                                                       <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
-
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
 
 <div class="viewcode-block" id="OptionsSelector.create_directory"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.create_directory">[docs]</a>    <span class="k">def</span> <span class="nf">create_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">targethost</span><span class="p">,</span> <span class="n">directory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dirstring</span><span class="o">=</span><span class="s2">&quot;TestData&quot;</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;Creates a directory on a commcell client</span>
 
 <span class="sd">            Args:</span>
-<span class="sd">                targethost    (str)    -- Machine on which the directory has to be</span>
-<span class="sd">                                            created</span>
+<span class="sd">                targethost    (str)/(Machine object)</span>
+<span class="sd">                                       -- Machine on which the directory has to be created</span>
 
 <span class="sd">                directory     (str)    -- Directory that needs to be created</span>
 
-<span class="sd">                dirstring     (str)    -- In case directory is not provided, a new</span>
-<span class="sd">                                            directory will be created with this</span>
-<span class="sd">                                            string as subdirectory under parent</span>
-<span class="sd">                                            directory.</span>
+<span class="sd">                dirstring     (str)    -- In case directory is not provided, a new directory will</span>
+<span class="sd">                                            be created with this string as sub-directory under</span>
+<span class="sd">                                            parent directory.</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                directory that was created</span>
@@ -725,28 +781,26 @@
 <span class="sd">                    if failed to create directory</span>
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">targethost</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+            <span class="n">machine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">targethost</span><span class="p">)</span>
+            <span class="n">_name</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">machine_name</span>
 
             <span class="k">if</span> <span class="n">directory</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">targethost</span><span class="p">)</span>
-                <span class="n">parent_folder</span> <span class="o">=</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">format</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">install_directory</span><span class="p">),</span>
-                                          <span class="nb">format</span><span class="p">(</span><span class="s1">&#39;Automation&#39;</span><span class="p">)])</span>
-                <span class="n">subdirectory</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="o">.</span><span class="n">get_custom_str</span><span class="p">(</span><span class="s1">&#39;Auto&#39;</span><span class="p">,</span> <span class="s1">&#39;subdir&#39;</span><span class="p">)</span>
-                <span class="n">delimeter</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">os_sep</span>
-                <span class="n">directory</span> <span class="o">=</span> <span class="n">delimeter</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">parent_folder</span><span class="p">,</span> <span class="n">dirstring</span><span class="p">,</span> <span class="n">subdirectory</span><span class="p">])</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">testdata_folder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">parent_folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_drive</span><span class="p">(</span><span class="n">machine</span><span class="p">)</span> <span class="o">+</span> <span class="n">constants</span><span class="o">.</span><span class="n">TESTDATA_DIR_NAME</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testdata_folder</span> <span class="o">=</span> <span class="n">parent_folder</span>
+                <span class="n">unique_subdir</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="o">.</span><span class="n">get_custom_str</span><span class="p">(</span><span class="s1">&#39;Auto&#39;</span><span class="p">,</span> <span class="s1">&#39;subdir&#39;</span><span class="p">)</span>
+                <span class="n">_dir</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">os_sep</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">testdata_folder</span><span class="p">,</span> <span class="n">dirstring</span><span class="p">,</span> <span class="n">unique_subdir</span><span class="p">])</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating directory [</span><span class="si">{0}</span><span class="s2">] on [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span>
-                                                                      <span class="n">targethost</span><span class="p">))</span>
-            <span class="n">machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">directory</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating directory [</span><span class="si">{0}</span><span class="s2">] on [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_dir</span><span class="p">,</span> <span class="n">_name</span><span class="p">))</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully created directory [</span><span class="si">{0}</span><span class="s2">] on [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span>
-                                                                                  <span class="n">targethost</span><span class="p">))</span>
-            <span class="k">return</span> <span class="n">directory</span>
+            <span class="n">machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">_dir</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully created directory [</span><span class="si">{0}</span><span class="s2">] on [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_dir</span><span class="p">,</span> <span class="n">_name</span><span class="p">))</span>
+
+            <span class="k">return</span> <span class="n">_dir</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span>
-                                                   <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
-
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
 
 <div class="viewcode-block" id="OptionsSelector.create_test_data"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.create_test_data">[docs]</a>    <span class="k">def</span> <span class="nf">create_test_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                          <span class="n">client</span><span class="p">,</span>
@@ -756,14 +810,15 @@
         <span class="sd">&#39;&#39;&#39; Creates test data on the client machine provided</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            client (str)        --  Client name on which data needs to be created</span>
+<span class="sd">            client (str)/(Machine object)</span>
+<span class="sd">                                --  Client name on which data needs to be created</span>
 
 <span class="sd">            data_path  (str)    --  Path where test data is to be generated</span>
 <span class="sd">                                    Default: Will be defined if not set</span>
 
 <span class="sd">            level (int)         --  Depth of folders under test data</span>
 
-<span class="sd">            size (int)          --  size of test data to be generated in MB</span>
+<span class="sd">            size (int)          --  size of each test file to be generated in KB</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Parent directory path to test data directory path</span>
@@ -773,23 +828,124 @@
 <span class="sd">                When failed to create testdata</span>
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">client_</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+            <span class="n">machine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">machine_name</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">machine_name</span>
 
             <span class="k">if</span> <span class="n">file_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">file_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+                <span class="n">file_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">machine</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating test data on client </span><span class="si">{0}</span><span class="s2"> with level </span><span class="si">{1}</span><span class="s2">, file size </span><span class="si">{2}</span><span class="s2">&quot;</span>
-                           <span class="s2">&quot;MB, path </span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client</span><span class="p">,</span>
+                           <span class="s2">&quot;KB, path </span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">machine_name</span><span class="p">,</span>
                                                  <span class="nb">str</span><span class="p">(</span><span class="n">levels</span><span class="p">),</span>
                                                  <span class="nb">str</span><span class="p">(</span><span class="n">file_size</span><span class="p">),</span>
                                                  <span class="n">file_path</span><span class="p">))</span>
 
-            <span class="n">client_</span><span class="o">.</span><span class="n">generate_test_data</span><span class="p">(</span><span class="n">file_path</span><span class="o">=</span><span class="n">file_path</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="n">levels</span><span class="p">,</span> <span class="n">file_size</span><span class="o">=</span><span class="n">file_size</span><span class="p">)</span>
+            <span class="n">machine</span><span class="o">.</span><span class="n">generate_test_data</span><span class="p">(</span><span class="n">file_path</span><span class="o">=</span><span class="n">file_path</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="n">levels</span><span class="p">,</span> <span class="n">file_size</span><span class="o">=</span><span class="n">file_size</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="n">file_path</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="OptionsSelector.check_reg_key"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.check_reg_key">[docs]</a>    <span class="k">def</span> <span class="nf">check_reg_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">reg_key</span><span class="p">,</span> <span class="n">flag</span><span class="p">,</span> <span class="n">expected_value</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fail</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Check/Gets the registry key value for given registry key on a client</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                clients    (str)/(Machine object)</span>
+<span class="sd">                                           -- Client name</span>
+
+<span class="sd">                reg_key    (str)           -- Registry key path. e.g -&gt; &#39;Session&#39;</span>
+
+<span class="sd">                flag       (str)           -- Reg key name to check the value.</span>
+<span class="sd">                                                e.g -&gt; &#39;nChatterFlag&#39;</span>
+
+<span class="sd">                expected_value</span>
+<span class="sd">                           (str/int)       -- Expected value if provided will be validated and</span>
+<span class="sd">                                                module will return the key value or False based</span>
+<span class="sd">                                                on the &#39;fail&#39; argument.</span>
+
+<span class="sd">                fail       (bool)          -- If true, will throw exception in case of failed</span>
+<span class="sd">                                                validation.</span>
+<span class="sd">                                              If false, will return False if validation fails</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (bool)                     -- Based on validation failed (False)</span>
+
+<span class="sd">                (str/int)                  -- If validation succeeds or reg key value exists in</span>
+<span class="sd">                                                registry, then return value of registry.</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    - if validation failed (fail = True)</span>
+
+<span class="sd">                    - if module failed to execute due to some error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log</span>
+            <span class="n">machine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">machine_name</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">machine_name</span>
+
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking </span><span class="si">{0}</span><span class="s2"> reg key value on [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">machine_name</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">machine</span><span class="o">.</span><span class="n">check_registry_exists</span><span class="p">(</span><span class="n">reg_key</span><span class="p">,</span> <span class="n">flag</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">get_registry_value</span><span class="p">(</span><span class="n">reg_key</span><span class="p">,</span> <span class="n">flag</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> value: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="n">expected_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> expected value: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">expected_value</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">str</span><span class="p">(</span><span class="n">expected_value</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> value not as expected in registry&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validation succeeded.&quot;</span><span class="p">)</span>
+
+                <span class="k">return</span> <span class="n">value</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">expected_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> does not exist in registry&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">fail</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> validation failed </span><span class="si">{1}</span><span class="s2"> </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="OptionsSelector.get_machine_object"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.OptionsSelector.get_machine_object">[docs]</a>    <span class="k">def</span> <span class="nf">get_machine_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Creates/Returns machine object based on user defined input of client name as string</span>
+<span class="sd">            or machine object.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                machine    (str/[Machine/Windows/Unix object])</span>
+<span class="sd">                                            -- Client string or object</span>
+
+<span class="sd">                username  (str)             -- Username to access client</span>
+
+<span class="sd">                password  (str)             -- Password to access client</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                Machine object</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    - if failed to get the machine object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">machine</span><span class="p">,</span> <span class="n">Machine</span><span class="p">):</span>
+                <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">machine</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">machine</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing Machine class instance for machine [</span><span class="si">{0}</span><span class="s2">] with user&quot;</span>
+                               <span class="s2">&quot; [</span><span class="si">{1}</span><span class="s2">], password [</span><span class="si">{2}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">machine</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">))</span>
+                <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Wrong input type for &lt;machine&gt; to get_machine_object.&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">machine_obj</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
 
     <span class="k">def</span> <span class="nf">_get_resultset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">query_type</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Gets the result set from DB for given query and arguments</span>
@@ -841,10 +997,10 @@
 
         <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">aserr</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">:[</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">argerror_</span><span class="p">,</span> <span class="n">dbquery</span><span class="p">))</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{1}</span><span class="s2"> </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">exception_</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">aserr</span><span class="p">)))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">exception_</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">aserr</span><span class="p">)))</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{1}</span><span class="s2"> </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">exception_</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">exception_</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
 
 
 <div class="viewcode-block" id="CVEntities"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.CVEntities">[docs]</a><span class="k">class</span> <span class="nc">CVEntities</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -922,8 +1078,7 @@
         <span class="sd">&quot;&quot;&quot;Destroy the objects created in the class &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_utility</span> <span class="o">=</span> <span class="kc">None</span>
 
-<div class="viewcode-block" id="CVEntities.create"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.CVEntities.create">[docs]</a>    <span class="nd">@returntype</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_entities</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="CVEntities.create"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.CVEntities.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_entities</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;Method to create commcell entities</span>
 
 <span class="sd">        Note: All possible usages and examples of create() module are provided in detail</span>
@@ -1133,7 +1288,7 @@
             <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
 
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Create entities configuration: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pformat</span><span class="p">(</span><span class="n">input_entities</span><span class="p">)))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Create entities configuration: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">input_entities</span><span class="p">)))</span>
 
             <span class="c1"># Create a dictionary mapping based on input type to the module</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_entities</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
@@ -1162,7 +1317,7 @@
                 <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Entity = [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity</span><span class="p">))</span>
 
                 <span class="c1"># Call the entity class object and work in it&#39;s context</span>
-                <span class="n">entity_class</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">%s</span><span class="s2">&quot;</span><span class="o">%</span><span class="n">entity</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span>
+                <span class="n">entity_class</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">entity</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span>
                 <span class="n">entity_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="vm">__name__</span><span class="p">],</span> <span class="n">entity_class</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">_init_object</span><span class="p">)</span>
                 <span class="n">props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_entity_objects</span><span class="p">(</span><span class="n">entity_obj</span><span class="o">.</span><span class="n">associated_entities</span><span class="p">,</span> <span class="n">entity</span><span class="p">)</span>
                 <span class="nb">setattr</span><span class="p">(</span><span class="n">entity_obj</span><span class="p">,</span> <span class="s1">&#39;props&#39;</span><span class="p">,</span> <span class="n">props</span><span class="p">)</span>
@@ -1181,7 +1336,13 @@
                         <span class="n">obj</span> <span class="o">=</span> <span class="n">assocobj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
                         <span class="n">id_</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">entity_obj</span><span class="o">.</span><span class="n">entity_id</span><span class="p">)</span>
                         <span class="n">assocobj</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">_purge_entities</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_</span><span class="p">})</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_purge_entities</span><span class="p">(</span>
+                            <span class="n">entity</span><span class="p">,</span>
+                            <span class="p">{</span>
+                                <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                                <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_</span>
+                            <span class="p">}</span>
+                        <span class="p">)</span>
 
                         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleted </span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">] successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span>
                     <span class="k">else</span><span class="p">:</span>
@@ -1216,8 +1377,11 @@
                     <span class="n">props</span><span class="p">[</span><span class="s1">&#39;target&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">target</span>
                     <span class="nb">setattr</span><span class="p">(</span><span class="n">entity_obj</span><span class="p">,</span> <span class="s1">&#39;props&#39;</span><span class="p">,</span> <span class="n">props</span><span class="p">)</span>
 
-                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Performing post creation configuration for </span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">]&quot;</span>
-                                  <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Performing post creation configuration for </span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">entity</span><span class="p">,</span> <span class="n">name</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
 
                     <span class="n">entity_obj</span><span class="o">.</span><span class="n">post_create</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
                     <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">has_obj</span><span class="p">)</span> <span class="o">=</span> <span class="n">entity_obj</span><span class="o">.</span><span class="n">object</span><span class="p">()</span>
@@ -1225,7 +1389,7 @@
                     <span class="k">assert</span> <span class="n">has_obj</span><span class="p">,</span> <span class="s2">&quot;Validation failed for </span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validation succeeded.&quot;</span><span class="p">)</span>
 
-                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">_</span><span class="p">:</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Post creation configuration failed&quot;</span><span class="p">)</span>
                     <span class="k">raise</span>
                 <span class="k">finally</span><span class="p">:</span>
@@ -1240,11 +1404,11 @@
 
                     <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">] properties </span><span class="se">\n</span><span class="s2"> </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">capitalize</span><span class="p">(),</span>
                                                                        <span class="n">props</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
-                                                                       <span class="n">pformat</span><span class="p">(</span><span class="n">props</span><span class="p">)))</span>
+                                                                       <span class="nb">str</span><span class="p">(</span><span class="n">props</span><span class="p">)))</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">_created_entities</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">props</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">entity_props</span><span class="p">[</span><span class="n">entity</span><span class="p">]</span> <span class="o">=</span> <span class="n">props</span>
 
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">entity_props</span>
+            <span class="k">return</span> <span class="p">{</span><span class="n">entity</span><span class="p">:</span> <span class="n">properties</span> <span class="k">for</span> <span class="n">entity</span><span class="p">,</span> <span class="n">properties</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">entity_props</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span>
@@ -1274,7 +1438,7 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Delete entities configuration: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pformat</span><span class="p">(</span><span class="n">input_entities</span><span class="p">)))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting following entities: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">input_entities</span><span class="p">)))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_entity_config</span> <span class="o">=</span> <span class="n">input_entities</span>
 
             <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">constants</span><span class="o">.</span><span class="n">DELETE_ENTITIES_ORDER</span><span class="p">:</span>
@@ -1286,7 +1450,7 @@
                 <span class="n">name</span> <span class="o">=</span> <span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
                 <span class="n">target</span> <span class="o">=</span> <span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;target&#39;</span><span class="p">)</span>
                 <span class="n">has_entity</span> <span class="o">=</span> <span class="kc">False</span>
-                <span class="n">entity_class</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">%s</span><span class="s2">&quot;</span><span class="o">%</span><span class="n">entity</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span>
+                <span class="n">entity_class</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">entity</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span>
                 <span class="n">entityobj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="vm">__name__</span><span class="p">],</span> <span class="n">entity_class</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">_init_object</span><span class="p">,</span> <span class="n">props</span><span class="p">)</span>
                 <span class="p">(</span><span class="n">target_obj</span><span class="p">,</span> <span class="n">has_entity</span><span class="p">)</span> <span class="o">=</span> <span class="n">entityobj</span><span class="o">.</span><span class="n">object</span><span class="p">()</span>
 
@@ -1350,17 +1514,28 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Cleaning up entities for test case&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Cleanup configuration </span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pformat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_entity_object_map</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Cleanup configuration </span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_entity_object_map</span><span class="p">)))</span>
+
+            <span class="n">cleanup_failed</span> <span class="o">=</span> <span class="kc">False</span>
 
             <span class="k">for</span> <span class="n">entity_key</span> <span class="ow">in</span> <span class="n">constants</span><span class="o">.</span><span class="n">DELETE_ENTITIES_ORDER</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">entity_key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_entity_object_map</span><span class="p">:</span>
                     <span class="k">for</span> <span class="n">props</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_entity_object_map</span><span class="p">[</span><span class="n">entity_key</span><span class="p">]:</span>
+                        <span class="c1"># If cleanup is set to False for the entity, then skip cleanup.</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">props</span><span class="p">[</span><span class="s1">&#39;cleanup&#39;</span><span class="p">]:</span>
+                            <span class="k">continue</span>
+
                         <span class="c1"># Deletion may fall during cleanup due to various reasons</span>
                         <span class="c1"># Cleanup should happen for all entities and should not stop</span>
                         <span class="k">try</span><span class="p">:</span>
                             <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">({</span><span class="n">entity_key</span><span class="p">:</span> <span class="n">props</span><span class="p">})</span>
-                        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">_</span><span class="p">:</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Cleanup failed for [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">props</span><span class="p">))</span>
+                        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Cleanup failed for </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity_key</span><span class="p">))</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Exception: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span>
+                            <span class="n">cleanup_failed</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="n">cleanup_failed</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to cleanup entities.&quot;</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
@@ -1583,6 +1758,93 @@
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
 
+<div class="viewcode-block" id="CVEntities.create_sp_copy"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.CVEntities.create_sp_copy">[docs]</a>    <span class="k">def</span> <span class="nf">create_sp_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                       <span class="n">storage_policy</span><span class="p">,</span>
+                       <span class="n">copy_name</span><span class="p">,</span>
+                       <span class="n">library</span><span class="p">,</span>
+                       <span class="n">mediaagent</span><span class="p">,</span>
+                       <span class="n">drive_pool</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                       <span class="n">spare_pool</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                       <span class="n">tape_library_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                       <span class="n">drive_pool_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                       <span class="n">spare_pool_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                       <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Creates a storage policy copy for the given storage policy.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                storage_policy    (obj/str)   -- storage policy name OR corresponding storage</span>
+<span class="sd">                                                    policy SDK instance of class StoragePolicy</span>
+
+<span class="sd">                copy_name         (str)       -- name of the storage policy copy to create</span>
+
+<span class="sd">                library           (str)       -- Library name to associate to copy</span>
+
+<span class="sd">                mediaagent        (str)       -- Media agent associated to the input library</span>
+
+<span class="sd">                drive_pool         (str)      -- Drive pool name in case library is TapeLibrary</span>
+
+<span class="sd">                spare_pool         (str)      -- Spare pool name in case library is TapeLibrary</span>
+
+<span class="sd">                tape_library_id    (int)      -- Tape library id in case library is TapeLibrary</span>
+
+<span class="sd">                drive_pool_id      (int)      -- Drive pool id</span>
+
+<span class="sd">                spare_pool_id      (int)      -- Spare pool id</span>
+
+<span class="sd">                force              (bool)      -- If True, will delete any existing copy with the</span>
+<span class="sd">                                                    same name</span>
+
+<span class="sd">                                                  If False, will not create the copy and will log</span>
+<span class="sd">                                                      error.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if :</span>
+
+<span class="sd">                    - failed during execution of module</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="c1"># If storage_policy is not an instance of StoragePolicy SDK class, then get the</span>
+            <span class="c1"># storage policy object from name</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">storage_policy</span><span class="p">,</span> <span class="n">StoragePolicy</span><span class="p">):</span>
+                <span class="n">storage_policies</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">storage_policies</span>
+                <span class="n">storage_policy</span> <span class="o">=</span> <span class="n">storage_policies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">storage_policy</span><span class="p">)</span>
+
+            <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;StoragePolicy copy&#39;</span><span class="p">,</span> <span class="n">copy_name</span><span class="p">,</span> <span class="n">storage_policy</span><span class="p">]</span>
+            <span class="n">create</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="n">storage_policy</span><span class="o">.</span><span class="n">has_copy</span><span class="p">(</span><span class="n">copy_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">] already exists for </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting </span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">] for </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span>
+
+                    <span class="n">storage_policy</span><span class="o">.</span><span class="n">delete_secondary_copy</span><span class="p">(</span><span class="n">copy_name</span><span class="p">)</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleted </span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">] successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Copy not created as it already exits.&quot;</span><span class="p">)</span>
+                    <span class="n">create</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="k">if</span> <span class="n">create</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating </span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">] for </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span>
+
+                <span class="n">storage_policy</span><span class="o">.</span><span class="n">create_secondary_copy</span><span class="p">(</span><span class="n">copy_name</span><span class="p">,</span>
+                                                     <span class="n">library</span><span class="p">,</span>
+                                                     <span class="n">mediaagent</span><span class="p">,</span>
+                                                     <span class="n">drive_pool</span><span class="p">,</span>
+                                                     <span class="n">spare_pool</span><span class="p">,</span>
+                                                     <span class="n">tape_library_id</span><span class="p">,</span>
+                                                     <span class="n">drive_pool_id</span><span class="p">,</span>
+                                                     <span class="n">spare_pool_id</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Created </span><span class="si">{0}</span><span class="s2"> [</span><span class="si">{1}</span><span class="s2">] for </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">:[</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
 <div class="viewcode-block" id="CVEntities.post_delete"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.options_selector.CVEntities.post_delete">[docs]</a>    <span class="k">def</span> <span class="nf">post_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39; Performing post delete configuration&#39;&#39;&#39;</span>
         <span class="k">pass</span></div>
@@ -1643,14 +1905,15 @@
                 <span class="n">name</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="o">.</span><span class="n">get_custom_str</span><span class="p">(</span><span class="n">entity_type</span><span class="p">)</span>
             <span class="n">props</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">name</span>
 
-            <span class="c1"># Set force option for the entity</span>
-            <span class="n">force_opt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_target_props</span><span class="p">(</span><span class="s1">&#39;force&#39;</span><span class="p">,</span> <span class="n">entity_type</span><span class="p">)</span>
-            <span class="n">props</span><span class="p">[</span><span class="s1">&#39;force&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="o">.</span><span class="n">get_var</span><span class="p">(</span><span class="n">force_opt</span><span class="p">,</span> <span class="n">constants</span><span class="o">.</span><span class="n">DEFAULT_ENTITY_FORCE</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;force&#39;</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Get properties failed for </span><span class="si">{0}</span><span class="s2">.  force option should be a bool&quot;</span>
-                                <span class="s2">&quot; (True/False)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity_type</span><span class="p">))</span>
+            <span class="c1"># Set force and cleanup option for the entity</span>
+            <span class="k">for</span> <span class="n">_option</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;force&#39;</span><span class="p">,</span> <span class="s1">&#39;cleanup&#39;</span><span class="p">]:</span>
+                <span class="n">_opt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_target_props</span><span class="p">(</span><span class="n">_option</span><span class="p">,</span> <span class="n">entity_type</span><span class="p">)</span>
+                <span class="n">props</span><span class="p">[</span><span class="n">_option</span><span class="p">]</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="o">.</span><span class="n">get_var</span><span class="p">(</span><span class="n">_opt</span><span class="p">,</span> <span class="n">constants</span><span class="o">.</span><span class="n">DEFAULT_ENTITY_FORCE</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">props</span><span class="p">[</span><span class="n">_option</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Get properties failed for </span><span class="si">{0}</span><span class="s2">.  force option should be bool&quot;</span>
+                                    <span class="s2">&quot; (True/False)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity_type</span><span class="p">))</span>
 
-            <span class="n">entity_class</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">%s</span><span class="s2">&quot;</span><span class="o">%</span><span class="n">entity_type</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span>
+            <span class="n">entity_class</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">entity_type</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span>
             <span class="n">entity</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="vm">__name__</span><span class="p">],</span> <span class="n">entity_class</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">_init_object</span><span class="p">,</span> <span class="n">props</span><span class="p">)</span>
             <span class="n">props</span> <span class="o">=</span> <span class="n">entity</span><span class="o">.</span><span class="n">get_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_entity_config</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_created_entities</span><span class="p">)</span>
 
@@ -1700,7 +1963,7 @@
             <span class="n">props</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">all_objects</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> properties to be created </span><span class="se">\n</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity_type</span><span class="o">.</span><span class="n">capitalize</span><span class="p">(),</span>
-                                                                       <span class="n">pformat</span><span class="p">(</span><span class="n">all_objects</span><span class="p">)))</span>
+                                                                       <span class="nb">str</span><span class="p">(</span><span class="n">all_objects</span><span class="p">)))</span>
 
             <span class="k">return</span> <span class="n">props</span>
 
@@ -1866,6 +2129,16 @@
             <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">default_subclient</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39; Returns default testcase subclient &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">subclient</span>
+            <span class="k">return</span> <span class="n">subclient</span><span class="o">.</span><span class="n">subclient_name</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">_</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Unable to get default subclient&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">default_storagepolicy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39; Returns default testcase subclient&#39;s storagepolicy&#39;&#39;&#39;</span>
         <span class="k">try</span><span class="p">:</span>
@@ -1901,6 +2174,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_created_entities</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">entity_props</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_entity_config</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div></div>
+
 
 <span class="k">class</span> <span class="nc">_Backupset</span><span class="p">(</span><span class="n">CVEntities</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39; Class to support CVEntities class with common backupset operations&#39;&#39;&#39;</span>
@@ -1959,6 +2233,7 @@
             <span class="s1">&#39;backupset_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
             <span class="s1">&#39;on_demand_backupset&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;on_demand_backupset&#39;</span><span class="p">]</span>
         <span class="p">}</span>
+
 
 <span class="k">class</span> <span class="nc">_Subclient</span><span class="p">(</span><span class="n">CVEntities</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39; Class to support CVEntities class with common subclient operations&#39;&#39;&#39;</span>
@@ -2056,6 +2331,7 @@
 
             <span class="k">if</span> <span class="n">_type</span> <span class="o">==</span> <span class="s1">&#39;storagepolicy&#39;</span><span class="p">:</span>
                 <span class="n">_default</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_storagepolicy</span>
+
             <span class="k">elif</span> <span class="n">_type</span> <span class="o">==</span> <span class="s1">&#39;backupset&#39;</span><span class="p">:</span>
                 <span class="n">_default</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_backupset</span>
 
@@ -2087,6 +2363,7 @@
             <span class="s1">&#39;subclient_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;subclient_type&#39;</span><span class="p">],</span>
             <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">],</span>
         <span class="p">}</span>
+
 
 <span class="k">class</span> <span class="nc">_Storagepolicy</span><span class="p">(</span><span class="n">CVEntities</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39; Class to support CVEntities class with common storagepolicy operations&#39;&#39;&#39;</span>
@@ -2126,6 +2403,20 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;target&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">target</span>
         <span class="k">return</span> <span class="n">target</span>
 
+    <span class="k">def</span> <span class="nf">post_create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39; Perform post creation configuration for storage policy &#39;&#39;&#39;</span>
+        <span class="c1"># Create Storage policy copy</span>
+        <span class="k">if</span> <span class="s1">&#39;copy_name&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create_sp_copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;object&#39;</span><span class="p">],</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;copy_name&#39;</span><span class="p">],</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;library_name&#39;</span><span class="p">],</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">],</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;drive_pool&#39;</span><span class="p">],</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;spare_pool&#39;</span><span class="p">],</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;tape_library_id&#39;</span><span class="p">],</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;drive_pool_id&#39;</span><span class="p">],</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;spare_pool_id&#39;</span><span class="p">])</span>
+
     <span class="k">def</span> <span class="nf">get_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_config</span><span class="p">,</span> <span class="n">created_entities</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39; Sets entity properties based on dynamic evaluation of input properties</span>
 
@@ -2149,8 +2440,7 @@
             <span class="n">mediaagent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_mediaagent</span>
 
         <span class="k">if</span> <span class="n">library</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to assign library and mediaagent &quot;</span>
-                            <span class="s2">&quot; for storagepolicy entity&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to assign library and mediaagent for storagepolicy entity&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;library_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">library</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mediaagent</span>
@@ -2161,7 +2451,20 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;retention_period&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;retention_period&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;drivepool&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;drivepool&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;scratchpool&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;scratchpool&#39;</span><span class="p">,</span> <span class="s1">&#39;Default Scratch&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;incremental_sp_tape&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;incremental_sp_tape&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;istape&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;istape&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;number_of_streams&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;number_of_streams&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;ocum_server&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ocum_server&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Storage policy copy properties</span>
+        <span class="k">if</span> <span class="s1">&#39;copy_name&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;copy_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;copy_name&#39;</span><span class="p">,</span>
+                                                     <span class="n">OptionsSelector</span><span class="o">.</span><span class="n">get_custom_str</span><span class="p">(</span><span class="s1">&#39;copy&#39;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;spare_pool&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;spare_pool&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;spare_pool_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;spare_pool_id&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;tape_library_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tape_library_id&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;drive_pool&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;drive_pool&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;drive_pool_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;drive_pool_id&#39;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span>
 
@@ -2182,18 +2485,22 @@
             <span class="s1">&#39;media_agent&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">],</span>
             <span class="s1">&#39;dedup_path&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;dedup_path&#39;</span><span class="p">],</span>
             <span class="s1">&#39;incremental_sp&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;incremental_sp&#39;</span><span class="p">],</span>
-            <span class="s1">&#39;retention_period&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;retention_period&#39;</span><span class="p">]</span>
+            <span class="s1">&#39;retention_period&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;retention_period&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;number_of_streams&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;number_of_streams&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;ocum_server&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;ocum_server&#39;</span><span class="p">]</span>
         <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">add_tape_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&#39;&#39;&#39; Returns the keyword arguments for add() module&#39;&#39;&#39;</span>
+        <span class="sd">&#39;&#39;&#39; Returns the keyword arguments for add_tape_sp() module&#39;&#39;&#39;</span>
         <span class="k">return</span> <span class="p">{</span>
             <span class="s1">&#39;storage_policy_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
             <span class="s1">&#39;library&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;library_name&#39;</span><span class="p">],</span>
             <span class="s1">&#39;media_agent&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">],</span>
             <span class="s1">&#39;drive_pool&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;drivepool&#39;</span><span class="p">],</span>
-            <span class="s1">&#39;scratch_pool&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;scratchpool&#39;</span><span class="p">]</span>
+            <span class="s1">&#39;scratch_pool&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;scratchpool&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;incremental_sp&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;incremental_sp_tape&#39;</span><span class="p">]</span>
         <span class="p">}</span>
+
 
 <span class="k">class</span> <span class="nc">_Disklibrary</span><span class="p">(</span><span class="n">CVEntities</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39; Class to support CVEntities class with common disklibrary operations&#39;&#39;&#39;</span>
@@ -2236,8 +2543,8 @@
     <span class="k">def</span> <span class="nf">post_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39; Perform post delete configuration for disklibrary &#39;&#39;&#39;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cleanup_mount_path&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> \
-                    <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mount_path&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mount_path&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
             <span class="c1"># Delete disklibrary mount path on the Media Agent</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_utility</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">],</span>
                                            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mount_path&#39;</span><span class="p">])</span>
@@ -2280,9 +2587,7 @@
 
     <span class="k">def</span> <span class="nf">existing_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39; Performs configuration for existing disklibrary &#39;&#39;&#39;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_utility</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">],</span>
-                                       <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mount_path&#39;</span><span class="p">],</span>
-                                       <span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_utility</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;mount_path&#39;</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="o">.</span><span class="n">pop_keys</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;mediaagent_name&#39;</span><span class="p">,</span>
                                                            <span class="s1">&#39;mediaagent&#39;</span><span class="p">,</span> <span class="s1">&#39;username&#39;</span><span class="p">,</span>
                                                            <span class="s1">&#39;password&#39;</span><span class="p">,</span> <span class="s1">&#39;mount_path&#39;</span><span class="p">])</span>
@@ -2297,6 +2602,7 @@
             <span class="s1">&#39;username&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">],</span>
             <span class="s1">&#39;password&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;password&#39;</span><span class="p">]</span>
         <span class="p">}</span>
+
 
 <span class="k">class</span> <span class="nc">_Clientgroup</span><span class="p">(</span><span class="n">CVEntities</span><span class="p">):</span>
     <span class="sd">&#39;&#39;&#39; Class to support CVEntities class with common clientgroup operations&#39;&#39;&#39;</span>
@@ -2382,10 +2688,13 @@
             <span class="s1">&#39;enable_backup&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;enable_backup&#39;</span><span class="p">],</span>
             <span class="s1">&#39;enable_restore&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;enable_restore&#39;</span><span class="p">],</span>
             <span class="s1">&#39;enable_data_aging&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;enable_data_aging&#39;</span><span class="p">],</span>
+            <span class="s1">&#39;scg_rule&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;scg_rule&#39;</span><span class="p">)</span>
+
         <span class="p">}</span>
 </pre></div>
 
           </div>
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
@@ -2418,8 +2727,8 @@
       &copy;2018, Commvault Systems® Inc. All Rights Reserved.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
       
     </div>
 

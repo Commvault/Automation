@@ -1,0 +1,1566 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Web.WebConsole.Reports.cte &#8212; Commvault Automation 11.13 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Web.WebConsole.Reports.cte</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">File for all CTE operations like export, schedule, alert and Security operations</span>
+<span class="sd">any common functionality across Reports APP can be added here.</span>
+
+<span class="sd">Security:</span>
+
+<span class="sd">    _access_security_frame  --  Access security frame.</span>
+
+<span class="sd">    _get_associated_users   --  Get associate users.</span>
+
+<span class="sd">    _search_user            --  Enters the username in the security-search-user field.</span>
+
+<span class="sd">    _move_to_selected_list  --   Move to selected list.</span>
+
+<span class="sd">    _move_to_available_list --   Move to available list.</span>
+
+<span class="sd">    _click_available_user   --  Clicks the user from the list of available users.</span>
+
+<span class="sd">    _click_selected_user    --  Clicks the user from the list of selected users.</span>
+
+<span class="sd">    _click_ok               --  Clicks Ok button to save changes.</span>
+
+<span class="sd">    _switch_back_frame      --  Switch back to default frame.</span>
+
+<span class="sd">    associate_user          --  associate user</span>
+
+<span class="sd">    deassociate_user        --  de-associate user</span>
+
+<span class="sd">    get_associated_users    --  Gets the list of user/user groups already associated.</span>
+
+<span class="sd">    _is_user_associated     --  Verify if the user is associated.</span>
+
+<span class="sd">    add_user                --  Add the user to the selected list.</span>
+
+<span class="sd">    remove_user             --  Removes the user from the selected list</span>
+
+<span class="sd">    close()                 --  Closes the security panel</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">time</span>
+
+<span class="kn">from</span> <span class="nn">selenium.common.exceptions</span> <span class="k">import</span> <span class="n">WebDriverException</span>
+<span class="kn">from</span> <span class="nn">selenium.webdriver.common.action_chains</span> <span class="k">import</span> <span class="n">ActionChains</span>
+<span class="kn">from</span> <span class="nn">selenium.webdriver.common.keys</span> <span class="k">import</span> <span class="n">Keys</span>
+<span class="kn">from</span> <span class="nn">selenium.webdriver.support.ui</span> <span class="k">import</span> <span class="n">Select</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">config</span>
+
+<span class="kn">from</span> <span class="nn">Web.WebConsole.webconsole</span> <span class="k">import</span> <span class="n">WebConsole</span>
+<span class="kn">from</span> <span class="nn">Web.Common.exceptions</span> <span class="k">import</span> <span class="n">CVTimeOutException</span><span class="p">,</span> <span class="n">CVWebAutomationException</span>
+<span class="kn">from</span> <span class="nn">Web.Common.page_object</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">WebAction</span><span class="p">,</span>
+    <span class="n">PageService</span>
+<span class="p">)</span>
+
+<span class="n">_CONFIG</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="ExportHandler"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.ExportHandler">[docs]</a><span class="k">class</span> <span class="nc">ExportHandler</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ExportHandler has the interfaces to do export operations on Reports and operate on</span>
+<span class="sd">    export panels</span>
+
+<span class="sd">    export_as_built_guide() -- export the as built guide report</span>
+
+<span class="sd">    do_export (file_format) -- export report with file format given in input</span>
+
+<span class="sd">    get_available_export_types() -- gives all export types available</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="ExportHandler.ExportConstants"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.ExportHandler.ExportConstants">[docs]</a>    <span class="k">class</span> <span class="nc">ExportConstants</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Export constants</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">AS_BUILT_GUIDE_DATSOURCE_DATABASE</span> <span class="o">=</span> <span class="s1">&#39;dataBase&#39;</span>
+        <span class="n">AS_BUILT_GUIDE_DATSOURCE_XML</span> <span class="o">=</span> <span class="s1">&#39;xml&#39;</span></div>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">webconsole</span><span class="p">:</span> <span class="n">WebConsole</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span> <span class="o">=</span> <span class="n">webconsole</span><span class="o">.</span><span class="n">browser</span><span class="o">.</span><span class="n">driver</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span> <span class="o">=</span> <span class="n">webconsole</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_file_menu</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        click on file menu</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;.//*[@id=&#39;reportButton&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_mouse_hover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Performs an action where the mouse hovers over the specified web element.</span>
+<span class="sd">           Arg1:</span>
+<span class="sd">            web element that you would like to hover over.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hover</span> <span class="o">=</span> <span class="n">ActionChains</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="p">)</span><span class="o">.</span><span class="n">move_to_element</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+        <span class="n">hover</span><span class="o">.</span><span class="n">perform</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_mouse_hover_save_as</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mouse hover on save as</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">save_as</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;exportRightArrow&quot;</span><span class="p">)</span>
+        <span class="n">hover</span> <span class="o">=</span> <span class="n">ActionChains</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="p">)</span><span class="o">.</span><span class="n">move_to_element</span><span class="p">(</span><span class="n">save_as</span><span class="p">)</span>
+        <span class="n">hover</span><span class="o">.</span><span class="n">perform</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_pdf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        click pdf</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;exportpdf&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_csv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click csv</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;exportCsv&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_click_html</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        click html</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;exporthtml&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        click ppt</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;exportQuarterlyPPT&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_word</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        click word</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;exportWord&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_executive_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click executive summary export</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;exportExecutiveSummary&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_mouse_hover_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mouse hover ppt</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ppt_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;exportPpt&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mouse_hover</span><span class="p">(</span><span class="n">ppt_object</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_value_assesmt_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on value assessment ppt</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;exportValAssessPpt&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_health_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on health ppt</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;exportHealthPpt&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_customer_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">customer_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set customer name</span>
+<span class="sd">        :param customer_name:Specify the customer name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">customer_name</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_dc_location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_center_location</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set data centre location</span>
+<span class="sd">        :param data_center_location:specify the data centre location</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;location&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">data_center_location</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_proceed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on proceed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//button[text()=&#39;Proceed&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on submit</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;proceedButton&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_submit_health</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">customer_name</span><span class="p">,</span> <span class="n">data_center_location</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Submit health report word export</span>
+<span class="sd">        Args:</span>
+<span class="sd">            customer_name:customer name</span>
+<span class="sd">            data_center_location: data center location</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_customer_name</span><span class="p">(</span><span class="n">customer_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_dc_location</span><span class="p">(</span><span class="n">data_center_location</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_proceed</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_switch_to_executive_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Switch to executive summary frame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_class_name</span><span class="p">(</span><span class="s2">&quot;modal-iframe&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">switch_to_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_designation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">designation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set destination</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;designation&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">designation</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_submit_exec_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">customer_name</span><span class="p">,</span> <span class="n">designation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Submit executinve summary report</span>
+<span class="sd">        :param customer_name: Specify the customer name</span>
+<span class="sd">        :param designation: Set the description</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_switch_to_executive_frame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_customer_name</span><span class="p">(</span><span class="n">customer_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_designation</span><span class="p">(</span><span class="n">designation</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_submit</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_get_export_objs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all export objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_elements_by_xpath</span><span class="p">(</span><span class="s2">&quot;//ul[@id = &#39;exportMenu&#39;]//span[2]&quot;</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_get_available_export_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to get the available export options for a report</span>
+<span class="sd">        :returns list of export types available as strings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">export_types</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">export_type</span><span class="o">.</span><span class="n">text</span><span class="p">)</span> <span class="k">for</span> <span class="n">export_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_export_objs</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">export_type</span><span class="o">.</span><span class="n">text</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_file_menu</span><span class="p">()</span>  <span class="c1"># to close the file menu</span>
+        <span class="k">return</span> <span class="n">export_types</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_on_as_built_guide</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on as built guide</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;exportASBuild&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_on_net_backup_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on net backup ppt</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;exportNetBackupPPT&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_access_export</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Access export</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_file_menu</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mouse_hover_save_as</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_access_built_guide_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Switch to as built guide frame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_class_name</span><span class="p">(</span><span class="s2">&quot;modal-iframe&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">switch_to_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_datasource</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_source</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select data source in as built guide export</span>
+<span class="sd">        :param database_source: Specify the datasource name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="n">database_source</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_access_help_menu</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Access help menu</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;helpText&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_submit_as_built_guide_export</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">customer</span><span class="p">,</span> <span class="n">data_source_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Submit as built guide export</span>
+<span class="sd">        :param data_source_type: Database/xml select from Constants class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_access_built_guide_frame</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_customer_name</span><span class="p">(</span><span class="n">customer</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_datasource</span><span class="p">(</span><span class="n">data_source_type</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_click_submit</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">switch_to_default_content</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">export_as_built_guide</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">customer</span><span class="o">=</span><span class="s1">&#39;Automation&#39;</span><span class="p">,</span>
+                              <span class="n">data_source_type</span><span class="o">=</span><span class="n">ExportConstants</span><span class="o">.</span><span class="n">AS_BUILT_GUIDE_DATSOURCE_DATABASE</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Exports As built guide report available in worldwide report,</span>
+<span class="sd">        page should be in ww report page before accessing this.</span>
+<span class="sd">        :param customer: customer name to add in built guide report</span>
+<span class="sd">        :param data_source_type: Database or XML select from Constants class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data_source_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="n">ExportHandler</span><span class="o">.</span><span class="n">ExportConstants</span><span class="o">.</span><span class="n">AS_BUILT_GUIDE_DATSOURCE_DATABASE</span><span class="p">,</span>
+                <span class="n">ExportHandler</span><span class="o">.</span><span class="n">ExportConstants</span><span class="o">.</span><span class="n">AS_BUILT_GUIDE_DATSOURCE_XML</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Invalid data source supplied (</span><span class="si">%s</span><span class="s2">&#39;) expected is either [</span><span class="si">%s</span><span class="s2">] or [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span>
+                <span class="n">data_source_type</span><span class="p">,</span> <span class="n">ExportHandler</span><span class="o">.</span><span class="n">ExportConstants</span><span class="o">.</span><span class="n">AS_BUILT_GUIDE_DATSOURCE_DATABASE</span><span class="p">,</span>
+                <span class="n">ExportHandler</span><span class="o">.</span><span class="n">ExportConstants</span><span class="o">.</span><span class="n">AS_BUILT_GUIDE_DATSOURCE_XML</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_help_menu</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_on_as_built_guide</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_submit_as_built_guide_export</span><span class="p">(</span><span class="n">customer</span><span class="p">,</span> <span class="n">data_source_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">export_as_net_backup_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        From worldwide report export as net backup ppt</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_help_menu</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_on_net_backup_ppt</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_support_account_manager</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set support account manager name</span>
+<span class="sd">        :param name: Specify support account manager name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;support-account-manager&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_technical_account_manager</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set technical account manager name</span>
+<span class="sd">        :param name: specify the name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;technical-account-manager&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">(</span><span class="n">delay</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_switch_qbr_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        switch to QBR frame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_class_name</span><span class="p">(</span><span class="s2">&quot;modal-iframe&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">switch_to_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_submit_qbr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click submit button</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;qbrSubmitButton&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_submit_qbr_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">support_account_manager</span><span class="p">,</span> <span class="n">technical_account_manager</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Submit QBR ppt</span>
+<span class="sd">        :param support_account_manager:specify the support account manager name</span>
+<span class="sd">        :param technical_account_manager: Specify the technical account manager name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_switch_qbr_frame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_support_account_manager</span><span class="p">(</span><span class="n">support_account_manager</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_technical_account_manager</span><span class="p">(</span><span class="n">technical_account_manager</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_submit_qbr</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">to_pdf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform pdf export operation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_export</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_pdf</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">to_csv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform csv export operation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_export</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_csv</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">to_html</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform html export operation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_export</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_html</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">to_qbr_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">support_account_manager</span><span class="o">=</span><span class="s2">&quot;support manager&quot;</span><span class="p">,</span>
+                   <span class="n">technical_account_manager</span><span class="o">=</span><span class="s2">&quot;technical manager&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform QBR ppt export operation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_export</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_ppt</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_submit_qbr_ppt</span><span class="p">(</span><span class="n">support_account_manager</span><span class="p">,</span> <span class="n">technical_account_manager</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">to_value_assesment_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform value assessment report ppt export operation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_export</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mouse_hover_ppt</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_value_assesmt_ppt</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">to_health_word</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">customer_name</span><span class="o">=</span><span class="s1">&#39;Auto_Customer&#39;</span><span class="p">,</span>
+                       <span class="n">data_center_location</span><span class="o">=</span><span class="s1">&#39;Auto_data_center&#39;</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform health word export operation</span>
+<span class="sd">        :param customer_name: customer name to fill in file</span>
+<span class="sd">        :param data_center_location: DC location to fill in file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_export</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_word</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_submit_health</span><span class="p">(</span><span class="n">customer_name</span><span class="p">,</span> <span class="n">data_center_location</span><span class="p">)</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">to_health_ppt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">customer_name</span><span class="o">=</span><span class="s1">&#39;Auto_Customer&#39;</span><span class="p">,</span>
+                      <span class="n">data_center_location</span><span class="o">=</span><span class="s1">&#39;Auto_data_center&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform health ppt export operation</span>
+<span class="sd">        :param customer_name: customer name to fill in file</span>
+<span class="sd">        :param data_center_location: DC location to fill in file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_export</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mouse_hover_ppt</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_health_ppt</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_submit_health</span><span class="p">(</span><span class="n">customer_name</span><span class="p">,</span> <span class="n">data_center_location</span><span class="p">)</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">to_executive_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">customer_name</span><span class="o">=</span><span class="s1">&#39;Auto_Customer&#39;</span><span class="p">,</span>
+                             <span class="n">data_center_location</span><span class="o">=</span><span class="s1">&#39;Auto_data_center&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform executive summary export operation</span>
+<span class="sd">        :param customer_name: customer name to fill in file</span>
+<span class="sd">        :param data_center_location: DC location to fill in file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_export</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_executive_summary</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_submit_exec_summary</span><span class="p">(</span><span class="n">customer_name</span><span class="p">,</span> <span class="n">data_center_location</span><span class="p">)</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">get_available_export_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        gives all export types available for report.</span>
+<span class="sd">        :return: list of export options</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_export</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_available_export_types</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="EmailNow"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.EmailNow">[docs]</a><span class="k">class</span> <span class="nc">EmailNow</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    EmailNow has the interfaces to work on Email now panel and do email operations on Reports</span>
+
+<span class="sd">    email_now(file_format, recipient_mail_id) -- emails the report with given format</span>
+<span class="sd">                                                 to recipient mail given in input</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="EmailNow.Format"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.EmailNow.Format">[docs]</a>    <span class="k">class</span> <span class="nc">Format</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Format is a constant on different type of file formats in Email now panel on reports</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">PDF</span> <span class="o">=</span> <span class="s2">&quot;PDF&quot;</span>
+        <span class="n">HTML</span> <span class="o">=</span> <span class="s2">&quot;HTML&quot;</span>
+        <span class="n">CSV</span> <span class="o">=</span> <span class="s2">&quot;CSV&quot;</span></div>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">webconsole</span><span class="p">:</span> <span class="n">WebConsole</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span> <span class="o">=</span> <span class="n">webconsole</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span> <span class="o">=</span> <span class="n">webconsole</span><span class="o">.</span><span class="n">browser</span><span class="o">.</span><span class="n">driver</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">format</span> <span class="o">=</span> <span class="n">EmailNow</span><span class="o">.</span><span class="n">Format</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_switch_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Switch to email frame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_class_name</span><span class="p">(</span><span class="s2">&quot;modal-iframe&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">switch_to_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_pdf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select pdf</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;PDF&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_html</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select html</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;HTML&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_csv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        select csv</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;CSV&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_recipient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recipient_mail_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        recipient_name is a comma seperated value for multiple recipients</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;emails&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;emails&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">recipient_mail_id</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_access_email_now_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Switch email frame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_class_name</span><span class="p">(</span><span class="s2">&quot;modal-iframe&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">switch_to_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_ok</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click ok</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;okButton&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_choose_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_format</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Choose file format</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">file_format</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">PDF</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_pdf</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">file_format</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">Format</span><span class="o">.</span><span class="n">HTML</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_html</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">file_format</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">CSV</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_csv</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">email_now</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_format</span><span class="p">,</span> <span class="n">recipient_mail_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        emails the report</span>
+<span class="sd">        :param file_format: fomat of report to be emailed</span>
+<span class="sd">                            use self.format to know the available formats supported</span>
+<span class="sd">        :param recipient_mail_id: recipient mail id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_switch_frame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_choose_format</span><span class="p">(</span><span class="n">file_format</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_recipient</span><span class="p">(</span><span class="n">recipient_mail_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_ok</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EmailNow.get_job_id"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.EmailNow.get_job_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_job_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_out</span><span class="o">=</span><span class="mi">150</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get job id of email job from notification</span>
+<span class="sd">        Returns:(string) job id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">+</span> <span class="n">time_out</span>
+        <span class="k">while</span> <span class="n">time</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">end_time</span><span class="p">:</span>
+            <span class="n">notifications</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">get_all_unread_notifications</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">notifications</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="s2">&quot;Job Id&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">notifications</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="n">CVWebAutomationException</span><span class="p">(</span><span class="s2">&quot;Job ID is not found in email notification, &quot;</span>
+                                               <span class="s2">&quot;Notification:[</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">notifications</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="p">(</span><span class="n">notifications</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;Job Id &#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;)&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">job_id</span>
+        <span class="k">raise</span> <span class="n">CVTimeOutException</span><span class="p">(</span><span class="n">time_out</span><span class="p">,</span> <span class="s2">&quot;failure to get job id from email notification&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ConfigureSchedules"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.ConfigureSchedules">[docs]</a><span class="k">class</span> <span class="nc">ConfigureSchedules</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ConfigureSchedules has the interfaces to schedule reports and</span>
+<span class="sd">    to operate on Reports schedule panels</span>
+
+<span class="sd">    create_schedule(schedule_name, email_recipient, file_format, frequency) -- creates a schedule</span>
+<span class="sd">                    with email notification with given frequency type of default time.</span>
+<span class="sd">    set_network_path(network_path, user_name, password) -- sets the n/w output path</span>
+<span class="sd">    set_time(hour, minute, ampm=&#39;AM&#39;) -- sets time for schedule</span>
+<span class="sd">    select_format(file_type) -- selects format of file for schedule</span>
+<span class="sd">    set_recipient(recipient) -- sets recipient mail id</span>
+<span class="sd">    close() -- closes schedule panel</span>
+<span class="sd">    save() -- saves schedule</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="ConfigureSchedules.Frequency"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.ConfigureSchedules.Frequency">[docs]</a>    <span class="k">class</span> <span class="nc">Frequency</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Frequency is a constant on different frequency types available on Reports schedule panel</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">DAILY</span> <span class="o">=</span> <span class="s1">&#39;Daily&#39;</span>
+        <span class="n">WEEKLY</span> <span class="o">=</span> <span class="s2">&quot;Weekly&quot;</span>
+        <span class="n">Monthly</span> <span class="o">=</span> <span class="s2">&quot;Monthly&quot;</span></div>
+
+<div class="viewcode-block" id="ConfigureSchedules.Format"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.ConfigureSchedules.Format">[docs]</a>    <span class="k">class</span> <span class="nc">Format</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Format is a constant on different type of format available on schedule panel of reports</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">PDF</span> <span class="o">=</span> <span class="s2">&quot;PDF&quot;</span>
+        <span class="n">HTML</span> <span class="o">=</span> <span class="s2">&quot;HTML&quot;</span>
+        <span class="n">CSV</span> <span class="o">=</span> <span class="s2">&quot;CSV&quot;</span>
+        <span class="n">EXECUTIVE_SUMMARY</span> <span class="o">=</span> <span class="s2">&quot;Executive Summary&quot;</span>  <span class="c1"># executive summary for WW activity report.</span></div>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">webconsole</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span> <span class="o">=</span> <span class="n">webconsole</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">browser</span><span class="o">.</span><span class="n">driver</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">format</span> <span class="o">=</span> <span class="n">ConfigureSchedules</span><span class="o">.</span><span class="n">Format</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">=</span> <span class="n">ConfigureSchedules</span><span class="o">.</span><span class="n">Frequency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_schedule_frame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_access_schedule_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Switch to schedule frame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_class_name</span><span class="p">(</span><span class="s2">&quot;modal-iframe&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">switch_to_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_pdf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on pdf</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;PDF&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_html</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on html</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;HTML&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_csv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on csv</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;CSV&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_pptx</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select pptx</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;PPTX&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_daily</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select daily schedule</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;freqDaily&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_weekly</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select weekly</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;freqWeekly&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_select_monthly</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select monthly</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;freqMonthly&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_on_save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on save button</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//a[@id=&#39;okButton&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Click on close button</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s1">&#39;closeButton&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_hour</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hour</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select hour</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hour_elem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[contains(@class,&#39;hourDD&#39;)]&quot;</span><span class="p">)</span>
+        <span class="n">Select</span><span class="p">(</span><span class="n">hour_elem</span><span class="p">)</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_minute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minute</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select minute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">minute_elem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[contains(@class,&#39;minuteDD&#39;)]&quot;</span><span class="p">)</span>
+        <span class="n">minute_elem</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">minute_elem</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_ampm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ampm</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select am/pm</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ampm_elem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[contains(@class,&#39;AMDD&#39;)]&quot;</span><span class="p">)</span>
+        <span class="n">Select</span><span class="p">(</span><span class="n">ampm_elem</span><span class="p">)</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">ampm</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_isvalid_time</span><span class="p">(</span><span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">ampm</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">12</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;invalid Hour input&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">60</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;invalid Minute input&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ampm</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;am&#39;</span><span class="p">,</span> <span class="s1">&#39;pm&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;invalid time period input&#39;</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">set_schedule_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets name for the schedule</span>
+<span class="sd">        :param schedule_name: name for schedule</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;description&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;description&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">schedule_name</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frequency</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        selects the frequency pattern for schedules</span>
+<span class="sd">        :param frequency: frequency to select, use self.frequency for available types</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">frequency</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">DAILY</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_daily</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">frequency</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">WEEKLY</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_weekly</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">frequency</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">Monthly</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_monthly</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Undefined Frequency type [</span><span class="si">%s</span><span class="s2">] &quot;</span> <span class="o">%</span> <span class="n">frequency</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">set_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">ampm</span><span class="o">=</span><span class="s1">&#39;AM&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets the time for schedule</span>
+<span class="sd">        :param hour:  hour input 1-12</span>
+<span class="sd">        :param minute: minute input 1-60</span>
+<span class="sd">        :param ampm: period input &#39;AM&#39; or &#39;PM&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_isvalid_time</span><span class="p">(</span><span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">ampm</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting alert time:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ampm</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_hour</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_minute</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_ampm</span><span class="p">(</span><span class="n">ampm</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        saves the schedule</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_on_save</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        closes the schedule panel</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_close</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">set_recipient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recipient</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets recipient mail id in schedule</span>
+<span class="sd">        :param recipient: mail id of recipient, use comma seperation for multiple id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;emails&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;emails&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">recipient</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_type</span><span class="o">=</span><span class="s1">&#39;PDF&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        selects the format given in input</span>
+<span class="sd">        :param file_type: file format to select in schedule</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">file_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">PDF</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_click_pdf</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">file_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">HTML</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_click_html</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">file_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">CSV</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_click_csv</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">file_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">format</span><span class="o">.</span><span class="n">EXECUTIVE_SUMMARY</span><span class="p">:</span>  <span class="c1"># present in WW activity report.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_click_pptx</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Given format </span><span class="si">%s</span><span class="s1"> not available in schedule panel&#39;</span> <span class="o">%</span> <span class="n">file_type</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_enable_nw_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enable network output</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//div[@name = &#39;networkShare&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_nw_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set network user</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[@id = &#39;networkUser&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">user_name</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_nw_pwd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set network password</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[@id = &#39;networkPassword&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">password</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_nw_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set network path</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[@id = &#39;networkPath&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">network_path</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">set_network_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">network_path</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets network path in schedule panel</span>
+<span class="sd">        :param network_path: path to save file ex: \\machine\folder1</span>
+<span class="sd">        :param user_name: user to access network path with write permission</span>
+<span class="sd">        :param password: password for the user given</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_enable_nw_output</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_nw_path</span><span class="p">(</span><span class="n">network_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_nw_user</span><span class="p">(</span><span class="n">user_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_nw_pwd</span><span class="p">(</span><span class="n">password</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">create_schedule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schedule_name</span><span class="p">,</span> <span class="n">email_recipient</span><span class="p">,</span> <span class="n">file_format</span><span class="o">=</span><span class="n">Format</span><span class="o">.</span><span class="n">PDF</span><span class="p">,</span>
+                        <span class="n">frequency</span><span class="o">=</span><span class="n">Frequency</span><span class="o">.</span><span class="n">DAILY</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to create schedule with basic options with email notification and with</span>
+<span class="sd">        given format and frequency</span>
+<span class="sd">        :param schedule_name: name of schedule to be created</span>
+<span class="sd">        :param email_recipient: email id for notfication, comma seperated to multiple id</span>
+<span class="sd">        :param file_format: format of file type, use self.format for available formats</span>
+<span class="sd">        :param frequency: frequency pattten for schedule</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating schedule:</span><span class="si">%s</span><span class="s2"> ; email recipient:</span><span class="si">%s</span><span class="s2">; format:</span><span class="si">%s</span><span class="s2">; frequency:</span><span class="si">%s</span><span class="s2">;&quot;</span><span class="p">,</span>
+                       <span class="n">schedule_name</span><span class="p">,</span> <span class="n">email_recipient</span><span class="p">,</span> <span class="n">file_format</span><span class="p">,</span> <span class="n">frequency</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_schedule_frame</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_schedule_name</span><span class="p">(</span><span class="n">schedule_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_recipient</span><span class="p">(</span><span class="n">email_recipient</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select_format</span><span class="p">(</span><span class="n">file_format</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">select_frequency</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ConfigureAlert"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.ConfigureAlert">[docs]</a><span class="k">class</span> <span class="nc">ConfigureAlert</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ConfigureAlert has interfaces to setup alert on reports, for basic alert use create_alert,</span>
+<span class="sd">    to create alert with for non default options create your own customized method</span>
+
+<span class="sd">    create_alert(alert_name=None, column_name=None, column_value=None,</span>
+<span class="sd">                     recipient_mail=&#39;reportautomation@commvault.com&#39;)</span>
+<span class="sd">                -- creates a alert with email notification and with default time.</span>
+
+<span class="sd">    set_name(name): -- sets name for the alert</span>
+
+<span class="sd">    select_notifications_type(notification_option)</span>
+<span class="sd">                -- selects notification type, use self.notifications_type for available formats</span>
+
+<span class="sd">    set_recipient(recipient) -- sets recipient mail id</span>
+
+<span class="sd">    set_time(hour, minute, ampm=&#39;AM&#39;)  -- sets time for Alert</span>
+
+<span class="sd">    select_frequency(self, interval): selects frequency of alert</span>
+
+<span class="sd">    add_condtion() -- clicks on add alert condition</span>
+
+<span class="sd">    check_test_criteria() -- clicks test crteria in alert panel</span>
+
+<span class="sd">    select_alert_severity(notification_with) -- select severity in alert notification</span>
+
+<span class="sd">    select_alert_condition(condition=&#39;all&#39;) --selection condition for alerts (all or any)</span>
+
+<span class="sd">    select_column(name) -- selects the column for alert</span>
+
+<span class="sd">    set_value(value) -- sets the value for column selected</span>
+
+<span class="sd">    select_operator(operator) -- selects the operator for column to be checked</span>
+
+<span class="sd">    save() -- saves Alert</span>
+
+<span class="sd">    cancel() -- closes Alert panel</span>
+
+<span class="sd">    get_column_names() - gets the columns name available in drop down</span>
+
+<span class="sd">    get_available_conditions() - gets available condtions for a column.</span>
+
+<span class="sd">    select_health_param(status) -- select health param status in alert(good/warning/critical)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ConfigureAlert.Operator"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.ConfigureAlert.Operator">[docs]</a>    <span class="k">class</span> <span class="nc">Operator</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Operator is constant on different types of operatores supported in alerts</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">EQUAL_TO</span> <span class="o">=</span> <span class="s2">&quot;Equal To&quot;</span>
+        <span class="n">NOT_EQUAL_TO</span> <span class="o">=</span> <span class="s2">&quot;Not Equal To&quot;</span>
+        <span class="n">CONTAINS</span> <span class="o">=</span> <span class="s2">&quot;Contains&quot;</span>
+        <span class="n">NOT_CONTAINS</span> <span class="o">=</span> <span class="s2">&quot;Not Contains&quot;</span>
+        <span class="n">IS_EMPTY</span> <span class="o">=</span> <span class="s2">&quot;Is Empty&quot;</span>
+        <span class="n">NOT_EMPTY</span> <span class="o">=</span> <span class="s2">&quot;Not Empty&quot;</span>
+        <span class="n">LESS_THAN</span> <span class="o">=</span> <span class="s2">&quot;Less Than&quot;</span>
+        <span class="n">MORE_THAN</span> <span class="o">=</span> <span class="s2">&quot;More Than&quot;</span></div>
+
+<div class="viewcode-block" id="ConfigureAlert.Notification"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.ConfigureAlert.Notification">[docs]</a>    <span class="k">class</span> <span class="nc">Notification</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Notification is a constant on different notification types</span>
+<span class="sd">        available on Reports Alerts panel</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">EMAIL</span> <span class="o">=</span> <span class="s2">&quot;Email&quot;</span>
+        <span class="n">CONSOLE_ALERTS</span> <span class="o">=</span> <span class="s2">&quot;Console Alerts&quot;</span>
+        <span class="n">EVENT_VIEWER</span> <span class="o">=</span> <span class="s2">&quot;Windows Event Viewer&quot;</span>
+        <span class="n">SNMP_Traps</span> <span class="o">=</span> <span class="s2">&quot;SNMP Traps&quot;</span></div>
+
+<div class="viewcode-block" id="ConfigureAlert.Frequency"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.ConfigureAlert.Frequency">[docs]</a>    <span class="k">class</span> <span class="nc">Frequency</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Frequency is a constant on different frequency types available on Reports Alerts panel</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">DAILY</span> <span class="o">=</span> <span class="s1">&#39;Day&#39;</span>
+        <span class="n">WEEKLY</span> <span class="o">=</span> <span class="s2">&quot;Week&quot;</span>
+        <span class="n">Monthly</span> <span class="o">=</span> <span class="s2">&quot;Month&quot;</span></div>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">webconsole</span><span class="p">:</span> <span class="n">WebConsole</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span> <span class="o">=</span> <span class="n">webconsole</span><span class="o">.</span><span class="n">browser</span><span class="o">.</span><span class="n">driver</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span> <span class="o">=</span> <span class="n">webconsole</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">operator</span> <span class="o">=</span> <span class="n">ConfigureAlert</span><span class="o">.</span><span class="n">Operator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">notifications_type</span> <span class="o">=</span> <span class="n">ConfigureAlert</span><span class="o">.</span><span class="n">Notification</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">=</span> <span class="n">ConfigureAlert</span><span class="o">.</span><span class="n">Frequency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_alert_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set alert name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">name_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;.//*[@id=&#39;alarmName&#39;]&quot;</span><span class="p">)</span>
+        <span class="n">name_field</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">name_field</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_severity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notification_with</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select severity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">severity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//select[@id=&#39;alertSeveritySelect&#39;]&quot;</span><span class="p">)</span>
+        <span class="n">Select</span><span class="p">(</span><span class="n">severity</span><span class="p">)</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">notification_with</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_notfication_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select notification condition</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conditn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//select[@id=&#39;allOrAnySelect&#39;]&quot;</span><span class="p">)</span>
+        <span class="n">Select</span><span class="p">(</span><span class="n">conditn</span><span class="p">)</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_health_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select health status</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">status_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//select[@id = &#39;statusSelect&#39;]&quot;</span><span class="p">)</span>
+        <span class="n">Select</span><span class="p">(</span><span class="n">status_list</span><span class="p">)</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_column_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select column name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">column_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_class_name</span><span class="p">(</span><span class="s2">&quot;gen-columnSelect&quot;</span><span class="p">)</span>
+        <span class="n">Select</span><span class="p">(</span><span class="n">column_list</span><span class="p">)</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_operator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operator</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select operator</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">Select</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;gen-opSelect&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">operator</span><span class="p">)</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">value_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_class_name</span><span class="p">(</span><span class="s2">&quot;gen-thresholdValue&quot;</span><span class="p">)</span>
+        <span class="n">value_field</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">value_field</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_email</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select email</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[@id = &#39;emailAlertCB&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_console_alert</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select console alert</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[@id = &#39;consoleAlertCB&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_event_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select event viewer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[@id = &#39;eventViewerCB&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_snmp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select snmp</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[@id = &#39;snmpCB&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_emailid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recipient</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select email id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">emailto</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;emailTo&quot;</span><span class="p">)</span>
+        <span class="n">emailto</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">emailto</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">recipient</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_hour</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hour</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select hour</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hour_elem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[contains(@class,&#39;hourDD&#39;)]&quot;</span><span class="p">)</span>
+        <span class="n">Select</span><span class="p">(</span><span class="n">hour_elem</span><span class="p">)</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_minute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minute</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select minute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">minute_elem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[contains(@class,&#39;minuteDD&#39;)]&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">minute_elem</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">WebDriverException</span><span class="p">:</span>
+            <span class="n">minute_elem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[contains(@class,&#39;minuteText&#39;)]&quot;</span><span class="p">)</span>
+            <span class="n">minute_elem</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="n">minute_elem</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_ampm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ampm</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select am/pm</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ampm_elem</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[contains(@class,&#39;AMDD&#39;)]&quot;</span><span class="p">)</span>
+        <span class="n">Select</span><span class="p">(</span><span class="n">ampm_elem</span><span class="p">)</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">ampm</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interval</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select frequency</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">freq_option</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;alarmFreqOptionSelect&quot;</span><span class="p">)</span>
+        <span class="n">Select</span><span class="p">(</span><span class="n">freq_option</span><span class="p">)</span><span class="o">.</span><span class="n">select_by_visible_text</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_on_add_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        clicks on add condition.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//button[@class = &#39;addNewCondition&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_on_test_criteria</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        clicks on add condition.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//button[@class = &#39;testCriteria&#39;]&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_on_save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        clicks on save button.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;dialogbutton-save&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_on_cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        clicks on save button.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;dialogbutton-cancel&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_get_column_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get column names</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">col_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[contains(@class, &#39;gen-columnSelect&#39;)]&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">column</span><span class="o">.</span><span class="n">text</span> <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">col_list</span><span class="o">.</span><span class="n">find_elements_by_tag_name</span><span class="p">(</span><span class="s2">&quot;option&quot;</span><span class="p">)]</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_get_available_conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get available conditions</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">condtn_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="s2">&quot;//*[contains(@class, &#39;gen-opSelect&#39;)]&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">condtn</span><span class="o">.</span><span class="n">text</span> <span class="k">for</span> <span class="n">condtn</span> <span class="ow">in</span> <span class="n">condtn_list</span><span class="o">.</span><span class="n">find_elements_by_tag_name</span><span class="p">(</span><span class="s2">&quot;option&quot;</span><span class="p">)]</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_isvalid_time</span><span class="p">(</span><span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">ampm</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">12</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;invalid Hour input&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">60</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;invalid Minute input&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ampm</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;AM&#39;</span><span class="p">,</span> <span class="s1">&#39;PM&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;invalid time period input&#39;</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">set_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets alert name</span>
+<span class="sd">        :param name: name for the alert</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_alert_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_notifications_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notification_option</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        select notification types for alert</span>
+<span class="sd">        :param notification_option: use self.notifications_type for available notification types</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">notification_option</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">notifications_type</span><span class="o">.</span><span class="n">EMAIL</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_email</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">notification_option</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">notifications_type</span><span class="o">.</span><span class="n">CONSOLE_ALERTS</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_console_alert</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">notification_option</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">notifications_type</span><span class="o">.</span><span class="n">EVENT_VIEWER</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_event_viewer</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">notification_option</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">notifications_type</span><span class="o">.</span><span class="n">SNMP_Traps</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_snmp</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">set_recipient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recipient</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets recipient mail id in schedule</span>
+<span class="sd">        :param recipient: mail id of recipient, use comma seperation for multiple id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_emailid</span><span class="p">(</span><span class="n">recipient</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">set_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">ampm</span><span class="o">=</span><span class="s1">&#39;AM&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets the time for schedule</span>
+<span class="sd">        :param hour:  hour input 1-12</span>
+<span class="sd">        :param minute: minute input 1-60</span>
+<span class="sd">        :param ampm: period input &#39;AM&#39; or &#39;PM&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_isvalid_time</span><span class="p">(</span><span class="n">hour</span><span class="p">,</span> <span class="n">minute</span><span class="p">,</span> <span class="n">ampm</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting alert time:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ampm</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_hour</span><span class="p">(</span><span class="n">hour</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_minute</span><span class="p">(</span><span class="n">minute</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_ampm</span><span class="p">(</span><span class="n">ampm</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frequency</span><span class="o">=</span><span class="s1">&#39;Day&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        selects the frequency pattern for schedules</span>
+<span class="sd">        :param frequency:  frequency to select, use self.frequency for available types</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting interval:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">frequency</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_frequency</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">add_condtion</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        add alert condition</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_on_add_condition</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">check_test_criteria</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        clicks test criteria in alert panel</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_on_test_criteria</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_alert_severity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">notification_with</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        send notification with option can be changed as: Info/Warning/Critical</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_severity</span><span class="p">(</span><span class="n">notification_with</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_alert_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        select condition: all or any</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_notfication_condition</span><span class="p">(</span><span class="n">condition</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_column</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        selects specified column name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_column_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">set_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the value for columns selected</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_value</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_operator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operator</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        select the operator to be applied to column,</span>
+<span class="sd">        :param operator: use self.operator to find the available types</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_operator</span><span class="p">(</span><span class="n">operator</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        saves the Alert</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_on_save</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        closes the schedule panel by cancelling the panel</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_on_cancel</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">create_alert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alert_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">column_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">column_value</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">recipient_mail</span><span class="o">=</span><span class="s1">&#39;reportautomation@commvault.com&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param alert_name: Specify the alert name</span>
+<span class="sd">        :param column_name: specify the column neame to select</span>
+<span class="sd">        :param column_value: Specify the column value to be selected.</span>
+<span class="sd">        :param recipient_mail: Specify the email recipient name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating alert:</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">alert_name</span><span class="p">)</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">alert_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_name</span><span class="p">(</span><span class="n">alert_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">column_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">select_column</span><span class="p">(</span><span class="n">column_name</span><span class="p">)</span>
+            <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">column_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="n">column_value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_recipient</span><span class="p">(</span><span class="n">recipient_mail</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_alert_created</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">is_alert_created</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_out</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Verify alert is created through notification</span>
+<span class="sd">        Returns:True/False</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">+</span> <span class="n">time_out</span>
+        <span class="k">while</span> <span class="n">time</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">end_time</span><span class="p">:</span>
+            <span class="n">notifications</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">get_all_unread_notifications</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">notifications</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">notifications</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Alert successfully created.&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Notification:[</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">notifications</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">raise</span> <span class="n">CVTimeOutException</span><span class="p">(</span><span class="n">time_out</span><span class="p">,</span> <span class="s2">&quot;Alert notification is not recieved within time &quot;</span>
+                                           <span class="s2">&quot;period&quot;</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">get_column_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :return: columns list available for alert</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_column_names</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">get_available_conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :return: list of available conditions for column</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_available_conditions</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_health_param</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        selects the status of parameter to be set.</span>
+<span class="sd">        :param status: Warning/Critical/Good</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_health_status</span><span class="p">(</span><span class="n">status</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Security"><a class="viewcode-back" href="../../../../Web.WebConsole.Reports.html#Web.WebConsole.Reports.cte.Security">[docs]</a><span class="k">class</span> <span class="nc">Security</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Security has interfaces to do security changes on reports and in metrics report pages.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">webconsole</span><span class="p">:</span> <span class="n">WebConsole</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span> <span class="o">=</span> <span class="n">webconsole</span><span class="o">.</span><span class="n">browser</span><span class="o">.</span><span class="n">driver</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span> <span class="o">=</span> <span class="n">webconsole</span>
+
+    <span class="nd">@WebAction</span><span class="p">(</span><span class="n">delay</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_access_security_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Access security frame&quot;&quot;&quot;</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_elements_by_class_name</span><span class="p">(</span><span class="s2">&quot;modal-iframe&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">frame</span><span class="p">:</span>  <span class="c1"># in custom reports frame doesnt exist</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">switch_to_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_get_associated_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the list of associated users</span>
+<span class="sd">        Returns(list): List of user names</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">text</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_elements_by_xpath</span><span class="p">(</span>
+            <span class="s2">&quot;//ul[@id=&#39;selectedUserList&#39;]/li&quot;</span><span class="p">)]</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_search_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Enters the username in the security-search-user field</span>
+<span class="sd">        Args:</span>
+<span class="sd">            username: Name of the user to be entered</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">search_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;cr-security-search-user&quot;</span><span class="p">)</span>
+        <span class="n">search_field</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
+        <span class="n">search_field</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">Keys</span><span class="o">.</span><span class="n">RETURN</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_move_to_selected_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Move to selected list &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;moveRight&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_move_to_available_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Move to available list &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_id</span><span class="p">(</span><span class="s2">&quot;moveLeft&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_available_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Clicks the user from the list of available users</span>
+<span class="sd">        Args:</span>
+<span class="sd">            username: Name of the user</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">user_path</span> <span class="o">=</span> <span class="s2">&quot;//ul[@id=&#39;availableUserList&#39;]/li[@data-user=&#39;&quot;</span> <span class="o">+</span> <span class="n">username</span> <span class="o">+</span> <span class="s2">&quot;&#39;]&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="n">user_path</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_selected_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Clicks the user from the list of selected users</span>
+<span class="sd">        Args:</span>
+<span class="sd">            username: Name of the user</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">user_path</span> <span class="o">=</span> <span class="s2">&quot;//ul[@id=&#39;selectedUserList&#39;]/li[@data-user=&#39;&quot;</span> <span class="o">+</span> <span class="n">username</span> <span class="o">+</span> <span class="s2">&quot;&#39;]&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_xpath</span><span class="p">(</span><span class="n">user_path</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_click_ok</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Clicks Ok button to save changes&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">find_element_by_class_name</span><span class="p">(</span><span class="s2">&quot;okSaveButton&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">click</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_switch_back_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Switch back to default frame &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">switch_to_window</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_driver</span><span class="o">.</span><span class="n">window_handles</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">is_user_associated</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Verify if the user is associated</span>
+<span class="sd">        Args:</span>
+<span class="sd">            username:  Name of the user</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">username</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_associated_users</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">associate_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Adds the user to the selected list</span>
+<span class="sd">        Args:</span>
+<span class="sd">            username: user name to associate</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_security_frame</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_user_associated</span><span class="p">(</span><span class="n">username</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_search_user</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_click_available_user</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_move_to_selected_list</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">deassociate_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Removes the user from the selected list</span>
+<span class="sd">        Args:</span>
+<span class="sd">            username: user name to de-associate</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_access_security_frame</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_user_associated</span><span class="p">(</span><span class="n">username</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_click_selected_user</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_move_to_available_list</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">get_associated_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Gets the list of user/user groups already associated</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            list: List of users/user groups</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_associated_users</span><span class="p">()</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Closes the security panel&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_click_ok</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_switch_back_frame</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_webconsole</span><span class="o">.</span><span class="n">wait_till_load_complete</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems® Inc. All Rights Reserved.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

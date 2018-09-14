@@ -6,10 +6,10 @@
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>AutomationUtils.database_helper &#8212; Commvault Automation 11.12 documentation</title>
+    <title>AutomationUtils.database_helper &#8212; Commvault Automation 11.13 documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
@@ -28,10 +28,13 @@
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
+          
+
           <div class="body" role="main">
             
   <h1>Source code for AutomationUtils.database_helper</h1><div class="highlight"><pre>
-<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span></span><span class="c1">#FIXME:https://engweb.commvault.com/engtools/defect/215340</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
 
 <span class="c1"># --------------------------------------------------------------------------</span>
 <span class="c1"># Copyright Commvault Systems, Inc.</span>
@@ -65,11 +68,45 @@
 <span class="sd">    MySQL:              Derived class from the Database class, to perform operations, and queries</span>
 <span class="sd">                            specific MySQL Database</span>
 
+<span class="sd">    Informix:           Derived class from the Database class, to perform operations, and queries</span>
+<span class="sd">                            specific to Informix Database</span>
+
+<span class="sd">        __init__()                --  constructor for creating a connection to Informix Database</span>
+
+<span class="sd">        _connect()                --  establishes a connection to the Informix Database using</span>
+<span class="sd">        the details provided</span>
+
+<span class="sd">        list_dbspace()            --  Lists all dbspaces in the server</span>
+
+<span class="sd">        drop_database()           --  Drops a database if it exists</span>
+
+<span class="sd">        get_database_list()       --  Gets all the database names in the server</span>
+
+<span class="sd">        check_if_db_exists()      --  Checks if the specified database exists</span>
+
+<span class="sd">        row_count()               --  Returns number of rows in the table specified</span>
+
 <span class="sd">    SQLite:             Derived class from the Database class, to perform operations, and queries</span>
 <span class="sd">                            specific a SQLite Database</span>
 
 <span class="sd">    SAPHANA:            Derived class from the Database class, to perform operations, and queries</span>
 <span class="sd">                            specific to a SAPHANA Database</span>
+<span class="sd">    PostgreSQL:         Derived class from the Database class, to perform operations, and queries</span>
+<span class="sd">                            specific to a PostgreSQL Database</span>
+
+<span class="sd">        __init__()                --  Constructor for creating a connection to PostgreSQL Database</span>
+
+<span class="sd">        _connect()                --  Connect to the PostGreSQL Server and return</span>
+<span class="sd">        connection object</span>
+
+<span class="sd">        create_db()               --  Creates database with a given name in</span>
+<span class="sd">        the specified postgres server</span>
+
+<span class="sd">        drop_db()                 --  Drops the specified database</span>
+
+<span class="sd">        check_if_db_exists()      --  Checks if the given databases exists or not</span>
+
+<span class="sd">        get_db_list()             --  Gets the list of databases from a PostgreSQL server</span>
 
 <span class="sd">    DBHelper:           Base class for CommServ and WFEngine Database operations</span>
 
@@ -116,9 +153,10 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">os</span>
 
-<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">cvhelper</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">cvhelper</span>
 
 
 <div class="viewcode-block" id="DBResponse"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBResponse">[docs]</a><span class="k">class</span> <span class="nc">DBResponse</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -260,6 +298,51 @@
         <span class="sd">&quot;&quot;&quot;Returns the number of rows in the response received.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rowcount</span>
 
+<div class="viewcode-block" id="DBResponse.get_column"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBResponse.get_column">[docs]</a>    <span class="k">def</span> <span class="nf">get_column</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">column</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the column value for the given row, column(s)</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                row             (tuple)         The row to get the column for</span>
+
+<span class="sd">                column         (str/list)           The column name in the row to be retrieved</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (str/list)      --   The column value for the given row and column(s)</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                 Exception when column name is invalid</span>
+
+<span class="sd">            Example:</span>
+<span class="sd">                get_row(row, &#39;name&#39;) -- Returns the value of name column</span>
+
+<span class="sd">                get_row(row, [&#39;name&#39;, &#39;age&#39;]) --  Returns a list of column values</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># If multiple columns are requested, convert them into a list</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">req_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">column</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">req_columns</span> <span class="o">=</span> <span class="n">column</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Column to get value for should be a string or a list of columns&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Loop through every column, check if it is valid column name &amp; get its value from the row</span>
+        <span class="n">column_values</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">req_columns</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="n">column_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+                <span class="n">column_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">column_index</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s1">&#39;Column &quot;</span><span class="si">{0}</span><span class="s1">&quot; does not exist. Please check the column name&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">col</span><span class="p">))</span>
+
+        <span class="c1"># Return single column value if only one column was requested else return a list of values</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">column_values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">column_values</span></div>
+
 <div class="viewcode-block" id="DBResponse.filter_response"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBResponse.filter_response">[docs]</a>    <span class="k">def</span> <span class="nf">filter_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Filters out only the rows where column&#39;s value is equal to the input value.&quot;&quot;&quot;</span>
 
@@ -349,21 +432,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="kc">None</span></div></div>
 
 
-<div class="viewcode-block" id="Oracle"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle">[docs]</a><span class="k">class</span> <span class="nc">Oracle</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Oracle"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle">[docs]</a><span class="k">class</span> <span class="nc">Oracle</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Helper class for Oracle Database related operations</span>
 <span class="sd">        The helper is designed to operate idependently of the client side oracle home settings</span>
-
-<span class="sd">        hostname (str)      -- The IP or hostname of the client. It&#39;s better to give the</span>
-<span class="sd">                        IP address of the client in case the DNS entry is not right</span>
-<span class="sd">        instance_name (str) -- Name of the instance</span>
-<span class="sd">        sys_password (str)  -- The SYS user password</span>
-<span class="sd">        sys_user (str)      -- Backup user name</span>
-<span class="sd">            default -- SYS</span>
-<span class="sd">        port (int)          -- port number for the listener.</span>
-<span class="sd">            default -- 1521</span>
-<span class="sd">        service_name (str)  -- service name of the instance</span>
-<span class="sd">            default -- defaults to instance name</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">CONN_SYSBACKUP</span> <span class="o">=</span> <span class="s1">&#39;SYSBACKUP&#39;</span>
     <span class="n">CONN_SYSDBA</span> <span class="o">=</span> <span class="s1">&#39;SYSDBA&#39;</span>
@@ -374,21 +446,57 @@
     <span class="n">SHUT_IMMEDIATE</span> <span class="o">=</span> <span class="s1">&#39;IMMEDIATE&#39;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span> <span class="n">instance_name</span><span class="p">,</span> <span class="n">sys_password</span><span class="p">,</span> <span class="n">sys_user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">port</span><span class="o">=</span><span class="mi">1521</span><span class="p">,</span> <span class="n">service_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Oracle</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+                 <span class="n">port</span><span class="o">=</span><span class="mi">1521</span><span class="p">,</span> <span class="n">service_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Constructor for creating the Oracle Database connection</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                hostname (str)      -- The IP or hostname of the client.</span>
+
+<span class="sd">                instance_name (str) -- Name of the instance</span>
+
+<span class="sd">                sys_password (str)  -- The SYS user password</span>
+
+<span class="sd">                sys_user (str)      -- Backup user name</span>
+<span class="sd">                    default -- SYS</span>
+<span class="sd">                port (int)          -- port number for the listener.</span>
+<span class="sd">                    default -- 1521</span>
+<span class="sd">                service_name (str)  -- service name of the instance</span>
+<span class="sd">                    default -- defaults to instance name</span>
+<span class="sd">                mode (str)  -- role of the DBA connection</span>
+<span class="sd">                    default -- SYSDBA</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  -   connection object to the Oracle database</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if module ``Oracle`` is not installed</span>
+
+<span class="sd">                    if failed to connect to the database</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="c1"># Instantiate instance variables to hold oracle specific properties</span>
-        <span class="c1"># with default values</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ora_host_name</span> <span class="o">=</span> <span class="n">hostname</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ora_instance</span> <span class="o">=</span> <span class="n">instance_name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ora_port</span> <span class="o">=</span> <span class="n">port</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_password</span> <span class="o">=</span> <span class="n">sys_password</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ora_version</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Service name defaults to instance name</span>
         <span class="k">if</span> <span class="n">service_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ora_service_name</span> <span class="o">=</span> <span class="n">instance_name</span>  <span class="c1"># Service name defaults to instance name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ora_service_name</span> <span class="o">=</span> <span class="n">instance_name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ora_service_name</span> <span class="o">=</span> <span class="n">service_name</span>
         <span class="k">if</span> <span class="n">sys_user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_user</span> <span class="o">=</span> <span class="s1">&#39;sys&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_user</span> <span class="o">=</span> <span class="n">sys_user</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dsn_tns</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span>
+        <span class="c1"># self._connect()</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;SYSDBA&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Oracle</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -396,16 +504,32 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span>
 
     <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">CONN_SYSDBA</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to establish a connection to the database</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                mode (str/enum) -- DBA role connection</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception: If the DSN conn cant be made</span>
+
+<span class="sd">                ImportError: If the import fails</span>
+
+<span class="sd">                AttributeError: If the mode specified is invalid</span>
+
+<span class="sd">                OperationError: If the connection can&#39;t be established</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="kn">import</span> <span class="nn">cx_Oracle</span>
-        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
             <span class="k">raise</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">dsn_tns</span> <span class="o">=</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">makedsn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ora_port</span><span class="p">,</span>
                                                  <span class="bp">self</span><span class="o">.</span><span class="n">ora_instance</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">dsn_tns</span> <span class="o">=</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">makedsn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ora_port</span><span class="p">,</span>
                                                  <span class="n">service_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_service_name</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># DSN conn is must. Else raise exception. Let the caller handle it</span>
@@ -427,7 +551,325 @@
         <span class="k">except</span> <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">OperationalError</span><span class="p">:</span>
             <span class="k">raise</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ora_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">version</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ora_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">version</span>
+
+<div class="viewcode-block" id="Oracle.create_tablespace"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle.create_tablespace">[docs]</a>    <span class="k">def</span> <span class="nf">create_tablespace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">num_files</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to create a tablespace with the a specified number of datafiles</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                tablespace_name (str)   --    Name given to the newly created tablespace</span>
+
+<span class="sd">                location    (str)   --  The datafiles path associated with the tablespace</span>
+
+<span class="sd">                num_files   (int)   --  No.of. files tablespace should have at the time of creation</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If the tablespace can&#39;t be created</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">tablespaces</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;select tablespace_name from dba_tablespaces where tablespace_name = &#39;</span><span class="si">{0}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">tablespace_name</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">tablespaces</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Tablespaces: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">tablespaces</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">tablespaces</span><span class="p">)</span> <span class="o">==</span> <span class="n">tablespace_name</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                        <span class="s2">&quot;drop tablespace </span><span class="si">{0}</span><span class="s2"> including contents &quot;</span>
+                        <span class="s2">&quot;and datafiles cascade constraints&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tablespace_name</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;create tablespace </span><span class="si">{0}</span><span class="s2"> datafile &#39;</span><span class="si">{1}</span><span class="s2">.dbf&#39; size 10M &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">tablespace_name</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">)))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;dropped and created a new tablespace&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;create tablespace </span><span class="si">{0}</span><span class="s2"> datafile &#39;</span><span class="si">{1}</span><span class="s2">.dbf&#39; size 10M reuse&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">tablespace_name</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">)))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;tablespace created&quot;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_files</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;adding the datafile in the location </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">location</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                    <span class="s2">&quot;alter tablespace </span><span class="si">{0}</span><span class="s2"> add datafile &#39;</span><span class="si">{1}{2}</span><span class="s2">.dbf&#39; size 10M reuse&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">tablespace_name</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;datafile added to the tablespace&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">str_err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s1">&#39;Unable to create tablespace: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">str_err</span><span class="p">)</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Oracle.alter_tablespace"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle.alter_tablespace">[docs]</a>    <span class="k">def</span> <span class="nf">alter_tablespace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">num_files</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to alter the tablespace by adding additional number of files</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                tablespace_name (str)   --    Name given to the newly created tablespace</span>
+
+<span class="sd">                location    (str)   --  The datafiles path associated with the tablespace</span>
+
+<span class="sd">                num_files   (int)   --  No.of. files to be added to the tablespace</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If the table can&#39;t be altered/modified</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">tablespaces</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;select tablespace_name from dba_tablespaces where tablespace_name = &#39;</span><span class="si">{0}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">tablespace_name</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">tablespaces</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Tablespaces: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">tablespaces</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">tablespaces</span><span class="p">)</span> <span class="o">==</span> <span class="n">tablespace_name</span><span class="p">:</span>
+                    <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                        <span class="s2">&quot;select count(file_name) from dba_data_files &quot;</span>
+                        <span class="s2">&quot;where tablespace_name = &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">)</span>
+                    <span class="n">num_of_files</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_of_files</span><span class="p">,</span> <span class="n">num_of_files</span> <span class="o">+</span> <span class="n">num_files</span><span class="p">):</span>
+                       <span class="c1"># filelocation = os.path.join(location, tablespace_name) + str(i) + &quot;.dbf&quot;</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;adding the datafile -&gt; </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">location</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                            <span class="s2">&quot;alter tablespace </span><span class="si">{0}</span><span class="s2"> add datafile &#39;</span><span class="si">{1}{2}</span><span class="s2">.dbf&#39; size 10M reuse&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">tablespace_name</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;datafile added to the tablespace&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;altered the tablespace: &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="n">tablespaces</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;tablespace doesn&#39;t exist to alter&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">str_err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s1">&#39;Unable to alter tablespace: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">str_err</span><span class="p">)</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Oracle.create_user"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle.create_user">[docs]</a>    <span class="k">def</span> <span class="nf">create_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">default_tablespace</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to create a database user which a defualt tablespace mapping</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                user    (str)   --  The name of the newly create user/schema</span>
+
+<span class="sd">                default_tablespace  (str)   --  The tablespace associated with the user</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If the user cannot be created</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">users</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;select USERNAME from dba_users where USERNAME=&#39;</span><span class="si">{0}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">user</span><span class="o">.</span><span class="n">upper</span><span class="p">()))</span>
+
+            <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">users</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Users: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">users</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">users</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span> <span class="o">==</span> <span class="n">user</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;User found, dropping the user&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;drop user </span><span class="si">{0}</span><span class="s2"> cascade &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating new user: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;create user </span><span class="si">{0}</span><span class="s2"> identified by </span><span class="si">{1}</span><span class="s2"> default tablespace </span><span class="si">{2}</span><span class="s2"> &quot;</span>
+                <span class="s2">&quot;quota unlimited on </span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">user</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">default_tablespace</span><span class="p">,</span> <span class="n">default_tablespace</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;granting privileges to the user&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;grant connect, resource to </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">str_err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s1">&#39;Unable to create user/schema </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">str_err</span><span class="p">)</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Oracle.create_table"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle.create_table">[docs]</a>    <span class="k">def</span> <span class="nf">create_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">,</span> <span class="n">table_prefix</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to create a table and mapped to a tablespace and user</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                tablespace_name (str)   --  The tablespace associated with the tables</span>
+
+<span class="sd">                table_prefix    (str)   --  The prefix associated with the tables</span>
+<span class="sd">                    Sample: CV_TABLE</span>
+
+<span class="sd">                user    (str)   --  The user/schema associated with the tablespace</span>
+
+<span class="sd">                number  (int)   --  The number of tables to be created</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If existing table drop isn&#39;t possible</span>
+
+<span class="sd">                    If Create table isn&#39;t possible</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">count</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">number</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">table_name</span> <span class="o">=</span> <span class="n">table_prefix</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="si">{:02}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+            <span class="c1"># Drop table if it exists</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;DROP TABLE </span><span class="si">{0}</span><span class="s1">.</span><span class="si">{1}</span><span class="s1"> CASCADE CONSTRAINTS PURGE&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">table_name</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">str_err</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s1">&#39;Unable to drop table: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">str_err</span><span class="p">)</span>
+                <span class="k">pass</span>
+
+            <span class="c1"># Create the actual table</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;CREATE TABLE </span><span class="si">{0}</span><span class="s1">.</span><span class="si">{1}</span><span class="s1"> (ID NUMBER(5) PRIMARY KEY, NAME VARCHAR2(30))&#39;</span> \
+                  <span class="s1">&#39; TABLESPACE </span><span class="si">{2}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;table created&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">populate_table</span><span class="p">(</span><span class="n">table_prefix</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">number</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">str_err</span><span class="p">:</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;Unable to execute command: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">str_err</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+                <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Oracle.drop_table"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle.drop_table">[docs]</a>    <span class="k">def</span> <span class="nf">drop_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">table_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to drop a table</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                user (str) -- The user/schema associated with the tablespace</span>
+
+<span class="sd">                table(str) -- The table to be dropped</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If the table can&#39;t be dropped</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;DROP TABLE </span><span class="si">{0}</span><span class="s1"> CASCADE CONSTRAINTS PURGE&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;DROP TABLE </span><span class="si">{0}</span><span class="s1">.</span><span class="si">{1}</span><span class="s1"> CASCADE CONSTRAINTS PURGE&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">table_name</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Table </span><span class="si">%s</span><span class="s1"> dropped successfully&#39;</span><span class="p">,</span> <span class="n">table_name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">str_err</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;Unable to drop table: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">str_err</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Oracle.populate_table"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle.populate_table">[docs]</a>    <span class="k">def</span> <span class="nf">populate_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tblpref</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">number</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to populate data in a table. Appends 10 records every time this  method is called</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                tblpref (str)   --  The prefix used at the time of creating tables</span>
+
+<span class="sd">                user (str)  --  The user who has access to the tablespace and tables</span>
+
+<span class="sd">                number (str)    --  Appended to tablepref to get the tablename to be populated</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If the table can&#39;t be modified</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">tblpref</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="si">{:02}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;select count(*) from </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;select count(*) from </span><span class="si">{0}</span><span class="s1">.</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">table_name</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">row_start</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">str_err</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;Unable to execute command: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">str_err</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">raise</span>
+
+        <span class="n">row_limit</span> <span class="o">=</span> <span class="mi">10</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Populating table: </span><span class="si">%s</span><span class="s1">...&#39;</span><span class="p">,</span> <span class="n">table_name</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row_number</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">row_start</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">row_start</span> <span class="o">+</span> <span class="n">row_limit</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;INSERT INTO </span><span class="si">%s</span><span class="s2"> VALUES ({</span><span class="si">%s</span><span class="s2">, &quot;</span>
+                              <span class="s2">&quot;&#39;CV Automation - Test Case&#39;)&quot;</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">row_number</span><span class="p">))</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;INSERT INTO </span><span class="si">{0}</span><span class="s2"> VALUES (</span><span class="si">{1}</span><span class="s2">, &#39;CV Automation - Test Case&#39;)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">table_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">row_number</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;INSERT INTO </span><span class="si">%s</span><span class="s2">.</span><span class="si">%s</span><span class="s2"> VALUES (</span><span class="si">%s</span><span class="s2">, &quot;</span>
+                    <span class="s2">&quot;&#39;CV Automation - Test Case&#39;)&quot;</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">row_number</span><span class="p">))</span>
+                <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;INSERT INTO </span><span class="si">{0}</span><span class="s2">.</span><span class="si">{1}</span><span class="s2"> VALUES (</span><span class="si">{2}</span><span class="s2">, &#39;CV Automation - Test Case&#39;)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">user</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">row_number</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">str_err</span><span class="p">:</span>
+                <span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;Unable to execute command: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">str_err</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+                <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Oracle.tablespace_validate"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle.tablespace_validate">[docs]</a>    <span class="k">def</span> <span class="nf">tablespace_validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablespace_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to get the count of datafiles associated with a particular tablespace.</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                tablespace_name (str) -- The name of the tablespace we want to validate</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (str,int) -- tablespace name and the count of the datafiles in the tablespace</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If the tablespace/datafiles fetch fails</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;select tablespace_name from dba_tablespaces where tablespace_name = &#39;</span><span class="si">{0}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">tablespace_name</span><span class="p">))</span>
+            <span class="n">tablespaces</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Tablespaces: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">tablespaces</span><span class="p">)</span>
+
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;select count(file_name) from dba_data_files where tablespace_name = &#39;</span><span class="si">{0}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">tablespace_name</span><span class="p">))</span>
+            <span class="n">datafiles</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Datafiles: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">datafiles</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">tablespaces</span><span class="p">,</span> <span class="n">datafiles</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Exception caught: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Oracle.table_validate"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Oracle.table_validate">[docs]</a>    <span class="k">def</span> <span class="nf">table_validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">tablename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to return the records in a particular table.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                user (str) -- The user assocaited with the table</span>
+
+<span class="sd">                tablename (str) -- The table we want to validate</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (int)     --  The number of records in the table</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If the SQL cmd execution fails</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;select count(*) from </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tablename</span><span class="p">))</span>
+                <span class="n">tablerecords</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No of Rows in the table: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">tablerecords</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;select count(*) from </span><span class="si">{0}</span><span class="s2">.</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">tablename</span><span class="p">))</span>
+                <span class="n">tablerecords</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No of Rows in the table: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">tablerecords</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">tablerecords</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s2">&quot;Exception caught: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="k">raise</span></div></div>
 
 
 <div class="viewcode-block" id="MSSQL"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.MSSQL">[docs]</a><span class="k">class</span> <span class="nc">MSSQL</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
@@ -516,6 +958,7 @@
 
 <span class="sd">            Returns:</span>
 <span class="sd">                dict    -   dict consisting of the version info for the client</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">version</span><span class="p">,</span> <span class="n">service_pack</span><span class="p">,</span> <span class="n">build</span> <span class="o">=</span> <span class="s1">&#39;NA&#39;</span><span class="p">,</span> <span class="s1">&#39;NA&#39;</span><span class="p">,</span> <span class="s1">&#39;NA&#39;</span>
         <span class="n">return_value</span> <span class="o">=</span> <span class="p">{</span>
@@ -574,6 +1017,7 @@
 
 <span class="sd">            Returns:</span>
 <span class="sd">                str     -   install location string for the client</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">install_location</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -617,6 +1061,7 @@
 <span class="sd">                    if module ``MySQLdb`` is not installed</span>
 
 <span class="sd">                    if failed to connect to the database</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span> <span class="o">=</span> <span class="n">hostname</span>
@@ -662,14 +1107,202 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span></div>
 
 
+<div class="viewcode-block" id="Informix"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Informix">[docs]</a><span class="k">class</span> <span class="nc">Informix</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for connecting to Informix Database.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host_name</span><span class="p">,</span> <span class="n">server</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">database</span><span class="p">,</span> <span class="n">service</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructor for creating a connection to Informix Database.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                host_name   (str)   --  Hostname of remote machine</span>
+
+<span class="sd">                server      (str)   --  Informix server to connect</span>
+
+<span class="sd">                user_name   (str)   --  database user to connect as</span>
+
+<span class="sd">                password    (str)   --  user&#39;s password</span>
+
+<span class="sd">                database    (str)   --  the database to connect to</span>
+
+<span class="sd">                service     (str)   --  services name to connect</span>
+
+<span class="sd">                autocommit  (bool)  --  whether to commit after a query automatically or not</span>
+<span class="sd">                    default: True</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  -   connection object to the Informix server</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if module ``pyodbc`` is not installed</span>
+
+<span class="sd">                    if failed to connect to the database</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="n">server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_name</span> <span class="o">=</span> <span class="n">user_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database</span> <span class="o">=</span> <span class="n">database</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span> <span class="o">=</span> <span class="n">host_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">service</span> <span class="o">=</span> <span class="n">service</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">autocommit</span> <span class="o">=</span> <span class="n">autocommit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">Informix</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establishes a connection to the Informix Database</span>
+<span class="sd">            using the details provided.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">pyodbc</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Failed to import pyodbc</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">error</span><span class="o">.</span><span class="n">msg</span><span class="p">))</span>
+
+        <span class="n">connection</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">connect_string</span> <span class="o">=</span> <span class="s2">&quot;DRIVER={IBM INFORMIX ODBC DRIVER (64-Bit)};</span><span class="se">\</span>
+<span class="s2">            HOST=</span><span class="si">%s</span><span class="s2">;SERVICE=</span><span class="si">%s</span><span class="s2">;PROTOCOL=olsoctcp;DATABASE=</span><span class="si">%s</span><span class="s2">;SERVER=</span><span class="si">%s</span><span class="s2">;UID=</span><span class="si">%s</span><span class="s2">;</span><span class="se">\</span>
+<span class="s2">            PWD=</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">service</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">database</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+            <span class="n">pyodbc</span><span class="o">.</span><span class="n">pooling</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">connection</span> <span class="o">=</span> <span class="n">pyodbc</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">connect_string</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to connect to the Database </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+
+<div class="viewcode-block" id="Informix.list_dbspace"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Informix.list_dbspace">[docs]</a>    <span class="k">def</span> <span class="nf">list_dbspace</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Lists all dbspaces in the server</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Returns list of dbspaces in server</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if unable to list dbspaces</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;select name from sysdbspaces;&quot;</span><span class="p">,</span> <span class="n">commit</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">response_object</span><span class="o">.</span><span class="n">rows</span>
+            <span class="n">dbspace_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+                <span class="n">dbspace_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="k">return</span> <span class="n">dbspace_list</span>
+
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to fetch the dbspace list&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Informix.drop_database"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Informix.drop_database">[docs]</a>    <span class="k">def</span> <span class="nf">drop_database</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Drops a database if it exists.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                database_name   (str)   -- Database name to delete</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Returns True on success</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if unable to drop Database</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;drop database if exists </span><span class="si">{0}</span><span class="s2">;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">database_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_if_db_exists</span><span class="p">(</span><span class="n">database_name</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to drop the database&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to drop the database&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Informix.get_database_list"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Informix.get_database_list">[docs]</a>    <span class="k">def</span> <span class="nf">get_database_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Gets all the database names in the server.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Returns database list</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                BaseException:</span>
+<span class="sd">                    if unable get the database list</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;select * from sysdatabases;&quot;</span><span class="p">,</span> <span class="n">commit</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">response_object</span><span class="o">.</span><span class="n">rows</span>
+            <span class="n">database_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+                <span class="n">database_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="k">return</span> <span class="n">database_list</span>
+
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to fetch the db list&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Informix.check_if_db_exists"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Informix.check_if_db_exists">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_db_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Checks if the specified database exist.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                database     (str)   -- Database name to check</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Returns True if DB exists</span>
+
+<span class="sd">                Returns False if DB doesn&#39;t exist</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">database_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">database_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_database_list</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">database</span> <span class="ow">in</span> <span class="n">database_list</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="Informix.row_count"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.Informix.row_count">[docs]</a>    <span class="k">def</span> <span class="nf">row_count</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Returns number of rows in the table specified.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                table_name  (str)   -- Table name to count the rows</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Returns number of rows in the table</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                BaseException:</span>
+<span class="sd">                    if unable get row count of table</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select count(*) from </span><span class="si">%s</span><span class="s2">;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">table_name</span><span class="p">)</span>
+            <span class="n">response_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">commit</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">response_object</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to get the row count&quot;</span><span class="p">)</span></div></div>
+
+
 <div class="viewcode-block" id="SQLite"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.SQLite">[docs]</a><span class="k">class</span> <span class="nc">SQLite</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Class for connecting to SQLite Database.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_file_path</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_file_path</span><span class="p">,</span> <span class="n">check_same_thread</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Constructor for creating a connection to SQLite Database.</span>
 
 <span class="sd">            Args:</span>
 <span class="sd">                database_file_path  (str)   --  full path of the .db file</span>
+
+<span class="sd">                check_same_thread   (bool)  --  decides if the thread which didn&#39;t create</span>
+<span class="sd">                    the connection can access the DB connection or not.</span>
+<span class="sd">                    Please refer https://docs.python.org/3/library/sqlite3.html</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                object  -   connection object to the SQLite server</span>
@@ -682,6 +1315,7 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">database_file_path</span> <span class="o">=</span> <span class="n">database_file_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_same_thread</span> <span class="o">=</span> <span class="n">check_same_thread</span>
 
         <span class="nb">super</span><span class="p">(</span><span class="n">SQLite</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
@@ -698,7 +1332,8 @@
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">connection</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
-                <span class="n">database</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">database_file_path</span>
+                <span class="n">database</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">database_file_path</span><span class="p">,</span>
+                <span class="n">check_same_thread</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">check_same_thread</span>
             <span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
@@ -818,7 +1453,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">connectstring</span><span class="p">,</span>
                 <span class="n">cx_Oracle</span><span class="o">.</span><span class="n">SYSDBA</span><span class="p">)</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;connection is&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">connection</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;connection is </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">connection</span><span class="p">))</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
                 <span class="s1">&#39;Failed to connect to the Database</span><span class="se">\n</span><span class="s1">Error: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
@@ -831,17 +1466,21 @@
 <div class="viewcode-block" id="PostgreSQL"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.PostgreSQL">[docs]</a><span class="k">class</span> <span class="nc">PostgreSQL</span><span class="p">(</span><span class="n">Database</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; Class for connecting to PostgreSQL Database.&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">databaseName</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">database</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Constructor for creating a connection to PostgreSQL Database.</span>
 
 <span class="sd">            Args:</span>
-<span class="sd">                host        (str)   --  sap hana hostname to connect</span>
+<span class="sd">                host        (str)       --  Postgres server hostname to connect</span>
 
-<span class="sd">                port        (str)   --  port number to connect to the db</span>
+<span class="sd">                port        (str)       --  port number to connect to the db</span>
 
-<span class="sd">                user        (str)   --  database user to connect as</span>
+<span class="sd">                user        (str)       --  database user to connect as</span>
 
-<span class="sd">                password    (str)   --  user&#39;s password</span>
+<span class="sd">                password    (str)       --  user&#39;s password</span>
+
+<span class="sd">                database    (str)       --  name of the database to connect</span>
+
+<span class="sd">                autocommit  (Boolean)   --  commit after executing query (True/False)</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                object  -   connection object to the PostgreSQL database</span>
@@ -857,7 +1496,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">user</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">databaseName</span> <span class="o">=</span> <span class="n">databaseName</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database</span> <span class="o">=</span> <span class="n">database</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">autocommit</span> <span class="o">=</span> <span class="n">autocommit</span>
 
         <span class="nb">super</span><span class="p">(</span><span class="n">PostgreSQL</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
@@ -877,14 +1517,111 @@
                 <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span>
                 <span class="n">user</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user</span><span class="p">,</span>
                 <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
-                <span class="n">dbname</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">databaseName</span>
+                <span class="n">dbname</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">database</span>
             <span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
                 <span class="s1">&#39;Failed to connect to the Database</span><span class="se">\n</span><span class="s1">Error: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">connection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span></div>
+            <span class="n">connection</span><span class="o">.</span><span class="n">autocommit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">autocommit</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connection</span> <span class="o">=</span> <span class="n">connection</span>
+
+<div class="viewcode-block" id="PostgreSQL.create_db"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.PostgreSQL.create_db">[docs]</a>    <span class="k">def</span> <span class="nf">create_db</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">database</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates database with a given name in the specified postgres server</span>
+
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            database            (str)  -- Database name which has to be created</span>
+
+
+<span class="sd">        Raises:</span>
+<span class="sd">            BaseException:</span>
+<span class="sd">            if unable create DB</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_if_db_exists</span><span class="p">(</span><span class="n">database</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">drop_db</span><span class="p">(</span>
+                    <span class="n">database</span><span class="p">)</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;create database </span><span class="si">%s</span><span class="s2">;&quot;</span> <span class="o">%</span> <span class="n">database</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to create db&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PostgreSQL.drop_db"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.PostgreSQL.drop_db">[docs]</a>    <span class="k">def</span> <span class="nf">drop_db</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">database</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Drops the specified database</span>
+
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            database            (str)  -- Database name which has to be dropped</span>
+
+
+<span class="sd">        Raises:</span>
+<span class="sd">            BaseException:</span>
+<span class="sd">            if unable to drop DB</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;drop database </span><span class="si">%s</span><span class="s2">;&quot;</span> <span class="o">%</span> <span class="n">database</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to drop db&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PostgreSQL.check_if_db_exists"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.PostgreSQL.check_if_db_exists">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_db_exists</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">database</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if the given databases exists or not</span>
+<span class="sd">        Returns True if database exists</span>
+<span class="sd">        Returns False if database doesn&#39;t exist</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            database    (str)  -- Name of the database which needs to be checked</span>
+
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Boolean - True if Db exists/ else returns False</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            BaseException:</span>
+<span class="sd">            if unable check if db exists</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">db_list</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">db_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_db_list</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">database</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">db_list</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to check the db existance&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PostgreSQL.get_db_list"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.PostgreSQL.get_db_list">[docs]</a>    <span class="k">def</span> <span class="nf">get_db_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Gets the list of databases from a PostgreSQL server</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                List            -- (db_list) the list of databases in the given postgres server</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                BaseException:</span>
+<span class="sd">                if unable to get db list</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">db_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select datname from pg_database&quot;</span>
+        <span class="n">postgres_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">postgres_response</span><span class="o">.</span><span class="n">rows</span><span class="p">:</span>
+            <span class="n">db_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">db_list</span></div></div>
 
 
 <div class="viewcode-block" id="DBHelper"><a class="viewcode-back" href="../../AutomationUtils.html#AutomationUtils.database_helper.DBHelper">[docs]</a><span class="k">class</span> <span class="nc">DBHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -1032,6 +1769,7 @@
 </pre></div>
 
           </div>
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
@@ -1064,8 +1802,8 @@
       &copy;2018, Commvault Systems® Inc. All Rights Reserved.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
       
     </div>
 
