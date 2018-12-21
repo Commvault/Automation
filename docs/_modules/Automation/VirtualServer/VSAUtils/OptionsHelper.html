@@ -1,0 +1,1647 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.VirtualServer.VSAUtils.OptionsHelper &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.VirtualServer.VSAUtils.OptionsHelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">main file for selcting all the options for all backups and restore</span>
+
+<span class="sd">Class:</span>
+<span class="sd">BackupOptions - class defined for setting all backup options</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.job</span> <span class="k">import</span> <span class="n">Job</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">machine</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">VirtualServerHelper</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+
+
+<div class="viewcode-block" id="BackupOptions"><a class="viewcode-back" href="../../../../Automation.VirtualServer.VSAUtils.html#Automation.VirtualServer.VSAUtils.OptionsHelper.BackupOptions">[docs]</a><span class="k">class</span> <span class="nc">BackupOptions</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main class which handles all backup level options</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">auto_vsasubclient</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes all basic properties of performing backup</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_vsasubclient</span> <span class="o">=</span> <span class="n">auto_vsasubclient</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_type</span> <span class="o">=</span> <span class="s2">&quot;FULL&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_method</span> <span class="o">=</span> <span class="s2">&quot;REGULAR&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">testdata_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failed_vm_only</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_vsasubclient</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">metadata</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">overwrite</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_impersonation</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resore_backup_job_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_incr_before_synth</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery_for_backup_copy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_copy_immediately</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_app_aware</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">incr_level</span> <span class="o">=</span> <span class="s1">&#39;BEFORE_SYNTH&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_advance_options</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets the path where the data set needs to be created</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">testdata_path</span>
+
+    <span class="nd">@data_set</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets the path where the data set needs to be created</span>
+
+<span class="sd">        args:</span>
+<span class="sd">                path    (str)   - path where data needs to be created</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">testdata_path</span> <span class="o">=</span> <span class="n">path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backup_folder_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testdata_path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">backup_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Type of backup to be performed</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backup_type</span>
+
+    <span class="nd">@backup_type</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">backup_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">option</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Type of backup to be performed</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                optiion - Values: FULL, INCR,DIFF,SYNTH</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_type</span> <span class="o">=</span> <span class="n">option</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">backup_method</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Backup Method like app or crash consistent</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_backup_method</span>
+
+    <span class="nd">@backup_method</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">backup_method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">option</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Backup Method like app or crash consistent</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                option  - Appconsistent or Crashconsistent</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_method</span> <span class="o">=</span> <span class="n">option</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">backup_failed_vm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Backup the VM failed in Full Backup</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">failed_vm_only</span>
+
+    <span class="nd">@backup_failed_vm</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">backup_failed_vm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Backup the VM failed in Full Backup</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                value (bool)     True or False based on needs to be set ot not</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failed_vm_only</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">run_incremental_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run Incremental bakcup before synthic full</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_incr_before_synth</span>
+
+    <span class="nd">@run_incremental_backup</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">run_incremental_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run Incremental bakcup before synthic full</span>
+<span class="sd">        Args:</span>
+
+<span class="sd">        value   (bool)  - based on Incremental need to be run or not</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_incr_before_synth</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">incr_level</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">collect_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enable granular recovery for backup</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery</span>
+
+    <span class="nd">@collect_metadata</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">collect_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enable granular recovery for backup</span>
+<span class="sd">        Args:</span>
+<span class="sd">                value   (bool) - based on value need to be set or not</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_vsasubclient</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">collect_metadata_for_bkpcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enable granular recovery for backup copy</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery_for_backup_copy</span>
+
+    <span class="nd">@collect_metadata_for_bkpcopy</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">collect_metadata_for_bkpcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enable granular recovery for backup copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">                value   (bool) - based on value need to be set or not</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery_for_backup_copy</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">run_backupcopy_immediately</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run backup copy immediately after snap backup</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_copy_immediately</span>
+
+    <span class="nd">@run_backupcopy_immediately</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">run_backupcopy_immediately</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run backup copy immediately after snap backup</span>
+<span class="sd">        Args:</span>
+<span class="sd">                value   (bool) - based on value need to be set or not</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_copy_immediately</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">Application_aware</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run backup copy immediately after snap backup</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_app_aware</span>
+
+    <span class="nd">@Application_aware</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">Application_aware</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run backup copy immediately after snap backup</span>
+<span class="sd">        Args:</span>
+<span class="sd">                value   (bool) - based on value need to be set or not</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_app_aware</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">advance_options</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Setting up Advanced property for the file level backup</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            _advance_options (str):     Advanced property fot backup</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_options</span>
+
+    <span class="nd">@advance_options</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">advance_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value (dict) :       Dictionary for advanced option</span>
+
+<span class="sd">        Returns:</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_advance_options</span> <span class="o">=</span> <span class="n">value</span></div>
+
+
+<div class="viewcode-block" id="FileLevelRestoreOptions"><a class="viewcode-back" href="../../../../Automation.VirtualServer.VSAUtils.html#Automation.VirtualServer.VSAUtils.OptionsHelper.FileLevelRestoreOptions">[docs]</a><span class="k">class</span> <span class="nc">FileLevelRestoreOptions</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main class which handles all the option of file level restore</span>
+
+<span class="sd">    init:</span>
+
+<span class="sd">    subclient - (obj)    - subclient object of the cs</span>
+
+<span class="sd">    set_destination_client()    - set the co-ordinator as the default destination client</span>
+<span class="sd">                                                                        if not specified by user</span>
+
+<span class="sd">    set_restore_path()            - set the path with maximum space as  default restore path  for</span>
+<span class="sd">                                                            file level restore if not set as user</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span> <span class="o">=</span> <span class="n">subclient</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_copy_precedence</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_preserve_level</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_impersonation</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">restore_backup_job</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power_on</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_granular_recovery</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">metadata</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fs_acl</span> <span class="o">=</span> <span class="s2">&quot;ACL_DATA&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_snap</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_backupcopy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_auxcopy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_client_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">browse_ma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_convert_disk_to</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_host_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">impersonate_user_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">metadata</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">browse_ma_host_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fbr_ma</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_destination_client</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">destination_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return destination client where disk are to be restored .</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span>
+
+    <span class="nd">@destination_client</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">destination_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the particular client as destination client for disk restore</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        client_name     (str)   - client_name as configured in cs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="o">=</span> <span class="n">client_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_host_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="o">.</span><span class="n">client_hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_restore_path</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">metadata_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enable granular recovery for backup</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery</span>
+
+    <span class="nd">@metadata_collected</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">metadata_collected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enable granular recovery for backup</span>
+<span class="sd">        Args:</span>
+<span class="sd">                value   (bool) - based on value need to be set or not</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">granular_recovery</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fbr_ma</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enable granular recovery for backup</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fbr_ma</span>
+
+    <span class="nd">@fbr_ma</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">fbr_ma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enable granular recovery for backup</span>
+<span class="sd">        Args:</span>
+<span class="sd">                value   (bool) - based on value need to be set or not</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fbr_ma</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">copy_precedence</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        copy precedence from which disk restore needs to be performed</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy_precedence</span>
+
+    <span class="nd">@copy_precedence</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">copy_precedence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the copy precedence from which disk restore needs to be performed</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value (int) - The copy precedeence of the copy from which</span>
+<span class="sd">                            disk restore needs to be performed eg: 1</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_copy_precedence</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_snap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns true if browse happened from snap</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_snap</span>
+
+    <span class="nd">@browse_from_snap</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_snap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if browse needs to be done from snap copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool) - True if needs to browse from snap</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">find_snap_copy_id</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">storage_policy_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_snap</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">preserve_level</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns default preserve level for file level restores</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_preserve_level</span>
+
+    <span class="nd">@preserve_level</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">preserve_level</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if restore has to be done with  different preserve level</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (int) - represent preserve level need to be set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_preserve_level</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_backup_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns true if browse happened from backup copy</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_backupcopy</span>
+
+    <span class="nd">@browse_from_backup_copy</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_backup_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if browse needs to be done from backup copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool) - True if needs to browse from backup copy</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">find_primary_copy_id</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">storage_policy_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_backupcopy</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_aux_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns true if browse happened from auxiliary copy</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_auxcopy</span>
+
+    <span class="nd">@browse_from_aux_copy</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_aux_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if browse needs to be done from auxiliary copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool) - True if needs to browse from auxiliary copy</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">find_aux_copy_id</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">storage_policy_id</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_restore_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the job from which disk was restored</span>
+<span class="sd">        it is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span>
+
+    <span class="nd">@browse_from_restore_job</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_restore_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the Job id from which the disk restore needs to be done</span>
+<span class="sd">        Args:</span>
+<span class="sd">            job_id (int)    - Backup job id from disk restore needs to be done</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="n">_job</span><span class="o">.</span><span class="n">start_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="n">_job</span><span class="o">.</span><span class="n">end_time</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_ma</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the browse MA from which the disk restore is perfomed</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_client_name</span>
+
+    <span class="nd">@browse_ma</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_ma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ma_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the browse MA from which the disk restore is perfomed</span>
+<span class="sd">        Args:</span>
+<span class="sd">            ma_name (str)   - MA Name from which disk restore needs to be performed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ma_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_client_name</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">browse_ma_host_name</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_id</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">unconditional_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns if unconditional overwrite disk in place is set for disk restore</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span>
+
+    <span class="nd">@unconditional_overwrite</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">unconditional_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set unconditional overwrite disk in place is set for disk restore</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value (bool)    - True if needs to overwrite disk in place</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">restore_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the Restore path where disk is restored</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span>
+
+    <span class="nd">@restore_path</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">restore_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the restore path where the disk needs to be restored</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (str) - Restore apth where disk needs to be restored</span>
+<span class="sd">                            default :C:\CVAutoamtion</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">impersonate_user</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns the user if restored was triggered with some specific user</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">impersonate_user_name</span>
+
+    <span class="nd">@impersonate_user</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">impersonate_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the user if restored was to be triggered with some specific user</span>
+<span class="sd">        Args:</span>
+<span class="sd">            user_name   (str)   - user with which the restore needs to be performed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">impersonate_user_name</span> <span class="o">=</span> <span class="n">user_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_impersonation</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">convert_disk_to</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns the extension to which the disk was converted in disk restore if set</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_convert_disk_to</span>
+
+    <span class="nd">@convert_disk_to</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">convert_disk_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the extension to which the disk needs to be  converted in disk restore</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (str)   - extension to which it needs to be convereted</span>
+<span class="sd">                                    eg:vmdk</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_convert_disk_to</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">restore_acl</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return whether acl permission is set while restore . It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs_acl</span>
+
+    <span class="nd">@restore_acl</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">restore_acl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">             value: set whether acl permission need to be restored</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fs_acl</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="FileLevelRestoreOptions.set_destination_client"><a class="viewcode-back" href="../../../../Automation.VirtualServer.VSAUtils.html#Automation.VirtualServer.VSAUtils.OptionsHelper.FileLevelRestoreOptions.set_destination_client">[docs]</a>    <span class="k">def</span> <span class="nf">set_destination_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the default destiantion client ifg not given by user and path to restore in that client</span>
+
+<span class="sd">        Exception:</span>
+<span class="sd">            if client si not part of CS</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsainstance</span><span class="o">.</span><span class="n">co_ordinator</span>
+                <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dest_host_name</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_restore_path</span><span class="p">()</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An Aerror occurred in SetDestinationClient &quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">err</span></div>
+
+<div class="viewcode-block" id="FileLevelRestoreOptions.set_restore_path"><a class="viewcode-back" href="../../../../Automation.VirtualServer.VSAUtils.html#Automation.VirtualServer.VSAUtils.OptionsHelper.FileLevelRestoreOptions.set_restore_path">[docs]</a>    <span class="k">def</span> <span class="nf">set_restore_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the restore path as CVAutomation in the drive with maximum storage space</span>
+
+<span class="sd">        Exception:</span>
+<span class="sd">            if failed to get storage details</span>
+<span class="sd">            if failed to create directory</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_temp_storage_dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span><span class="p">,</span>
+                                                  <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="n">storage_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">get_storage_details</span><span class="p">()</span>
+            <span class="n">_drive_regex</span> <span class="o">=</span> <span class="s2">&quot;^[a-zA-Z]$&quot;</span>
+            <span class="k">for</span> <span class="n">_drive</span><span class="p">,</span> <span class="n">_size</span> <span class="ow">in</span> <span class="n">storage_details</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">_drive_regex</span><span class="p">,</span> <span class="n">_drive</span><span class="p">):</span>
+                    <span class="n">_temp_storage_dict</span><span class="p">[</span><span class="n">_drive</span><span class="p">]</span> <span class="o">=</span> <span class="n">_size</span><span class="p">[</span><span class="s2">&quot;available&quot;</span><span class="p">]</span>
+
+            <span class="n">_maximum_storage</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">_temp_storage_dict</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">_maximum_storage</span><span class="p">,</span> <span class="n">_temp_storage_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+            <span class="n">_dir_path</span> <span class="o">=</span> <span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;:</span><span class="se">\\</span><span class="s2">CVAutomation&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">_dir_path</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">_dir_path</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span> <span class="o">=</span> <span class="n">_dir_path</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An Error occurred in PopulateRestorePath &quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">err</span></div></div>
+
+
+<div class="viewcode-block" id="DiskRestoreOptions"><a class="viewcode-back" href="../../../../Automation.VirtualServer.VSAUtils.html#Automation.VirtualServer.VSAUtils.OptionsHelper.DiskRestoreOptions">[docs]</a><span class="k">class</span> <span class="nc">DiskRestoreOptions</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main file for disk restore options in Automation</span>
+
+<span class="sd">    set_destination_client()    - set the co-ordinator as the default destination client</span>
+<span class="sd">                                                                        if not specified by user</span>
+
+<span class="sd">    set_restore_path()            - set the path with maximum space as  default restore path  for</span>
+<span class="sd">                                                            file level restore if not set as user</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes all basic properties of performing Disk restore</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subclient - (obj)    - subclient object of the cs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span> <span class="o">=</span> <span class="n">subclient</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_copy_precedence</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_impersonation</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">restore_backup_job</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power_on</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_snap</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_backupcopy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_auxcopy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_client_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">browse_ma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_convert_disk_to</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_host_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_pseudo_client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">impersonate_user_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">browse_ma_host_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_destination_client</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">destination_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return destination client where disk are to be restored .</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span>
+
+    <span class="nd">@destination_client</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">destination_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the particular client as destination client for disk restore</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        client_name     (str)   - Pseudo client_name as configured in cs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_pseudo_client</span> <span class="o">=</span> <span class="n">client_name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_name</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="o">.</span><span class="n">client_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_host_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="o">.</span><span class="n">client_hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_restore_path</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">copy_precedence</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        copy precedence from which disk restore needs to be performed</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy_precedence</span>
+
+    <span class="nd">@copy_precedence</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">copy_precedence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the copy precedence from which disk restore needs to be performed</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value (int) - The copy precedeence of the copy from which</span>
+<span class="sd">                            disk restore needs to be performed eg: 1</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_copy_precedence</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_snap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns true if browse happened from snap</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_snap</span>
+
+    <span class="nd">@browse_from_snap</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_snap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if browse needs to be done from snap copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool) - True if needs to browse from snap</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">find_snap_copy_id</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">storage_policy_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_snap</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_backup_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns true if browse happened from backup copy</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_backupcopy</span>
+
+    <span class="nd">@browse_from_backup_copy</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_backup_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if browse needs to be done from backup copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool) - True if needs to browse from backup copy</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">find_primary_copy_id</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">storage_policy_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_backupcopy</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_aux_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns true if browse happened from auxiliary copy</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_auxcopy</span>
+
+    <span class="nd">@browse_from_aux_copy</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_aux_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if browse needs to be done from auxiliary copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool) - True if needs to browse from auxiliary copy</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">find_aux_copy_id</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">storage_policy_id</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_restore_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the job from which disk was restored</span>
+<span class="sd">        it is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span>
+
+    <span class="nd">@browse_from_restore_job</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_restore_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the Job id from which the disk restore needs to be done</span>
+<span class="sd">        Args:</span>
+<span class="sd">            job_id (int)    - Backup job id from disk restore needs to be done</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="n">_job</span><span class="o">.</span><span class="n">start_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="n">_job</span><span class="o">.</span><span class="n">end_time</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_ma</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the browse MA from which the disk restore is perfomed</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_client_name</span>
+
+    <span class="nd">@browse_ma</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_ma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ma_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the browse MA from which the disk restore is perfomed</span>
+<span class="sd">        Args:</span>
+<span class="sd">            ma_name (str)   - MA Name from which disk restore needs to be performed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ma_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_client_name</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">browse_ma_host_name</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_id</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">unconditional_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns if unconditional overwrite disk in place is set for disk restore</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span>
+
+    <span class="nd">@unconditional_overwrite</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">unconditional_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set unconditional overwrite disk in place is set for disk restore</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value (bool)    - True if needs to overwrite disk in place</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">restore_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the Restore path where disk is restored</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span>
+
+    <span class="nd">@restore_path</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">restore_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the restore path where the disk needs to be restored</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (str) - Restore apth where disk needs to be restored</span>
+<span class="sd">                            default :C:\CVAutoamtion</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">impersonate_user</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns the user if restored was triggered with some specific user</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">impersonate_user_name</span>
+
+    <span class="nd">@impersonate_user</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">impersonate_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the user if restored was to be triggered with some specific user</span>
+<span class="sd">        Args:</span>
+<span class="sd">            user_name   (str)   - user with which the restore needs to be performed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">impersonate_user_name</span> <span class="o">=</span> <span class="n">user_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_impersonation</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">convert_disk_to</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns the extension to which the disk was converted in disk restore if set</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_convert_disk_to</span>
+
+    <span class="nd">@convert_disk_to</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">convert_disk_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the extension to which the disk needs to be  converted in disk restore</span>
+<span class="sd">        Artgs:</span>
+<span class="sd">            value   (str)   - extension to which it needs to be convereted</span>
+<span class="sd">                                    eg:vmdk</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_convert_disk_to</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="DiskRestoreOptions.set_destination_client"><a class="viewcode-back" href="../../../../Automation.VirtualServer.VSAUtils.html#Automation.VirtualServer.VSAUtils.OptionsHelper.DiskRestoreOptions.set_destination_client">[docs]</a>    <span class="k">def</span> <span class="nf">set_destination_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the default destiantion client ifg not given by user and path to restore in that client</span>
+
+<span class="sd">        Exception:</span>
+<span class="sd">            if client si not part of CS</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client_name</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsainstance</span><span class="o">.</span><span class="n">co_ordinator</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An Aerror occurred in SetDestinationClient &quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">err</span></div>
+
+<div class="viewcode-block" id="DiskRestoreOptions.set_restore_path"><a class="viewcode-back" href="../../../../Automation.VirtualServer.VSAUtils.html#Automation.VirtualServer.VSAUtils.OptionsHelper.DiskRestoreOptions.set_restore_path">[docs]</a>    <span class="k">def</span> <span class="nf">set_restore_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the restore path as CVAutomation in the drive with maximum storage space</span>
+<span class="sd">        Exception:</span>
+<span class="sd">            if failed to get storage details</span>
+<span class="sd">            if failed to create directory</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_temp_storage_dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span><span class="p">,</span>
+                                                  <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="n">storage_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">get_storage_details</span><span class="p">()</span>
+            <span class="n">_drive_regex</span> <span class="o">=</span> <span class="s2">&quot;^[a-zA-Z]$&quot;</span>
+            <span class="k">for</span> <span class="n">_drive</span><span class="p">,</span> <span class="n">_size</span> <span class="ow">in</span> <span class="n">storage_details</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">_drive_regex</span><span class="p">,</span> <span class="n">_drive</span><span class="p">):</span>
+                    <span class="n">_temp_storage_dict</span><span class="p">[</span><span class="n">_drive</span><span class="p">]</span> <span class="o">=</span> <span class="n">_size</span><span class="p">[</span><span class="s2">&quot;available&quot;</span><span class="p">]</span>
+
+            <span class="n">_maximum_storage</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">_temp_storage_dict</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">_maximum_storage</span><span class="p">,</span> <span class="n">_temp_storage_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+            <span class="n">_dir_path</span> <span class="o">=</span> <span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;:</span><span class="se">\\</span><span class="s2">CVAutomation&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">_dir_path</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">_dir_path</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span> <span class="o">=</span> <span class="n">_dir_path</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An Error occurred in PopulateRestorePath &quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">err</span></div></div>
+
+
+<div class="viewcode-block" id="FullVMRestoreOptions"><a class="viewcode-back" href="../../../../Automation.VirtualServer.VSAUtils.html#Automation.VirtualServer.VSAUtils.OptionsHelper.FullVMRestoreOptions">[docs]</a><span class="k">class</span> <span class="nc">FullVMRestoreOptions</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main class for full restore options in Automation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize all class variables for Full VM restore</span>
+
+<span class="sd">        init:</span>
+
+<span class="sd">        subclient - (obj)    - subclient object of the cs</span>
+
+<span class="sd">        inputs   - (dict)   - entire input dictionary passed for automation</span>
+
+<span class="sd">        populate_hypervisor_restore_inputs()    - populate all the smart defaults</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="n">testcase</span><span class="o">.</span><span class="n">tcinputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span> <span class="o">=</span> <span class="n">testcase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span> <span class="o">=</span> <span class="n">subclient</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">perform_disk_validation</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_copy_precedence</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_impersonation</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restore_backup_job</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">advanced_restore_options</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power_on</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_snap</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_backupcopy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_auxcopy</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_host_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">impersonate_user_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dest_machine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">browse_ma_host_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_client_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">browse_ma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_place</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_to_failover</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">destination_path</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Resource_Group</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Storage_account</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_ip</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_ip</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validation</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">populate_hypervisor_restore_inputs</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">destination_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return destination client where disk are to be restored .</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span>
+
+    <span class="nd">@destination_client</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">destination_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the particular client as destination client for disk restore</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        client_name     (str)   - client_name as configured in cs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_pseudo_client</span> <span class="o">=</span> <span class="n">client_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">client_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="o">.</span><span class="n">client_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_host_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="o">.</span><span class="n">client_hostname</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">copy_precedence</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        copy precedence from which disk restore needs to be performed</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_copy_precedence</span>
+
+    <span class="nd">@copy_precedence</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">copy_precedence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the copy precedence from which disk restore needs to be performed</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value (int) - The copy precedeence of the copy from which</span>
+<span class="sd">                            disk restore needs to be performed eg: 1</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_copy_precedence</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_snap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns true if browse happened from snap</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_snap</span>
+
+    <span class="nd">@browse_from_snap</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_snap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if browse needs to be done from snap copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool) - True if needs to browse from snap</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">find_snap_copy_id</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">storage_policy_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_snap</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_backup_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns true if browse happened from backup copy</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_backupcopy</span>
+
+    <span class="nd">@browse_from_backup_copy</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_backup_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if browse needs to be done from backup copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool) - True if needs to browse from backup copy</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">find_primary_copy_id</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">storage_policy_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_backupcopy</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_aux_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The property returns true if browse happened from auxiliary copy</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_from_auxcopy</span>
+
+    <span class="nd">@browse_from_aux_copy</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_aux_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property needs to be set if browse needs to be done from auxiliary copy</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool) - True if needs to browse from auxiliary copy</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence_applicable</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy_precedence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">find_aux_copy_id</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">storage_policy_id</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_from_restore_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the job from which disk was restored</span>
+<span class="sd">        it is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span>
+
+    <span class="nd">@browse_from_restore_job</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_from_restore_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the Job id from which the disk restore needs to be done</span>
+<span class="sd">        Args:</span>
+<span class="sd">            job_id (int)    - Backup job id from disk restore needs to be done</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="n">_job</span><span class="o">.</span><span class="n">start_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="n">_job</span><span class="o">.</span><span class="n">end_time</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">restore_backup_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restore_backup_job</span>
+
+    <span class="nd">@restore_backup_job</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">restore_backup_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restore_backup_job</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">advanced_restore_options</span><span class="p">[</span><span class="s1">&#39;from_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_restore_backup_job</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="s2">&quot;%a %b </span><span class="si">%d</span><span class="s2"> %H:%M:%S %Y&quot;</span><span class="p">),</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">advanced_restore_options</span><span class="p">[</span><span class="s1">&#39;to_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_restore_backup_job</span><span class="o">.</span><span class="n">end_time</span><span class="p">,</span> <span class="s2">&quot;%a %b </span><span class="si">%d</span><span class="s2"> %H:%M:%S %Y&quot;</span><span class="p">),</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">browse_ma</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the browse MA from which the disk restore is perfomed</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_client_name</span>
+
+    <span class="nd">@browse_ma</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">browse_ma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ma_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the browse MA from which the disk restore is perfomed</span>
+<span class="sd">        Args:</span>
+<span class="sd">            ma_name (str)   - MA Name from which disk restore needs to be performed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ma_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_client_name</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">browse_ma_host_name</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_browse_ma_id</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">unconditional_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns if unconditional overwrite disk in place is set for disk restore</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span>
+
+    <span class="nd">@unconditional_overwrite</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">unconditional_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set unconditional overwrite disk in place is set for disk restore</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value (bool)    - True if needs to overwrite disk in place</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">restore_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the Restore path where disk is restored</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span>
+
+    <span class="nd">@restore_path</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">restore_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the restore path where the disk needs to be restored</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value   (str) - Restore apth where disk needs to be restored</span>
+<span class="sd">                            default :C:\CVAutoamtion</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_restore_path</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">impersonate_user</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns the user if restored was triggered with some specific user</span>
+<span class="sd">        It is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">impersonate_user_name</span>
+
+    <span class="nd">@impersonate_user</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">impersonate_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the user if restored was to be triggered with some specific user</span>
+<span class="sd">        Args:</span>
+<span class="sd">            user_name   (str)   - user with which the restore needs to be performed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">impersonate_user_name</span> <span class="o">=</span> <span class="n">user_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_impersonation</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">power_on_after_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns value of Power VM set in Full VM restore</span>
+<span class="sd">        it is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">power_on</span>
+
+    <span class="nd">@power_on_after_restore</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">power_on_after_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the value of power on option in Full VM restore</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool)  - True if poweron option need to be set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power_on</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">in_place_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns value of Overwrite set in Full VM restore</span>
+<span class="sd">        it is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_place</span>
+
+    <span class="nd">@in_place_overwrite</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">in_place_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set the value of overwrite option in Full VM restore</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value   (bool)  - True if overwrite option need to be set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_place</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_overwrite</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">register_with_failover</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns value of Overwrite set in Full VM restore</span>
+<span class="sd">        it is read only attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_to_failover</span>
+
+    <span class="nd">@register_with_failover</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">register_with_failover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This registers VM with Failover cluster</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">        Value    (bool)     - True -  Register with Failover</span>
+<span class="sd">            default:False</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_to_failover</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">_process_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_to_set</span><span class="p">,</span> <span class="n">user_input</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        will process all the inputs from user and set it as calss variable</span>
+
+<span class="sd">        attr_to_set    (str)    - property need to eb set as class variable</span>
+
+<span class="sd">        user_input    (str)    - property  to be set as class variable that is passed from user</span>
+
+<span class="sd">        Exception:</span>
+<span class="sd">            if the property is not given in user input</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">user_input</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_to_set</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="n">user_input</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;The Tag </span><span class="si">%s</span><span class="s2"> is not specified by the user&quot;</span> <span class="o">%</span> <span class="n">user_input</span><span class="p">)</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_to_set</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An Aerror occurred in setting hypervisor tags&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">err</span>
+
+<div class="viewcode-block" id="FullVMRestoreOptions.populate_hypervisor_restore_inputs"><a class="viewcode-back" href="../../../../Automation.VirtualServer.VSAUtils.html#Automation.VirtualServer.VSAUtils.OptionsHelper.FullVMRestoreOptions.populate_hypervisor_restore_inputs">[docs]</a>    <span class="k">def</span> <span class="nf">populate_hypervisor_restore_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        populate all the hypervisor defaults for the full VM restore</span>
+
+<span class="sd">        Exception:</span>
+<span class="sd">            if failed to compute default VSA Client</span>
+
+<span class="sd">            if failed to compute proxy and Datastores and Host</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">instance_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsainstance</span><span class="o">.</span><span class="n">vsa_instance_name</span>
+
+            <span class="k">def</span> <span class="nf">hyperv</span><span class="p">():</span>
+                <span class="n">proxy_host_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+                <span class="n">vm_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">vm_list</span>
+
+                <span class="c1"># setting Virtualization client</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="s2">&quot;DestinationClient&quot;</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client_name</span><span class="p">)</span>
+
+                <span class="n">dest_auto_vsaclient</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSClient</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSInstance</span><span class="p">(</span><span class="n">dest_auto_vsaclient</span><span class="p">,</span>
+                                                                                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">agent</span><span class="p">,</span>
+                                                                                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span>
+                <span class="k">for</span> <span class="n">each_vm</span> <span class="ow">in</span> <span class="n">vm_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">__deepcopy__</span><span class="p">(</span>
+                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]))</span>
+
+                <span class="c1"># setting server in the VSA Client</span>
+                <span class="k">if</span> <span class="s2">&quot;RestoreHyperVServer&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+                    <span class="n">host_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="n">proxy_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">proxy_list</span>
+                    <span class="k">for</span> <span class="n">each_proxy</span> <span class="ow">in</span> <span class="n">proxy_list</span><span class="p">:</span>
+                        <span class="n">host_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">get_hostname_for_client</span><span class="p">(</span><span class="n">each_proxy</span><span class="p">)</span>
+                        <span class="n">proxy_host_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">host_name</span><span class="p">)</span>
+                        <span class="n">host_dict</span><span class="p">[</span><span class="n">each_proxy</span><span class="p">]</span> <span class="o">=</span> <span class="n">host_name</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">proxy_client</span><span class="p">,</span> <span class="n">datastore</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">compute_free_resources</span><span class="p">(</span>
+                        <span class="n">proxy_list</span><span class="p">,</span> <span class="n">host_dict</span><span class="p">,</span> <span class="n">vm_list</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">proxy_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;RestoreHyperVServer&quot;</span><span class="p">]</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_machine</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">proxy_client</span><span class="p">,</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+                <span class="c1"># setting Destination path in VSA Client</span>
+                <span class="k">if</span> <span class="s2">&quot;DestinationPath&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+                    <span class="n">_dir_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">datastore</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">CVAutomation&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">_dir_path</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">dest_machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">_dir_path</span><span class="p">)</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">destination_path</span> <span class="o">=</span> <span class="n">_dir_path</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">destination_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;DestinationPath&quot;</span><span class="p">]</span>
+
+            <span class="k">def</span> <span class="nf">vmware</span><span class="p">():</span>
+                <span class="n">proxy_host_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">vm_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">vm_list</span>
+                <span class="c1"># setting Virtualization client</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="s2">&quot;DestinationClient&quot;</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client_name</span><span class="p">)</span>
+
+                <span class="n">dest_auto_vsaclient</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSClient</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSInstance</span><span class="p">(</span><span class="n">dest_auto_vsaclient</span><span class="p">,</span>
+                                                                                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">agent</span><span class="p">,</span>
+                                                                                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">proxy_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">co_ordinator</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span>
+                <span class="k">for</span> <span class="n">each_vm</span> <span class="ow">in</span> <span class="n">vm_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">__deepcopy__</span><span class="p">(</span>
+                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]))</span>
+
+                <span class="c1"># setting server in the VSA Client</span>
+                <span class="k">if</span> <span class="p">((</span><span class="s2">&quot;datastore&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="p">(</span><span class="s2">&quot;host&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="p">(</span><span class="s2">&quot;cluster&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="p">(</span><span class="s2">&quot;datacenter&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)):</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cluster</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datacenter</span> <span class="o">=</span> \
+                        <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">compute_free_resources</span><span class="p">(</span><span class="n">vm_list</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;RestoreVcenter&quot;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_datastore</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;RestoreVcenter&quot;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;host&quot;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_cluster</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;cluster&quot;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_datacenter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;datacenter&quot;</span><span class="p">]</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dest_client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span>
+
+            <span class="k">def</span> <span class="nf">fusion_compute</span><span class="p">():</span>
+                <span class="n">proxy_host_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">power_on_after_restore</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">vm_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">vm_list</span>
+
+                <span class="c1"># setting Virtualization client</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="s2">&quot;DestinationClient&quot;</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client_name</span><span class="p">)</span>
+
+                <span class="n">dest_auto_vsaclient</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSClient</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSInstance</span><span class="p">(</span><span class="n">dest_auto_vsaclient</span><span class="p">,</span>
+                                                                                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">agent</span><span class="p">,</span>
+                                                                                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">proxy_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">co_ordinator</span>
+
+                <span class="k">for</span> <span class="n">each_vm</span> <span class="ow">in</span> <span class="n">vm_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">__deepcopy__</span><span class="p">(</span>
+                                                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]))</span>
+
+                <span class="c1"># setting server in the VSA Client</span>
+                <span class="k">if</span> <span class="p">((</span><span class="s2">&quot;Host&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="p">(</span><span class="s2">&quot;Datastore&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)):</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">datastore</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">compute_free_resources</span><span class="p">(</span><span class="n">vm_list</span><span class="p">,</span>
+                                                                                                   <span class="bp">self</span><span class="o">.</span><span class="n">proxy_client</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;Host&quot;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">datastore</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;Datastore&quot;</span><span class="p">]</span>
+
+            <span class="k">def</span> <span class="nf">AzureRM</span><span class="p">():</span>
+                <span class="n">vm_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">vm_list</span>
+
+                <span class="c1"># setting Virtualization client</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="s2">&quot;DestinationClient&quot;</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client_name</span><span class="p">)</span>
+
+                <span class="n">dest_auto_vsaclient</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSClient</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSInstance</span><span class="p">(</span><span class="n">dest_auto_vsaclient</span><span class="p">,</span>
+                                                                                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">agent</span><span class="p">,</span>
+                                                                                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span>
+
+                <span class="k">for</span> <span class="n">each_vm</span> <span class="ow">in</span> <span class="n">vm_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">__deepcopy__</span><span class="p">(</span>
+                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]))</span>
+
+                <span class="c1"># setting server in the VSA Client</span>
+                <span class="k">if</span> <span class="p">((</span><span class="s2">&quot;Resourcegroup&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="p">(</span><span class="s2">&quot;Storageaccount&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)):</span>
+
+                    <span class="n">esx_host</span><span class="p">,</span> <span class="n">datastore</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">compute_free_resources</span><span class="p">(</span><span class="n">vm_list</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">Resource_Group</span> <span class="o">=</span> <span class="n">esx_host</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">Storage_account</span> <span class="o">=</span> <span class="n">datastore</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">Resource_Group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;Resourcegroup&quot;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">Storage_account</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;Storageaccount&quot;</span><span class="p">]</span>
+
+            <span class="k">def</span> <span class="nf">oraclevm</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">power_on_after_restore</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">vm_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">vm_list</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="s2">&quot;virtualizationClient&quot;</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client_name</span><span class="p">)</span>
+
+                <span class="n">dest_auto_vsaclient</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSClient</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSInstance</span><span class="p">(</span><span class="n">dest_auto_vsaclient</span><span class="p">,</span>
+                                                                               <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">agent</span><span class="p">,</span>
+                                                                               <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">proxy_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">co_ordinator</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span>
+                <span class="k">for</span> <span class="n">each_vm</span> <span class="ow">in</span> <span class="n">vm_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">__deepcopy__</span><span class="p">(</span>
+                                                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]))</span>
+
+                <span class="c1"># setting server in the VSA Client</span>
+                <span class="k">if</span> <span class="p">((</span><span class="s2">&quot;Host&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="p">(</span><span class="s2">&quot;Datastore&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)):</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">datastore</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">compute_free_resources</span><span class="p">(</span><span class="n">vm_list</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">each_vm</span> <span class="ow">in</span> <span class="n">vm_list</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">datastore</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]</span><span class="o">.</span><span class="n">server_repos</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Restore operation can not be performed to the repository </span><span class="si">{0}</span><span class="s2"> &quot;</span>
+                                            <span class="s2">&quot;since the VM </span><span class="si">{1}</span><span class="s2"> is hosted on the server </span><span class="si">{2}</span><span class="s2"> &quot;</span>
+                                            <span class="s2">&quot;for which the suggested repo is not shared with&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">datastore</span><span class="p">,</span> <span class="n">each_vm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]</span><span class="o">.</span><span class="n">server_name</span><span class="p">))</span>
+
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;Host&quot;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">datastore</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;Datastore&quot;</span><span class="p">]</span>
+
+            <span class="k">def</span> <span class="nf">alicloud</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">power_on_after_restore</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">vm_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">vm_list</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="s2">&quot;virtualizationClient&quot;</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client_name</span><span class="p">)</span>
+
+                <span class="n">dest_auto_vsaclient</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSClient</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span> <span class="o">=</span> <span class="n">VirtualServerHelper</span><span class="o">.</span><span class="n">AutoVSAVSInstance</span><span class="p">(</span>
+                    <span class="n">dest_auto_vsaclient</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">agent</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">proxy_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">co_ordinator</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span>
+                <span class="k">for</span> <span class="n">each_vm</span> <span class="ow">in</span> <span class="n">vm_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">__deepcopy__</span><span class="p">(</span>
+                                                        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auto_subclient</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">each_vm</span><span class="p">]))</span>
+
+                <span class="k">if</span> <span class="p">((</span><span class="s2">&quot;AvailabilityZone&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="p">(</span><span class="s2">&quot;Network&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="p">(</span><span class="s2">&quot;SecurityGroups&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)):</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_availability_zone</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_network</span><span class="p">,</span>\
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_security_groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_client_hypervisor</span><span class="o">.</span><span class="n">compute_free_resources</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">proxy_client</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_availability_zone</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;AvailabilityZone&#39;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_network</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;Network&#39;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_security_groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;SecurityGroups&#39;</span><span class="p">]</span>
+
+            <span class="n">hv_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;hyper-v&quot;</span><span class="p">:</span> <span class="n">hyperv</span><span class="p">,</span> <span class="s2">&quot;vmware&quot;</span><span class="p">:</span> <span class="n">vmware</span><span class="p">,</span> <span class="s2">&quot;fusioncompute&quot;</span><span class="p">:</span> <span class="n">fusion_compute</span><span class="p">,</span>
+                       <span class="s2">&quot;oraclevm&quot;</span><span class="p">:</span> <span class="n">oraclevm</span><span class="p">,</span> <span class="s2">&quot;azure resource manager&quot;</span><span class="p">:</span> <span class="n">AzureRM</span><span class="p">,</span>
+                       <span class="s2">&quot;alicloud&quot;</span><span class="p">:</span> <span class="n">alicloud</span><span class="p">}</span>
+            <span class="p">(</span><span class="n">hv_dict</span><span class="p">[</span><span class="n">instance_name</span><span class="p">])()</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred in setting hypervisor tags&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">err</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">source_ip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns IP of the source vm</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_ip</span>
+
+    <span class="nd">@source_ip</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">source_ip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Assigning Source IP from the input</span>
+<span class="sd">        Args:</span>
+<span class="sd">                value   (basestring) - IP of the source VM</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_ip</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">destination_ip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns IP of the destination vm</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_ip</span>
+
+    <span class="nd">@destination_ip</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">destination_ip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Assigning Source IP from the input</span>
+<span class="sd">        Args:</span>
+<span class="sd">                value   (basestring) - IP of the destination VM</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_ip</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">validation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns if validation has to be performed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validation</span>
+
+    <span class="nd">@validation</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">validation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Assigning if validation needs to be done</span>
+<span class="sd">        Args:</span>
+<span class="sd">                value       (bool):   True if validation needs to be done</span>
+<span class="sd">                                        False if validation need not be done</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validation</span> <span class="o">=</span> <span class="n">value</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,345 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.Server.Workflow.workflowhelper &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.Server.Workflow.workflowhelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main file for performing workflow operations on Commcell</span>
+
+<span class="sd">WorkflowHelper is the only class defined in this file</span>
+
+<span class="sd">WorkflowHelper:    Provides functionality to deploy and execute workflows on</span>
+<span class="sd">                    WorkflowEngine.</span>
+
+<span class="sd">WorkflowHelper:</span>
+<span class="sd">    __init__()                  --  initialize instance of the WorkflowHelper class</span>
+
+<span class="sd">    __repr__()                  --  Representation string for the instance of the</span>
+<span class="sd">                                    WorkflowHelper class</span>
+
+<span class="sd">    execute()                   --  Deploy and execute the workflow on the WorkflowEngine</span>
+<span class="sd">                                    and wait for the workjflow job completion.</span>
+<span class="sd">                                    If workflow is not deployed or imported, it imports/deploys</span>
+<span class="sd">                                    the workflow.</span>
+<span class="sd">                                    Also deploys any dependent custom created activities</span>
+
+<span class="sd">    deploy()                    -- Imports and deploys workflow and dependent(embedded)</span>
+<span class="sd">                                    workflows on WFEngine.</span>
+<span class="sd">                                    Also deploys custom activities which the workflow requires.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># Python standard library imports</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="c1"># Test suite imports</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="k">import</span> <span class="n">OptionsSelector</span>
+<span class="kn">from</span> <span class="nn">Server.Workflow</span> <span class="k">import</span> <span class="n">workflowconstants</span> <span class="k">as</span> <span class="n">WC</span>
+<span class="kn">from</span> <span class="nn">Server.serverhelper</span> <span class="k">import</span> <span class="n">ServerTestCases</span>
+
+
+<div class="viewcode-block" id="WorkflowHelper"><a class="viewcode-back" href="../../../../Automation.Server.Workflow.html#Automation.Server.Workflow.workflowhelper.WorkflowHelper">[docs]</a><span class="k">class</span> <span class="nc">WorkflowHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Workflow helper class to perform workflow related operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">,</span> <span class="n">wf_name</span><span class="p">,</span> <span class="n">wf_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize instance of the WorkflowHelper class.</span>
+<span class="sd">            Args:</span>
+<span class="sd">                testcase  (TestCase instance) -- Instance of TestCase class</span>
+
+<span class="sd">                wf_name   (str)               -- Workflow name</span>
+
+<span class="sd">                wf_dict   (dict)              -- Workflow dictionary containing</span>
+<span class="sd">                                                 workflow and/or activity xml locations,</span>
+<span class="sd">                                                 embedded workflows/activities map and</span>
+<span class="sd">                                                 workflow engine where workflow need to</span>
+<span class="sd">                                                 be deployed</span>
+<span class="sd">                                         e.g</span>
+<span class="sd">                                         {</span>
+<span class="sd">                                             &#39;wf_engine&#39;: &#39;WorkflowEngineServer&#39;,</span>
+<span class="sd">                                             &#39;workflow_xml_path&#39;: &#39;C:/Workflows&#39;,</span>
+<span class="sd">                                             &#39;workflow_activities_path&#39;: &#39;C:/Activities&#39;</span>
+<span class="sd">                                             &#39;workflow_map&#39;:{</span>
+<span class="sd">                                                &#39;common_workflows&#39;:[&quot;wf_email&quot;, &quot;wf_pause&quot;],</span>
+<span class="sd">                                                &#39;wf_acquire_lock_parent&#39;: {</span>
+<span class="sd">                                                    &#39;Child&#39;: [&quot;wf_acquire_lock_child&quot;],</span>
+<span class="sd">                                                            },</span>
+<span class="sd">                                         }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span> <span class="o">=</span> <span class="n">testcase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_name</span> <span class="o">=</span> <span class="n">wf_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workflows_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">workflows</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="o">=</span> <span class="n">ServerTestCases</span><span class="p">(</span><span class="n">testcase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+        <span class="n">wf_dict</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">wf_dict</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">wf_dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_engine</span> <span class="o">=</span> <span class="n">wf_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;wf_engine&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_xml_path</span> <span class="o">=</span> <span class="n">wf_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;workflow_xml_path&#39;</span><span class="p">,</span> <span class="n">WC</span><span class="o">.</span><span class="n">WORKFLOWS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_activities_path</span> <span class="o">=</span> <span class="n">wf_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;workflow_xml_path&#39;</span><span class="p">,</span> <span class="n">WC</span><span class="o">.</span><span class="n">ACTIVITIES</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_map</span> <span class="o">=</span> <span class="n">wf_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;workflow_xml_path&#39;</span><span class="p">,</span> <span class="n">WC</span><span class="o">.</span><span class="n">WORKFLOW_DEPENDENCY_MAP</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">deploy</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_workflow_name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Representation string for the instance of the WorkflowHelper class.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;WorkflowHelper class instance for testcase: &#39;</span><span class="si">{0}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">name</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="WorkflowHelper.execute"><a class="viewcode-back" href="../../../../Automation.Server.Workflow.html#Automation.Server.Workflow.workflowhelper.WorkflowHelper.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_json_input</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Executes workflow on workflow engine.</span>
+
+<span class="sd">        If workflow is not deployed already, an attempt is made to deploy the</span>
+<span class="sd">        workflow.</span>
+
+<span class="sd">        Workflow is executed and waits for the job to complete</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">        workflow_json_input    (dict)  --  dictionary consisting of inputs for the workflow</span>
+
+<span class="sd">        inputs dict format:</span>
+
+<span class="sd">            {</span>
+<span class="sd">                &#39;input1_name&#39;: &#39;input1_value&#39;,</span>
+<span class="sd">                &#39;input2_name&#39;: &#39;input2_value&#39;</span>
+<span class="sd">            }</span>
+
+<span class="sd">            e.g.:</span>
+<span class="sd">            for executing the Demo_CheckReadiness workflow, inputs dict would be:</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;ClientGroupName&quot;: &quot;client_group_value&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">        Exception - If workflow job fails to execute</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="n">workflow_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_name</span>
+
+            <span class="k">if</span> <span class="n">workflow_json_input</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">workflow_json_input</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;workflowEngine&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_engine</span>
+                <span class="p">}</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Workflow JSON inputs [</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow_json_input</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Pre-execution checks for workflow [</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow_name</span><span class="p">))</span>
+
+            <span class="c1"># Deploy workflow if not already deployed on WorkflowEngine</span>
+            <span class="k">if</span> <span class="s1">&#39;client&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows_obj</span><span class="o">.</span><span class="n">all_workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_name</span><span class="p">,</span> <span class="p">{}):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">deploy</span><span class="p">()</span>
+
+            <span class="c1"># Execute workflow</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing workflow [</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow_name</span><span class="p">))</span>
+            <span class="n">__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_obj</span><span class="o">.</span><span class="n">execute_workflow</span><span class="p">(</span><span class="n">workflow_json_input</span><span class="p">)</span>
+
+            <span class="c1"># Wait for workflow job to complete</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting on workflow jobid [</span><span class="si">{}</span><span class="s2">] to complete&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Workflow job execution </span><span class="si">{}</span><span class="s2"> with error </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">delay_reason</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to execute workflow </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="WorkflowHelper.deploy"><a class="viewcode-back" href="../../../../Automation.Server.Workflow.html#Automation.Server.Workflow.workflowhelper.WorkflowHelper.deploy">[docs]</a>    <span class="k">def</span> <span class="nf">deploy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot; Imports and deploys workflow and dependent(embedded) workflows on WFEngine.</span>
+
+<span class="sd">            Also deploys custom activities which the workflow requires.</span>
+
+<span class="sd">            Dependent workflows and activities are fetched from the pre populated</span>
+
+<span class="sd">            workflow map defined in the WorkflowConstants module unless otherwise</span>
+
+<span class="sd">            provided by the user in the module arguments</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        None</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">        Exception - If module execution fails during any step.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="n">workflow_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_name</span>
+            <span class="n">activity_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">workflow_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow_name</span><span class="p">):</span>
+
+                <span class="c1"># If workflow is dependent on custom activities, deploy</span>
+                <span class="c1"># activities</span>
+                <span class="k">for</span> <span class="n">activity</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_map</span><span class="p">[</span><span class="n">workflow_name</span><span class="p">]</span><span class="o">.</span>\
+                                    <span class="n">get</span><span class="p">(</span><span class="s2">&quot;Activities&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+
+                    <span class="c1"># Deploy custom activity if not already deployed</span>
+                    <span class="n">activity_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">activity</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+                    <span class="k">if</span> <span class="n">activity</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows_obj</span><span class="o">.</span><span class="n">all_activities</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Custom activity </span><span class="si">{}</span><span class="s2"> is already deployed&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">activity</span><span class="p">))</span>
+                        <span class="k">continue</span>
+
+                    <span class="n">activity_xml</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_workflow_activities_path</span><span class="p">,</span> <span class="n">activity</span> <span class="o">+</span> <span class="s1">&#39;.xml&#39;</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">activity_xml</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Custom activity XML not found at </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">activity_xml</span><span class="p">))</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Custom activity path [</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">activity_xml</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Importing custom activity [</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">activity</span><span class="p">))</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_workflows_obj</span><span class="o">.</span><span class="n">import_activity</span><span class="p">(</span><span class="n">activity_xml</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dependent custom activities list </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">activity_list</span><span class="p">))</span>
+
+                <span class="c1"># Generate a list of dependent(embedded) workflows</span>
+                <span class="k">for</span> <span class="n">workflow</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;common_workflows&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+                    <span class="n">workflow_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">workflow</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+                <span class="k">for</span> <span class="n">workflow</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflow_map</span><span class="p">[</span><span class="n">workflow_name</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Child&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+                    <span class="n">workflow_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">workflow</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+            <span class="n">workflow_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">workflow_name</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dependent workflows list [</span><span class="si">{}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow_list</span><span class="p">))</span>
+
+            <span class="c1"># For each of the dependent and parent workflow make an attempt to</span>
+            <span class="c1"># import and deploy the workflow if not already imported/deployed</span>
+            <span class="c1"># on the WorkflowEngine</span>
+            <span class="k">for</span> <span class="n">workflow</span> <span class="ow">in</span> <span class="n">workflow_list</span><span class="p">:</span>
+
+                <span class="n">workflow_xml</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_workflow_xml_path</span><span class="p">,</span> <span class="n">workflow</span> <span class="o">+</span> <span class="s1">&#39;.xml&#39;</span><span class="p">)</span>
+
+                <span class="c1"># Import workflow if not already imported</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows_obj</span><span class="o">.</span><span class="n">has_workflow</span><span class="p">(</span><span class="n">workflow</span><span class="p">):</span>
+
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">workflow_xml</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Workflow not found at </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_workflow_xml_path</span><span class="p">))</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Importing workflow </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Workflow xml path </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow_xml</span><span class="p">))</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_workflows_obj</span><span class="o">.</span><span class="n">import_workflow</span><span class="p">(</span><span class="n">workflow_xml</span><span class="p">)</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Imported workflow </span><span class="si">{}</span><span class="s2"> successfully.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow</span><span class="p">))</span>
+
+                <span class="c1"># Deploy Workflow if not already deployed</span>
+                <span class="k">if</span> <span class="s1">&#39;client&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows_obj</span><span class="o">.</span><span class="n">all_workflows</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow</span><span class="p">,</span> <span class="p">{}):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Workflow </span><span class="si">{}</span><span class="s2"> already deployed&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow</span><span class="p">))</span>
+
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">workflow_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workflows_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">workflow</span><span class="p">)</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deploying workflow </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow</span><span class="p">))</span>
+
+                    <span class="n">workflow_obj</span><span class="o">.</span><span class="n">deploy_workflow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_workflow_engine</span><span class="p">,</span> <span class="n">workflow_xml</span><span class="p">)</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Workflow </span><span class="si">{}</span><span class="s2"> deployed successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">workflow</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Deployment failed with exception </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

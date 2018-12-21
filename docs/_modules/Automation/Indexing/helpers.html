@@ -1,0 +1,259 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.Indexing.helpers &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.Indexing.helpers</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main module which contains helpers to get indexing related information and to</span>
+<span class="sd">do indexing related operations</span>
+
+<span class="sd">IndexingHelpers: Helper class to get indexing related information and operations</span>
+
+<span class="sd">IndexingHelpers:</span>
+
+<span class="sd">    __init__()              --  Initializes the indexing helper class</span>
+
+<span class="sd">    get_index_cache()       --  Gets the index cache for the given media agent</span>
+
+<span class="sd">    get_index_backup_clients()  --  Gets the index backup client names for the</span>
+<span class="sd">    given entity (backupset/subclient)</span>
+
+<span class="sd">    run_index_backup()      --  Runs index backup job for the given index backup subclient</span>
+
+<span class="sd">    verify_checkpoint()     --  Verifies if checkpoint happened for the given DB by the given</span>
+<span class="sd">    index backup job id</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">cvpysdk.client</span> <span class="k">import</span> <span class="n">Client</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.backupset</span> <span class="k">import</span> <span class="n">Backupset</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.subclient</span> <span class="k">import</span> <span class="n">Subclient</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="k">import</span> <span class="n">get_csdb</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.idautils</span> <span class="k">import</span> <span class="n">CommonUtils</span>
+
+
+<div class="viewcode-block" id="IndexingHelpers"><a class="viewcode-back" href="../../../Automation.Indexing.html#Automation.Indexing.helpers.IndexingHelpers">[docs]</a><span class="k">class</span> <span class="nc">IndexingHelpers</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This is a helper class for indexing related information and operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the Indexing helper class&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span> <span class="o">=</span> <span class="n">get_csdb</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cv_ops</span> <span class="o">=</span> <span class="n">CommonUtils</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+
+<div class="viewcode-block" id="IndexingHelpers.get_index_cache"><a class="viewcode-back" href="../../../Automation.Indexing.html#Automation.Indexing.helpers.IndexingHelpers.get_index_cache">[docs]</a>    <span class="k">def</span> <span class="nf">get_index_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_agent</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the index cache for the given media agent</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                media_agent     (obj)   --      The media agent CvPySDK client object</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (str)       -       The index cache of the media agent</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">media_agent</span><span class="p">,</span> <span class="n">Client</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Please provide MA client object to get index cache&#39;</span><span class="p">)</span>
+
+        <span class="n">ma_id</span> <span class="o">=</span> <span class="n">media_agent</span><span class="o">.</span><span class="n">client_id</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                select attrVal from app_clientprop where</span>
+<span class="sd">                componentNameId = {0} and</span>
+<span class="sd">                attrName = &#39;Idx: cache path&#39;</span>
+<span class="sd">            &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ma_id</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">rows</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Unable to get IndexCache directory for the MA [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">media_agent</span><span class="o">.</span><span class="n">client_name</span>
+            <span class="p">))</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="IndexingHelpers.get_index_backup_clients"><a class="viewcode-back" href="../../../Automation.Indexing.html#Automation.Indexing.helpers.IndexingHelpers.get_index_backup_clients">[docs]</a>    <span class="k">def</span> <span class="nf">get_index_backup_clients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the index backup client names for the given entity (backupset/subclient)</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                entity_obj     (obj)   --      The CvPySDK object of the backupset/subclient</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (list)       -       List of index backup client names</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">client_names</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity_obj</span><span class="p">,</span> <span class="n">Backupset</span><span class="p">):</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Getting index backup clients for backupset [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">entity_obj</span><span class="o">.</span><span class="n">backupset_name</span>
+            <span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                select distinct sp.name from archGroup sp</span>
+<span class="s2">                join app_application sc on sc.dataArchGrpID = sp.id</span>
+<span class="s2">                join APP_BackupSetName bkset on bkset.id = sc.backupSet</span>
+
+<span class="s2">                where sc.subclientStatus = 0</span>
+<span class="s2">                and bkset.id = &#39;</span><span class="si">{0}</span><span class="s2">&#39;</span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity_obj</span><span class="o">.</span><span class="n">backupset_id</span><span class="p">))</span>
+
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">rows</span><span class="p">:</span>
+                <span class="n">client_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity_obj</span><span class="p">,</span> <span class="n">Subclient</span><span class="p">):</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Getting index backup client for subclient [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">entity_obj</span><span class="o">.</span><span class="n">subclient_name</span>
+            <span class="p">))</span>
+
+            <span class="n">client_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entity_obj</span><span class="o">.</span><span class="n">storage_policy</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">client_names</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No subclients found in the backupset to get index backup client&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;_IndexServer&#39;</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">client_names</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="IndexingHelpers.run_index_backup"><a class="viewcode-back" href="../../../Automation.Indexing.html#Automation.Indexing.helpers.IndexingHelpers.run_index_backup">[docs]</a>    <span class="k">def</span> <span class="nf">run_index_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Runs index backup job for the given index backup subclient</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_obj  (obj)  --  The CvPySDK subclient object of the index backup client</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (obj)       -       The job object of the index backup job which is started</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">subclient_obj</span><span class="p">,</span> <span class="n">Subclient</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Please provide subclient object to run index backup job&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Running index backup for Index backup client [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">subclient_obj</span><span class="o">.</span><span class="n">_client_object</span><span class="o">.</span><span class="n">client_name</span>
+        <span class="p">))</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cv_ops</span><span class="o">.</span><span class="n">subclient_backup</span><span class="p">(</span><span class="n">subclient_obj</span><span class="p">,</span> <span class="n">backup_type</span><span class="o">=</span><span class="s1">&#39;Full&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="IndexingHelpers.verify_checkpoint"><a class="viewcode-back" href="../../../Automation.Indexing.html#Automation.Indexing.helpers.IndexingHelpers.verify_checkpoint">[docs]</a>    <span class="k">def</span> <span class="nf">verify_checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_backup_job_id</span><span class="p">,</span> <span class="n">db_guid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Verifies if checkpoint happened for the given DB by the given index backup job id</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                index_backup_job_id     (int/str)   --      Job ID of the index backup job</span>
+
+<span class="sd">                db_guid                 (str)   --          DB GUID to verify checkpoint</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (bool)       -       True, if checkpoint happened for the DB by the given job.</span>
+<span class="sd">                                     False, otherwise</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Verifying checkpoint for DB [</span><span class="si">{0}</span><span class="s1">] by job [</span><span class="si">{1}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">db_guid</span><span class="p">,</span> <span class="n">index_backup_job_id</span>
+        <span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            select isValid from archFile where name like &#39;IdxCheckPoint_%:</span><span class="si">{0}</span><span class="s2">&#39;</span>
+<span class="s2">            and jobid = </span><span class="si">{1}</span><span class="s2"></span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_guid</span><span class="p">,</span> <span class="n">index_backup_job_id</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">rows</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Checkpoint did not happen for DB&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Checkpoint is successful for DB&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Checkpoint did not happen for DB&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">False</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

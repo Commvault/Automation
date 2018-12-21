@@ -1,0 +1,345 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.Server.Security.userhelper &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.Server.Security.userhelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main file for performing User related operations on Commcell</span>
+
+<span class="sd">UserHelper:</span>
+<span class="sd">    __init__()              --  Initialize UserHelper object</span>
+
+<span class="sd">    create_user()           --  Creates new user on the CommCell</span>
+
+<span class="sd">    delete_user()           --  Deletes user passed</span>
+
+<span class="sd">    _browser_setup()        --  Sets up browser constants</span>
+
+<span class="sd">    gui_login()             --  Performs auth token logins</span>
+
+<span class="sd">    web_login()             --  Performs admin console and admin console login</span>
+
+<span class="sd">    gen_TFA_password()      --  Fetches one time pin for users</span>
+
+<span class="sd">    enable_TFA()            --  Enables Two Factor Authentication on the CommCell</span>
+
+<span class="sd">    disable_TFA()           --  Disables Two Factor Authentication on the CommCell</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.commcell</span> <span class="k">import</span> <span class="n">Commcell</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">database_helper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">options_selector</span>
+<span class="kn">from</span> <span class="nn">Web.Common.cvbrowser</span> <span class="k">import</span> <span class="n">BrowserFactory</span>
+<span class="kn">from</span> <span class="nn">Web.AdminConsole.Helper.LoginHelper</span> <span class="k">import</span> <span class="n">LoginMain</span>
+
+
+<div class="viewcode-block" id="UserProperties"><a class="viewcode-back" href="../../../../Automation.Server.Security.html#Automation.Server.Security.userhelper.UserProperties">[docs]</a><span class="k">class</span> <span class="nc">UserProperties</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;initializing the user details &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">cs_host</span><span class="p">,</span> <span class="n">full_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">email</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes UserProperties object</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name        (str)   --  name of the user</span>
+
+<span class="sd">            cs_host     (str)   --  commcell host name</span>
+
+<span class="sd">            full_name   (str)   --  full name for user</span>
+
+<span class="sd">            email       (str)   --  user&#39;s email id</span>
+
+<span class="sd">            password    (str)   --  password for user</span>
+
+<span class="sd">            domain      (str)   --  domain name to which user is belongs to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cs_host</span> <span class="o">=</span> <span class="n">cs_host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">full_name</span> <span class="o">=</span> <span class="n">full_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">email</span> <span class="o">=</span> <span class="n">email</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domain</span> <span class="o">=</span> <span class="n">domain</span></div>
+
+<div class="viewcode-block" id="UserHelper"><a class="viewcode-back" href="../../../../Automation.Server.Security.html#Automation.Server.Security.userhelper.UserHelper">[docs]</a><span class="k">class</span> <span class="nc">UserHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to perform User related operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes UserHelper object</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            commcell    (obj)   --  Commcell object</span>
+
+<span class="sd">            user        (obj)   --  user object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_user</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">user</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_user</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">single_user</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_user</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">get_csdb</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_utility</span> <span class="o">=</span> <span class="n">options_selector</span><span class="o">.</span><span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cl_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">commserv_client</span>
+
+<div class="viewcode-block" id="UserHelper.create_user"><a class="viewcode-back" href="../../../../Automation.Server.Security.html#Automation.Server.Security.userhelper.UserHelper.create_user">[docs]</a>    <span class="k">def</span> <span class="nf">create_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">local_usergroups</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds a local/external user to this commcell</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                user_name                     (str)     --  name of the user to be</span>
+<span class="sd">                                                            created</span>
+
+<span class="sd">                full_name                     (str)     --  full name of the user to be</span>
+<span class="sd">                                                            created</span>
+
+<span class="sd">                email                         (str)     --  email of the user to be</span>
+<span class="sd">                                                            created</span>
+
+<span class="sd">                domain                        (str)     --  Needed in case you are adding</span>
+<span class="sd">                                                            external user</span>
+
+<span class="sd">                password                      (str)     --  password of the user to be</span>
+<span class="sd">                                                            created</span>
+<span class="sd">                                                            default: None</span>
+
+<span class="sd">                local_usergroups              (str)     --  user can be member of</span>
+<span class="sd">                                                            these user groups</span>
+<span class="sd">             Returns:</span>
+<span class="sd">                 User Object</span>
+<span class="sd">         &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating User </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">user_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">user_name</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span>
+                                                 <span class="n">full_name</span><span class="o">=</span><span class="n">full_name</span><span class="p">,</span>
+                                                 <span class="n">domain</span><span class="o">=</span><span class="n">domain</span><span class="p">,</span>
+                                                 <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">,</span>
+                                                 <span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">,</span>
+                                                 <span class="n">local_usergroups</span><span class="o">=</span><span class="n">local_usergroups</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;user creation is successful&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UserHelper.delete_user"><a class="viewcode-back" href="../../../../Automation.Server.Security.html#Automation.Server.Security.userhelper.UserHelper.delete_user">[docs]</a>    <span class="k">def</span> <span class="nf">delete_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">new_user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">new_group</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deletes the user passed</span>
+<span class="sd">        Args:</span>
+<span class="sd">            user_name       (str)   -- object of user to be deleted</span>
+
+<span class="sd">            new_user        (str)   -- user to whom ownership of entities will be transferred</span>
+
+<span class="sd">            new_group       (str)   -- user group to whom ownership will be transferred</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;performing Delete Operation on user: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">user_name</span><span class="p">)</span>
+
+        <span class="n">user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">has_user</span><span class="p">(</span><span class="n">user_name</span><span class="o">=</span><span class="n">user_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">user</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">user_name</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span> <span class="n">new_user</span><span class="o">=</span><span class="n">new_user</span><span class="p">,</span>
+                                           <span class="n">new_usergroup</span><span class="o">=</span><span class="n">new_group</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;user deletion is Successful&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Specified user is not present on the CommCell </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">user_name</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_browser_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;sets up browser constants</span>
+
+<span class="sd">            returns:</span>
+<span class="sd">                browser object</span>
+<span class="sd">         &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing browser objects.&quot;</span><span class="p">)</span>
+        <span class="n">factory</span> <span class="o">=</span> <span class="n">BrowserFactory</span><span class="p">()</span>
+        <span class="n">browser</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">create_browser_object</span><span class="p">()</span>
+        <span class="n">browser</span><span class="o">.</span><span class="n">open</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">browser</span>
+
+<div class="viewcode-block" id="UserHelper.web_login"><a class="viewcode-back" href="../../../../Automation.Server.Security.html#Automation.Server.Security.userhelper.UserHelper.web_login">[docs]</a>    <span class="k">def</span> <span class="nf">web_login</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">web</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs admin console and admin console login</span>
+<span class="sd">        Args:</span>
+<span class="sd">            user_name   (str)   --  name of the user</span>
+
+<span class="sd">            password    (str)   --  password for user</span>
+
+<span class="sd">            web         (set)   --  set of constants containing urls</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if user deletion is unsuccessful</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">web_urls</span> <span class="o">=</span> <span class="p">[</span><span class="n">web</span><span class="o">.</span><span class="n">webconsole_url</span><span class="p">,</span> <span class="n">web</span><span class="o">.</span><span class="n">adminconsole_url</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Login to webconsole and admin console&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">web_urls</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">browser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_browser_setup</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Create the login object.&quot;</span><span class="p">)</span>
+                <span class="n">login_obj</span> <span class="o">=</span> <span class="n">LoginMain</span><span class="p">(</span><span class="n">browser</span><span class="o">.</span><span class="n">driver</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Login to </span><span class="si">%s</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;trying login with password: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+                    <span class="n">login_obj</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully logged into </span><span class="si">%s</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="s1">&#39;Two-Factor Authentication is enabled&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">):</span>
+                        <span class="n">new_password</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gen_tfa_password</span><span class="p">(</span><span class="n">user_name</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;trying login with new password: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_password</span><span class="p">)</span>
+                        <span class="n">login_obj</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">user_name</span><span class="p">,</span> <span class="n">new_password</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully logged into </span><span class="si">%s</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Login failed due to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exp</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exp</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Something went wrong. Please check logs for more details.&quot;</span><span class="p">)</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="n">browser</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="UserHelper.gui_login"><a class="viewcode-back" href="../../../../Automation.Server.Security.html#Automation.Server.Security.userhelper.UserHelper.gui_login">[docs]</a>    <span class="k">def</span> <span class="nf">gui_login</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cs_host</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;performs authtoken logins</span>
+<span class="sd">        Args:</span>
+
+<span class="sd">            cs_host     (str)   --  CommCell host name</span>
+
+<span class="sd">            user_name   (str)   --  user object to perform web login operation</span>
+
+<span class="sd">            password    (str)   --  password for user</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if user login is unsuccessful</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">Commcell</span><span class="p">(</span><span class="n">cs_host</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;login successful&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;Two-Factor&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Two-Factor Authentication is enabled on this CommServe&quot;</span><span class="p">)</span>
+                <span class="n">new_password</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gen_tfa_password</span><span class="p">(</span><span class="n">user_name</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;trying gui login with new password </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_password</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">Commcell</span><span class="p">(</span><span class="n">cs_host</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">new_password</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Two Factor Authentication login is successful&quot;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;login is not successful due to:&quot;</span><span class="p">,</span> <span class="n">exp</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;login is not successful due to:&quot;</span><span class="p">,</span> <span class="n">exp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UserHelper.gen_tfa_password"><a class="viewcode-back" href="../../../../Automation.Server.Security.html#Automation.Server.Security.userhelper.UserHelper.gen_tfa_password">[docs]</a>    <span class="k">def</span> <span class="nf">gen_tfa_password</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fetches one time pin for users</span>
+<span class="sd">        Args:</span>
+<span class="sd">            user_name   (str)   --  user object to perform web login operation</span>
+
+<span class="sd">            password    (str)   --  password for user</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            New password(str)   --  returns new password (old password+OTP)</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if user login is unsuccessful</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating OTP for user: </span><span class="si">%s</span><span class="s2"> &quot;</span><span class="p">,</span> <span class="n">user_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">single_user</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">user_name</span><span class="p">)</span>
+        <span class="n">otp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">single_user</span><span class="o">.</span><span class="n">request_otp</span><span class="p">()</span>
+        <span class="n">new_password</span> <span class="o">=</span> <span class="n">password</span> <span class="o">+</span> <span class="n">otp</span>
+        <span class="k">return</span> <span class="n">new_password</span></div>
+
+<div class="viewcode-block" id="UserHelper.enable_tfa"><a class="viewcode-back" href="../../../../Automation.Server.Security.html#Automation.Server.Security.userhelper.UserHelper.enable_tfa">[docs]</a>    <span class="k">def</span> <span class="nf">enable_tfa</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Enables Two Factor Authentication on the CommCell</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Enbling Two-Factor Authentication on Commcell&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cl_obj</span><span class="o">.</span><span class="n">add_additional_setting</span><span class="p">(</span><span class="n">category</span><span class="o">=</span><span class="s1">&#39;CommServDB.GxGlobalParam&#39;</span><span class="p">,</span>
+                                           <span class="n">key_name</span><span class="o">=</span><span class="s1">&#39;EnableTwoFactorAuthentication&#39;</span><span class="p">,</span>
+                                           <span class="n">data_type</span><span class="o">=</span><span class="s1">&#39;BOOLEAN&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s1">&#39;1&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*****Successfully Enabled Two-Factor Authentication*****&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*****Failed Login attempt is required to generate One Time Pin*****&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UserHelper.disable_tfa"><a class="viewcode-back" href="../../../../Automation.Server.Security.html#Automation.Server.Security.userhelper.UserHelper.disable_tfa">[docs]</a>    <span class="k">def</span> <span class="nf">disable_tfa</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Disables Two Factor Authentication on the CommCell</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dissabling Two-Factor Authentication on Commcell&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cl_obj</span><span class="o">.</span><span class="n">add_additional_setting</span><span class="p">(</span><span class="n">category</span><span class="o">=</span><span class="s1">&#39;CommServDB.GxGlobalParam&#39;</span><span class="p">,</span>
+                                           <span class="n">key_name</span><span class="o">=</span><span class="s1">&#39;EnableTwoFactorAuthentication&#39;</span><span class="p">,</span>
+                                           <span class="n">data_type</span><span class="o">=</span><span class="s1">&#39;BOOLEAN&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s1">&#39;0&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*****Successfully Disabled Two-Factor Authentication*****&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

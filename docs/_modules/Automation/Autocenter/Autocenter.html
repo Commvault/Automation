@@ -1,0 +1,966 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.Autocenter.Autocenter &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.Autocenter.Autocenter</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sa">r</span><span class="sd">&quot;&quot;&quot;Main controller file for Running Commvault Automation with autocenter.</span>
+
+<span class="sd">This file handles the initialization of Automation, including:</span>
+
+<span class="sd">    1. initializing autocenter object</span>
+
+<span class="sd">    2. Updates the test set / test cases status</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">datetime</span> <span class="k">as</span> <span class="nn">dt</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="k">import</span> <span class="n">MSSQL</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.mailer</span> <span class="k">import</span> <span class="n">Mailer</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">AutocenterUtils</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">defines</span> <span class="k">as</span> <span class="n">AC_Defines</span>
+
+
+<div class="viewcode-block" id="Autocenter"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter">[docs]</a><span class="k">class</span> <span class="nc">Autocenter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Autocenter class for running automation using Autocenter&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hushmode</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">maintmode</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">user_input</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;initializes autocenter object</span>
+<span class="sd">            @args</span>
+
+<span class="sd">            commcell (object)     -- commcell object</span>
+
+<span class="sd">            husmode (boolean)     --  hushmode as true or false</span>
+
+<span class="sd">            maintmode (boolean)   -- autocenter running under maintenance mode (True) otherwise False</span>
+
+<span class="sd">            user_input (json)          -- user input information</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">getLog</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">=</span> <span class="n">user_input</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_input_json_node</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logloc</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testsetlist</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lockfile</span> <span class="o">=</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">LOCKFILE_NAME</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logname</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_settings</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_controllers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_emaillist</span> <span class="o">=</span> <span class="p">[</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">DEV_AUTOCENTER</span><span class="p">]</span>  <span class="c1"># This is the default list.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_status</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resumed</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hushmode</span> <span class="o">=</span> <span class="n">hushmode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pid</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_latestlog</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maintenance</span> <span class="o">=</span> <span class="n">maintmode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_controller_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_updateinput</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">hushmode</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Loading Autocenter configuration.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_config</span><span class="p">()</span>
+            <span class="c1"># Get &amp; set the settings.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">hushmode</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting custom automation settings.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setautomationsettings</span><span class="p">()</span>
+            <span class="c1"># Get &amp; set the controller machines.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">hushmode</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;[AUTOMATION_CENTER: INIT]</span><span class="se">\t</span><span class="s2">Set controller machines.&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">setautomationcontrollers</span><span class="p">()</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select machineID from machineinfo where hostname =</span><span class="se">\&#39;</span><span class="si">{}</span><span class="se">\&#39;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">machine_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">controller_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_db_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># Load up the defines and modify any automation constants for this run</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">hushmode</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;[AUTOMATION_CENTER: INIT]</span><span class="se">\t</span><span class="s2">Modify constants for automation customs.&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">inputjsonnode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns dictionary of input node(s)&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputjsonnode</span>
+
+    <span class="nd">@inputjsonnode</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">inputjsonnode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the inputjsonnode version.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_inputjsonnode</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">settings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns controller settings&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_settings</span>
+
+    <span class="nd">@settings</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">settings</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the controller settings&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_settings</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">emaillist</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns emaillist &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_emaillist</span>
+
+    <span class="nd">@emaillist</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">emailist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the controller settings&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_emaillist</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">controller</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns controller settings&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_controller</span>
+
+    <span class="nd">@controller</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">controller</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the controller settings&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_controller</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">request_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns controller settings&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request_id</span>
+
+    <span class="nd">@request_id</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">request_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the controller settings&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_id</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">logloc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns controller settings&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_latestlog</span>
+
+    <span class="nd">@logloc</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">logloc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the controller settings&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_latestlog</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns controller settings&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span>
+
+    <span class="nd">@status</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the controller settings&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_status</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ts_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns controller settings&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ts_id</span>
+
+    <span class="nd">@ts_id</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">ts_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the controller settings&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ts_id</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">controllers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns controller settings&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_controllers</span>
+
+    <span class="nd">@controllers</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">controllers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the controller settings&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_controllers</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">controller_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns controller settings&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_controller_id</span>
+
+    <span class="nd">@controller_id</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">controller_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the controller settings&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_controller_id</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="Autocenter.setautomationsettings"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.setautomationsettings">[docs]</a>    <span class="k">def</span> <span class="nf">setautomationsettings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns controller settings&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># &quot;{CALL getTSinfoForQA (?)}&quot;, (259))</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_automation_db_proc</span><span class="p">(</span><span class="s2">&quot;EXEC dbo.getACsettings&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">setting</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">_rows</span><span class="p">:</span>
+                    <span class="n">settingname</span> <span class="o">=</span> <span class="n">setting</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">settingval</span> <span class="o">=</span> <span class="n">setting</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="n">settingname</span><span class="p">]</span> <span class="o">=</span> <span class="n">settingval</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">FAILED_READ_SETTINGS_DB</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.setautomationcontrollers"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.setautomationcontrollers">[docs]</a>    <span class="k">def</span> <span class="nf">setautomationcontrollers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        method to set autocenter controllers</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_automation_db_proc</span><span class="p">(</span><span class="s2">&quot;EXEC dbo.getControllerNameNEW&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">results</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">NO_CONTROLLER_FOUND_ERROR_</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">controller</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">rows</span><span class="p">:</span>
+                    <span class="n">controllerinfo</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">for</span> <span class="n">column</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                        <span class="n">controllerinfo</span><span class="p">[</span><span class="n">column</span><span class="p">]</span> <span class="o">=</span> <span class="n">controller</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                        <span class="n">index</span> <span class="o">=</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span>
+                    <span class="n">automation_controller</span> <span class="o">=</span> <span class="n">AutomationController</span><span class="p">(</span><span class="o">**</span><span class="n">controllerinfo</span><span class="p">)</span>
+                    <span class="n">automation_controller</span><span class="o">.</span><span class="n">testsetlist</span> <span class="o">=</span> <span class="n">automation_controller</span><span class="o">.</span><span class="n">testsetlist</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                        <span class="s2">&quot;,&quot;</span><span class="p">)</span>
+                    <span class="n">automation_controller</span><span class="o">.</span><span class="n">ostype</span> <span class="o">=</span> <span class="s1">&#39;WinX64&#39;</span>
+
+                    <span class="c1"># Add the controller to the list.</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">controllers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">automation_controller</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">NO_CONTROLLER_FOUND_ERROR_</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">_updateinput</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        updates input to autocenter object</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">autocenter_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="p">[</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">AUTOCENTER</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_HOST_MACHINE</span> <span class="ow">in</span> <span class="n">autocenter_dict</span> <span class="ow">and</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_USER_NAME</span> \
+                    <span class="ow">in</span> <span class="n">autocenter_dict</span> <span class="ow">and</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_PASSWORD</span> <span class="ow">in</span> <span class="n">autocenter_dict</span> <span class="ow">and</span> \
+                    <span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_REQUEST_ID</span> <span class="ow">in</span> <span class="n">autocenter_dict</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Reading Controller information from the Input JSON&#39;</span><span class="p">)</span>
+                <span class="n">controller</span> <span class="o">=</span> <span class="n">autocenter_dict</span><span class="p">[</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_HOST_MACHINE</span><span class="p">]</span>
+                <span class="n">user</span> <span class="o">=</span> <span class="n">autocenter_dict</span><span class="p">[</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_USER_NAME</span><span class="p">]</span>
+                <span class="n">password</span> <span class="o">=</span> <span class="n">autocenter_dict</span><span class="p">[</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_PASSWORD</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">request_id</span> <span class="o">=</span> <span class="n">autocenter_dict</span><span class="p">[</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_REQUEST_ID</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">controller</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">controller</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="n">user</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;required input is not available or failed to create machine object&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span>
+
+    <span class="k">def</span> <span class="nf">_get_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">config_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span>
+                <span class="vm">__file__</span><span class="p">),</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">CONFIG_FILE_NAME</span><span class="p">)</span>
+            <span class="n">configfile</span> <span class="o">=</span> <span class="n">AutocenterUtils</span><span class="o">.</span><span class="n">AC_ConfigParser</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">config_file_name</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">CONFIG_FILE_NOT_FOUND</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">config_file_name</span><span class="p">))</span>
+            <span class="n">configfile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">config_file_name</span><span class="p">)</span>
+
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;DEFINES&#39;</span><span class="p">,</span> <span class="n">configfile</span><span class="o">.</span><span class="n">as_dict</span><span class="p">())</span>
+            <span class="k">return</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span>
+
+<div class="viewcode-block" id="Autocenter.update_ts_status"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.update_ts_status">[docs]</a>    <span class="k">def</span> <span class="nf">update_ts_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_id</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;updates test set status&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">maintenance</span><span class="p">:</span>
+                <span class="c1"># In maintenance mode, do nothing, there&#39;s no testsets</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ts_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ts_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s2">&quot;[AUTOMATION_CENTER][updateTSstatus] TestsetID and&quot;</span>
+                        <span class="s2">&quot; status must be integer type. Not setting DB info.&quot;</span><span class="p">)</span>
+                    <span class="c1"># return False</span>
+
+            <span class="k">if</span> <span class="n">ts_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_query</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;EXEC dbo.updateTSrunStatus @requestID=&#39;</span> <span class="o">+</span>
+                          <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span> <span class="o">+</span>
+                          <span class="s1">&#39;,@testsetID=null,@status=N</span><span class="se">\&#39;</span><span class="s1">&#39;</span> <span class="o">+</span>
+                          <span class="nb">str</span><span class="p">(</span><span class="n">status</span><span class="p">)</span> <span class="o">+</span>
+                          <span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">&#39;</span> <span class="o">+</span>
+                          <span class="s1">&#39;,@controllerID=&#39;</span> <span class="o">+</span>
+                          <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">controller_id</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_query</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;EXEC dbo.updateTSrunStatus @requestID=&#39;</span> <span class="o">+</span>
+                          <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;,@testsetID=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)</span> <span class="o">+</span>
+                          <span class="s1">&#39;,@status=N</span><span class="se">\&#39;</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">status</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">&#39;</span> <span class="o">+</span>
+                          <span class="s1">&#39;,@controllerID=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">controller_id</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_db_query</span><span class="p">(</span><span class="n">_query</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;[AUTOMATION_CENTER][updateTSstatus] Successfully set &quot;</span>
+                    <span class="s2">&quot;testset </span><span class="si">{}</span><span class="s2"> to status </span><span class="si">{}</span><span class="s2"> in DB&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">status</span><span class="p">)))</span>
+                <span class="c1"># If the testset is PASSED, then mark the testset as VALID</span>
+                <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_PASS</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ts_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+                    <span class="n">_query</span> <span class="o">=</span> <span class="s1">&#39;EXEC dbo.markTSvalid @testsetID=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_db_query</span><span class="p">(</span><span class="n">_query</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;[AUTOMATION_CENTER][updateTSstatus] Successfully marked&quot;</span>
+                            <span class="s2">&quot; testset </span><span class="si">{}</span><span class="s2"> valid in DB.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                            <span class="s2">&quot;[AUTOMATION_CENTER][updateTSstatus] Failed to mark &quot;</span>
+                            <span class="s2">&quot;testset </span><span class="si">{}</span><span class="s2"> valid in DB.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)))</span>
+
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;[AUTOMATION_CENTER][updateTSstatus] Failed setting testset </span><span class="si">{}</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; to status </span><span class="si">{}</span><span class="s2"> in DB.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">status</span><span class="p">)))</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.execute_automation_db_proc"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.execute_automation_db_proc">[docs]</a>    <span class="k">def</span> <span class="nf">execute_automation_db_proc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">procname</span><span class="p">,</span> <span class="o">*</span><span class="n">params</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; executes autocenter db stored procedures&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">dbinfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DEFINES</span><span class="p">[</span><span class="s2">&quot;DB_INFO&quot;</span><span class="p">]</span>
+            <span class="n">dbobject</span> <span class="o">=</span> <span class="n">MSSQL</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="s2">&quot;server&quot;</span><span class="p">:</span> <span class="n">dbinfo</span><span class="p">[</span><span class="s2">&quot;server&quot;</span><span class="p">],</span>
+                                <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="n">dbinfo</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">],</span>
+                                <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">dbinfo</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">],</span>
+                                <span class="s2">&quot;database&quot;</span><span class="p">:</span> <span class="n">dbinfo</span><span class="p">[</span><span class="s2">&quot;dbname&quot;</span><span class="p">],</span>
+                                <span class="s2">&quot;autocommit&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                                <span class="s2">&quot;use_pyodbc&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">dbobject</span><span class="o">.</span><span class="n">execute_storedprocedure</span><span class="p">(</span><span class="n">procname</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">autocommit</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">_rows</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">response</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.execute_db_query"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.execute_db_query">[docs]</a>    <span class="k">def</span> <span class="nf">execute_db_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;executes autocenter db queries&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">dbinfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DEFINES</span><span class="p">[</span><span class="s2">&quot;DB_INFO&quot;</span><span class="p">]</span>
+            <span class="n">dbobject</span> <span class="o">=</span> <span class="n">MSSQL</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="s2">&quot;server&quot;</span><span class="p">:</span> <span class="n">dbinfo</span><span class="p">[</span><span class="s2">&quot;server&quot;</span><span class="p">],</span>
+                                <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="n">dbinfo</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">],</span>
+                                <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">dbinfo</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">],</span>
+                                <span class="s2">&quot;database&quot;</span><span class="p">:</span> <span class="n">dbinfo</span><span class="p">[</span><span class="s2">&quot;dbname&quot;</span><span class="p">],</span>
+                                <span class="s2">&quot;autocommit&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                                <span class="s2">&quot;use_pyodbc&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">dbobject</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">autocommit</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">_rows</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">response</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.update_run_logloc"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.update_run_logloc">[docs]</a>    <span class="k">def</span> <span class="nf">update_run_logloc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_id</span><span class="p">,</span> <span class="n">log_loc</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;updates automation run log location to autocenter db&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ts_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">log_loc</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s2">&quot;[AUTOMATION_CENTER][updateRunLogLoc] TestsetID must be &quot;</span>
+                    <span class="s2">&quot;integer type, logloc must be string. Not setting DB info.&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+              <span class="c1"># This is the location of logs from the CONTROLLER MACHINE</span>
+
+            <span class="n">_query</span> <span class="o">=</span> <span class="s2">&quot;UPDATE requestSelection SET sRunLogs=&#39;&quot;</span> <span class="o">+</span> \
+                <span class="nb">str</span><span class="p">(</span><span class="n">log_loc</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;&#39; WHERE requestID=&quot;</span> <span class="o">+</span> \
+                <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; AND testsetID=&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_db_query</span><span class="p">(</span><span class="n">_query</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;[AUTOMATION_CENTER][updateRunLogLoc] Successfully set &quot;</span>
+                    <span class="s2">&quot;requestID </span><span class="si">{}</span><span class="s2"> testset </span><span class="si">{}</span><span class="s2"> logloc to </span><span class="si">{}</span><span class="s2"> in DB.&quot;</span> <span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">log_loc</span><span class="p">)))</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;[AUTOMATION_CENTER][updateRunLogLoc] Failed to set requestID&quot;</span>
+                <span class="s2">&quot; </span><span class="si">{}</span><span class="s2"> testset </span><span class="si">{}</span><span class="s2"> logloc to </span><span class="si">{}</span><span class="s2"> in DB.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">log_loc</span><span class="p">)))</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.upload_runlog"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.upload_runlog">[docs]</a>    <span class="k">def</span> <span class="nf">upload_runlog</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_id</span><span class="p">,</span> <span class="n">testcase</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        uploades failed logs to autocenter</span>
+
+<span class="sd">        @args:</span>
+<span class="sd">            testcase (str) : failed test case number</span>
+<span class="sd">            log      (str) : Log location of the failed test case.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">WEB_UPLOAD_LOG_URL</span>
+            <span class="n">client_log_dir</span> <span class="o">=</span> <span class="n">log</span>  <span class="c1"># This is log location on client machine</span>
+            <span class="n">clienttestcaselog</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">client_log_dir</span><span class="p">,</span> <span class="n">testcase</span> <span class="o">+</span> <span class="s2">&quot;.log&quot;</span><span class="p">)</span>
+            <span class="n">request_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">request_id</span>
+            <span class="n">controllername</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">machine_name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;[AUTOMATION_CENTER][uploadRunLog] Uploading [</span><span class="si">{}</span><span class="s2">.log] to automationcenter,&quot;</span>
+                <span class="s2">&quot; from controller </span><span class="si">{}</span><span class="s2">, for testset </span><span class="si">{}</span><span class="s2"> and request </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">testcase</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">controllername</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">request_id</span><span class="p">)))</span>
+
+            <span class="c1"># Location to upload the log to.</span>
+            <span class="n">servertestcaselog</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="p">[</span><span class="s1">&#39;WEBLOGS&#39;</span><span class="p">],</span> <span class="n">controllername</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;[AUTOMATION_CENTER][uploadRunLog] Server log location </span><span class="si">{}</span><span class="s2">.&quot;</span> <span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">servertestcaselog</span><span class="p">)))</span>
+
+            <span class="c1"># info to send back to the webserver</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="n">servertestcaselog</span><span class="p">,</span> <span class="s1">&#39;requestID&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">request_id</span><span class="p">)}</span>
+            <span class="n">files</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;file&#39;</span><span class="p">:</span> <span class="nb">open</span><span class="p">(</span><span class="n">clienttestcaselog</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)}</span>
+            <span class="n">flag</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">_cvpysdk_object</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span>
+                <span class="s1">&#39;POST&#39;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">flag</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.updatecontroller_splevel"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.updatecontroller_splevel">[docs]</a>    <span class="k">def</span> <span class="nf">updatecontroller_splevel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates controller service pack to autocenter&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ts_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ts_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s2">&quot;[AUTOMATION_CENTER][updateControllerSPlevel] TestsetID &quot;</span>
+                        <span class="s2">&quot;must be integer type. Not setting DB info.&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="n">sptrankey</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getinstalled_splevel</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">sptrankey</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">sptrankey</span> <span class="o">=</span> <span class="n">sptrankey</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+                <span class="n">updatelevel</span> <span class="o">=</span> <span class="s1">&#39;SP&#39;</span> <span class="o">+</span> <span class="n">sptrankey</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39; TransID: &#39;</span> <span class="o">+</span> <span class="n">sptrankey</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">updatelevel</span> <span class="o">=</span> <span class="s2">&quot;N/A&quot;</span>
+            <span class="n">date</span> <span class="o">=</span> <span class="s1">&#39;0000000000&#39;</span>
+            <span class="n">_query</span> <span class="o">=</span> <span class="s1">&#39;EXEC dbo.updateControlllerSPlevel @testsetID=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)</span>\
+                <span class="o">+</span> <span class="s1">&#39;,@requestID=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;,@updateLevel=N</span><span class="se">\&#39;</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">updatelevel</span><span class="p">)</span>\
+                <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">,@updateDate=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">date</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_db_query</span><span class="p">(</span><span class="n">_query</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s2">&quot;[AUTOMATION_CENTER][updateControllerSPlevel] Failed saving testset </span><span class="si">{}</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot; sp information in DB.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)))</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.getinstalled_splevel"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.getinstalled_splevel">[docs]</a>    <span class="k">def</span> <span class="nf">getinstalled_splevel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;get controller sp level&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sptrankey</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">get_registry_value</span><span class="p">(</span>
+                <span class="n">AC_Defines</span><span class="o">.</span><span class="n">UPDATE_BIN_TRAN_KEY</span><span class="p">,</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">SP_TRAN_REG_SZ</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">sptrankey</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;SP installed on controller :</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">sptrankey</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">sptrankey</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Failed to get Controller SP Level&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="Autocenter.markts_alive"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.markts_alive">[docs]</a>    <span class="k">def</span> <span class="nf">markts_alive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;mark test set as alive in autocenter&quot;&quot;&quot;</span>
+
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">delay</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">DEFINES</span><span class="p">[</span><span class="s2">&quot;DB_INFO&quot;</span><span class="p">][</span><span class="s2">&quot;connection_retry_second&quot;</span><span class="p">])</span>
+            <span class="n">retryrrrors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DEFINES</span><span class="p">[</span><span class="s2">&quot;DB_INFO&quot;</span><span class="p">][</span><span class="s2">&quot;connection_error_ignore&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ts_id</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+                <span class="n">_query</span> <span class="o">=</span> <span class="s1">&#39;EXEC dbo.markTSalive @requestID=&#39;</span> <span class="o">+</span> \
+                    <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;,@testsetID=null&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_query</span> <span class="o">=</span> <span class="s1">&#39;EXEC dbo.markTSalive @requestID=&#39;</span> <span class="o">+</span> \
+                    <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;,@testsetID=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)</span>
+
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_db_query</span><span class="p">(</span><span class="n">_query</span><span class="p">):</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;[AUTOMATION_CENTER][markTSalive] Successfully &quot;</span>
+                            <span class="s2">&quot;set testset </span><span class="si">{}</span><span class="s2"> alive in DB.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)))</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s2">&quot;[AUTOMATION_CENTER][markTSalive] Failed marking TS </span><span class="si">{}</span><span class="s2">&quot;</span>
+                        <span class="s2">&quot; alive, will re-try in </span><span class="si">{}</span><span class="s2"> seconds.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">delay</span><span class="p">)))</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.healthcheck_thread"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.healthcheck_thread">[docs]</a>    <span class="k">def</span> <span class="nf">healthcheck_thread</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;creates healthcheck thread for tetset&quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">class</span> <span class="nc">ThreadClass</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+                <span class="sd">&quot;&quot;&quot; class for creating additional threads for monitoring&quot;&quot;&quot;</span>
+                <span class="n">exitflag</span> <span class="o">=</span> <span class="kc">False</span>
+
+                <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">autocenter</span><span class="p">,</span> <span class="n">ts_id</span><span class="p">):</span>
+                    <span class="nb">super</span><span class="p">(</span><span class="n">ThreadClass</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span> <span class="o">=</span> <span class="n">autocenter</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">autocenter</span><span class="o">.</span><span class="n">log</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ts_id</span> <span class="o">=</span> <span class="n">ts_id</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">True</span>
+
+                <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">exitflag</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">isAlive</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;[AUTOMATION_CENTER][Health_Thread] STOPPING.&quot;</span><span class="p">)</span>
+
+                <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                    <span class="k">return</span> <span class="bp">self</span>
+
+                <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+                    <span class="c1">#print(&#39;Force set Thread Sleeper stop_event&#39;)</span>
+
+                <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="c1"># Make sure the exitflag is not set.</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">exitflag</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;[AUTOMATION_CENTER][Health_Thread] STARTING.&quot;</span><span class="p">)</span>
+
+                        <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">exitflag</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">markts_alive</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_id</span><span class="p">)</span>
+
+                            <span class="c1"># Keep updating every 60 seconds.</span>
+                            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+                        <span class="k">raise</span>
+
+            <span class="c1"># Initialze the monitor thread</span>
+            <span class="n">monthread</span> <span class="o">=</span> <span class="n">ThreadClass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset</span><span class="p">)</span>  <span class="c1"># send autocenter() &amp; testsetID</span>
+
+            <span class="c1"># Send the thread back to the caller once its running.</span>
+            <span class="k">return</span> <span class="n">monthread</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.updatetc_status"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.updatetc_status">[docs]</a>    <span class="k">def</span> <span class="nf">updatetc_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_id</span><span class="p">,</span> <span class="n">tc_id</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; updates test case status to autocenter&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">maintenance</span><span class="p">:</span>
+                <span class="c1"># Running in the maintenance mode</span>
+                <span class="n">ts_id</span> <span class="o">=</span> <span class="s1">&#39;Maintenance ID:</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span>
+                <span class="n">_query</span> <span class="o">=</span> <span class="s1">&#39;EXEC dbo.updateMaintTCstatus @nMaintID=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span>\
+                    <span class="o">+</span> <span class="s1">&#39;,@testcase=N</span><span class="se">\&#39;</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">tc_id</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">,@status=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ts_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> \
+                        <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tc_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s2">&quot;[AUTOMATION_CENTER][updateTCstatus] TestsetID and status must&quot;</span>
+                        <span class="s2">&quot; be integer type,testcaseID must be string. Not setting DB info.&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+                <span class="n">_query</span> <span class="o">=</span> <span class="s1">&#39;EXEC dbo.updateTCstatus @requestID=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request_id</span><span class="p">)</span> <span class="o">+</span> \
+                    <span class="s1">&#39;,@testsetID=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;,@testcase=N</span><span class="se">\&#39;</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">tc_id</span><span class="p">)</span> <span class="o">+</span> \
+                    <span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">,@status=N</span><span class="se">\&#39;</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">status</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\&#39;</span><span class="s1">&#39;</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_db_query</span><span class="p">(</span><span class="n">_query</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;[AUTOMATION_CENTER][updateTCstatus] Successfully set testset&quot;</span>
+                    <span class="s2">&quot; </span><span class="si">{}</span><span class="s2"> testcase </span><span class="si">{}</span><span class="s2"> to status </span><span class="si">{}</span><span class="s2"> in DB.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">tc_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">status</span><span class="p">)))</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;[AUTOMATION_CENTER][updateTCstatus] Failed setting testset </span><span class="si">{}</span><span class="s2">&quot;</span>
+                <span class="s2">&quot; testcase </span><span class="si">{}</span><span class="s2"> to status </span><span class="si">{}</span><span class="s2"> in DB.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">tc_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">status</span><span class="p">)))</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.monitortc_runtime"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.monitortc_runtime">[docs]</a>    <span class="k">def</span> <span class="nf">monitortc_runtime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_id</span><span class="p">,</span> <span class="n">tc_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;monitors test case execution time&quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="k">class</span> <span class="nc">MonitorThread</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+                <span class="sd">&quot;&quot;&quot;class to create monitor thread&quot;&quot;&quot;</span>
+                <span class="n">exitflag</span> <span class="o">=</span> <span class="kc">False</span>
+
+                <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_id</span><span class="p">,</span> <span class="n">tc_id</span><span class="p">,</span> <span class="n">acobj</span><span class="p">,</span> <span class="n">starttime</span><span class="p">):</span>
+                    <span class="sd">&quot;&quot;&quot;initializes monitor therad&quot;&quot;&quot;</span>
+                    <span class="nb">super</span><span class="p">(</span><span class="n">MonitorThread</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ts_id</span> <span class="o">=</span> <span class="n">ts_id</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tc_id</span> <span class="o">=</span> <span class="n">tc_id</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">acobj</span> <span class="o">=</span> <span class="n">acobj</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">stime</span> <span class="o">=</span> <span class="n">starttime</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">acobj</span><span class="o">.</span><span class="n">log</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">True</span>
+
+                <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                    <span class="sd">&quot;&quot;&quot;method to start the context manager thread&quot;&quot;&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                    <span class="k">return</span> <span class="bp">self</span>
+
+                <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                    <span class="sd">&quot;&quot;&quot;method to stop the context manager thread&quot;&quot;&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+                    <span class="c1">#print(&#39;Force set Thread Sleeper stop_event&#39;)</span>
+
+                <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                    <span class="sd">&quot;&quot;&quot;method to stop the thread&quot;&quot;&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">exitflag</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">isAlive</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;[AUTOMATION_CENTER][TC_Monitor_Thread] Stop&quot;</span>
+                            <span class="s2">&quot; monitoring testcase </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc_id</span><span class="p">)))</span>
+
+                <span class="k">def</span> <span class="nf">getalertscale</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prevrunseconds</span><span class="p">):</span>
+                    <span class="sd">&quot;&quot;&quot;method to get alert scale&quot;&quot;&quot;</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">alertscale</span> <span class="o">=</span> <span class="mf">1.00</span>
+                        <span class="k">if</span> <span class="n">prevrunseconds</span> <span class="o">&gt;=</span> <span class="mi">18000</span><span class="p">:</span>  <span class="c1"># greater than 5 hours</span>
+                            <span class="n">alertscale</span> <span class="o">=</span> <span class="mf">1.20</span>
+                        <span class="k">elif</span> <span class="mi">14400</span> <span class="o">&lt;</span> <span class="n">prevrunseconds</span> <span class="o">&lt;</span> <span class="mi">18000</span><span class="p">:</span>  <span class="c1"># 4 - 5 hours</span>
+                            <span class="n">alertscale</span> <span class="o">=</span> <span class="mf">1.25</span>
+                        <span class="k">elif</span> <span class="mi">10800</span> <span class="o">&lt;</span> <span class="n">prevrunseconds</span> <span class="o">&lt;</span> <span class="mi">14400</span><span class="p">:</span>  <span class="c1"># 3 - 4 hours</span>
+                            <span class="n">alertscale</span> <span class="o">=</span> <span class="mf">1.30</span>
+                        <span class="k">elif</span> <span class="mi">7200</span> <span class="o">&lt;</span> <span class="n">prevrunseconds</span> <span class="o">&lt;</span> <span class="mi">10800</span><span class="p">:</span>  <span class="c1"># 2 - 3 hours</span>
+                            <span class="n">alertscale</span> <span class="o">=</span> <span class="mf">1.35</span>
+                        <span class="k">elif</span> <span class="mi">3600</span> <span class="o">&lt;</span> <span class="n">prevrunseconds</span> <span class="o">&lt;</span> <span class="mi">7200</span><span class="p">:</span>  <span class="c1"># 1 - 2 hours</span>
+                            <span class="n">alertscale</span> <span class="o">=</span> <span class="mf">1.40</span>
+                        <span class="k">elif</span> <span class="mi">1800</span> <span class="o">&lt;</span> <span class="n">prevrunseconds</span> <span class="o">&lt;</span> <span class="mi">3600</span><span class="p">:</span>  <span class="c1"># 30m - 1hour</span>
+                            <span class="n">alertscale</span> <span class="o">=</span> <span class="mf">1.75</span>
+                        <span class="k">elif</span> <span class="mi">60</span> <span class="o">&lt;</span> <span class="n">prevrunseconds</span> <span class="o">&lt;</span> <span class="mi">1800</span><span class="p">:</span>  <span class="c1"># 30m - 1m</span>
+                            <span class="n">alertscale</span> <span class="o">=</span> <span class="mf">2.00</span>
+                        <span class="k">elif</span> <span class="n">prevrunseconds</span> <span class="o">&lt;=</span> <span class="mi">60</span><span class="p">:</span>  <span class="c1"># less than 1m</span>
+                            <span class="n">alertscale</span> <span class="o">=</span> <span class="mf">10.00</span>
+
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;[AUTOMATION_CENTER][TC_Monitor_Thread] Using alert&quot;</span>
+                            <span class="s2">&quot; threshold of </span><span class="si">{}</span><span class="s2">percent based on previous runtime&quot;</span>
+                            <span class="s2">&quot; of </span><span class="si">{}</span><span class="s2">seconds.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">alertscale</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">prevrunseconds</span><span class="p">)))</span>
+
+                        <span class="k">return</span> <span class="n">alertscale</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+                        <span class="k">raise</span>
+
+                <span class="k">def</span> <span class="nf">gettcruninfo</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                    <span class="sd">&quot;&quot;&quot;gets test case run information&quot;&quot;&quot;</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">_query</span> <span class="o">=</span> <span class="s1">&#39;EXEC dbo.prevSuccessTCrunTime </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1">, </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_id</span><span class="p">))</span>
+                        <span class="n">runinfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">acobj</span><span class="o">.</span><span class="n">execute_automation_db_proc</span><span class="p">(</span><span class="n">_query</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">runinfo</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                                <span class="s2">&quot;[AUTOMATION_CENTER][TC_Monitor_Thread] Too many&quot;</span>
+                                <span class="s2">&quot; records returned by </span><span class="si">{}</span><span class="s2">. EXITING!&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">_query</span><span class="p">)))</span>
+                            <span class="k">return</span> <span class="p">{}</span>  <span class="c1"># return empty dictionary</span>
+
+                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">runinfo</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                                <span class="s2">&quot;[AUTOMATION_CENTER][TC_Monitor_Thread] Testcase&quot;</span>
+                                <span class="s2">&quot; </span><span class="si">{}</span><span class="s2"> has never passed for testset </span><span class="si">{}</span><span class="s2">. EXITING!&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                    <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_id</span><span class="p">)))</span>
+                            <span class="k">return</span> <span class="p">{}</span>  <span class="c1"># return empty dictionary</span>
+
+                        <span class="c1"># columns = [column[0] for column in runinfo.rows[0].cursor_description]</span>
+
+                        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">runinfo</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">runinfo</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+                        <span class="k">raise</span>
+
+                <span class="k">def</span> <span class="nf">sendalert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_id</span><span class="p">,</span> <span class="n">tc_id</span><span class="p">,</span> <span class="n">currun_seconds</span><span class="p">,</span> <span class="n">prevrun_time</span><span class="p">,</span> <span class="n">alertnum</span><span class="p">):</span>
+                    <span class="sd">&quot;&quot;&quot;sends alert based on test case execution duration&quot;&quot;&quot;</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">toaddress</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">acobj</span><span class="o">.</span><span class="n">get_failure_email_string</span><span class="p">(</span><span class="n">ts_id</span><span class="p">)</span>
+                        <span class="n">testsetname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">acobj</span><span class="o">.</span><span class="n">execute_db_query</span><span class="p">(</span>
+                            <span class="s2">&quot;SELECT webname FROM alltestsets where&quot;</span>
+                            <span class="s2">&quot; testsetID=&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                        <span class="n">testsetname</span> <span class="o">=</span> <span class="n">testsetname</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">maildetails</span> <span class="o">=</span> <span class="p">{</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">RECEIVER</span><span class="p">:</span> <span class="n">toaddress</span><span class="p">}</span>
+                        <span class="n">mailobj</span> <span class="o">=</span> <span class="n">Mailer</span><span class="p">(</span><span class="n">maildetails</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">acobj</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+                        <span class="n">subject</span> <span class="o">=</span> <span class="s2">&quot;Automation Center [</span><span class="si">%s</span><span class="s2">] ALERT - Testcase [</span><span class="si">%s</span><span class="s2">]&quot;</span>\
+                            <span class="s2">&quot; Runtime threshold exceeded!&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                                <span class="nb">str</span><span class="p">(</span><span class="n">alertnum</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">tc_id</span><span class="p">))</span>
+                        <span class="n">body</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                            &lt;h2&gt;WARNING - Runtime threshold exceeded.&lt;/h2&gt;&lt;br&gt;&lt;BR&gt;</span>
+<span class="s2">                            &lt;TABLE border=&#39;1&#39;&gt;</span>
+<span class="s2">                            &lt;TR&gt;&lt;TH&gt;TestcaseID&lt;/TH&gt;&lt;TH&gt;TestsetID&lt;/TH&gt;&lt;TH&gt;Previous Runtime&lt;/TH&gt;&lt;TH&gt;Current Runtime&lt;/TH&gt;&lt;/TR&gt;</span>
+<span class="s2">                            &lt;TR&gt;&lt;TD&gt;</span><span class="si">%s</span><span class="s2">&lt;/TD&gt;&lt;TD&gt;</span><span class="si">%s</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">)&lt;/TD&gt;&lt;TD&gt;</span><span class="si">%s</span><span class="s2">&lt;/TD&gt;&lt;TD&gt;</span><span class="si">%s</span><span class="s2">&lt;/TD&gt;&lt;/TR&gt;</span>
+<span class="s2">                            &lt;/TABLE&gt;</span>
+<span class="s2">                            &lt;BR&gt;</span>
+<span class="s2">                            &lt;a href=&#39;http://autocenter.automation.commvault.com/server_side/scripts/testcaseStatus.php?requestID=</span><span class="si">%s</span><span class="s2">&amp;testsetID=</span><span class="si">%s</span><span class="s2">&#39;&gt;</span>
+<span class="s2">                            Run Status&lt;/a&gt;</span>
+<span class="s2">                        &quot;&quot;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">tc_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">testsetname</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">prevrun_time</span><span class="p">),</span>
+                               <span class="nb">str</span><span class="p">(</span><span class="n">currun_seconds</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">acobj</span><span class="o">.</span><span class="n">request_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">ts_id</span><span class="p">))</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">sender</span> <span class="o">=</span> <span class="n">mailobj</span><span class="o">.</span><span class="n">mail</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">autocenter</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;failed to send alert mail </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;[AUTOMATION_CENTER][TC_Monitor_Thread] Sending alert to [</span><span class="si">%s</span><span class="s2">].&quot;</span> <span class="o">%</span>
+                            <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">toaddress</span><span class="p">)))</span>
+
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;failed to send alert mail </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+                        <span class="k">raise</span>
+
+                <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                    <span class="k">try</span><span class="p">:</span>
+
+                        <span class="n">prevtc_runinfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gettcruninfo</span><span class="p">()</span>
+                        <span class="n">firstalert</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">prevtc_runinfo</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="c1"># There has been an issue finding previous testcase runs, unable to</span>
+                            <span class="c1"># monitor the status.  Exit</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+
+                        <span class="c1"># Make sure the exitflag is not set.</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">exitflag</span><span class="p">:</span>
+                            <span class="c1"># Get the elapsed time of the previous run.</span>
+                            <span class="n">prevrunseconds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">acobj</span><span class="o">.</span><span class="n">getsec</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">prevtc_runinfo</span><span class="p">[</span><span class="s1">&#39;Elapsed&#39;</span><span class="p">]))</span>
+
+                            <span class="c1"># Get the alert scale for this TC</span>
+                            <span class="n">alertscale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getalertscale</span><span class="p">(</span><span class="n">prevrunseconds</span><span class="p">)</span>
+
+                            <span class="c1"># Second alert is ALWAYS 30min after first alert</span>
+                            <span class="n">secondalert</span> <span class="o">=</span> <span class="mi">1800</span>
+
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                                <span class="s2">&quot;[AUTOMATION_CENTER][TC_Monitor_Thread] Launching&quot;</span>
+                                <span class="s2">&quot; monitor thread for testcase </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                    <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc_id</span><span class="p">)))</span>
+
+                        <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">exitflag</span><span class="p">:</span>
+                            <span class="c1"># Get the current elapsed time.</span>
+                            <span class="n">curtime</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+                            <span class="k">try</span><span class="p">:</span>
+                                <span class="n">timedelta</span> <span class="o">=</span> <span class="p">(</span><span class="n">curtime</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">stime</span><span class="p">)</span>
+                                <span class="n">curelap_time</span> <span class="o">=</span> <span class="n">timedelta</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
+                            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+
+                                <span class="k">def</span> <span class="nf">total_seconds</span><span class="p">(</span><span class="n">timedate</span><span class="p">):</span>
+                                    <span class="sd">&#39;&#39;&#39;returns time value seconds &#39;&#39;&#39;</span>
+                                    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span>
+                                        <span class="p">(</span><span class="n">timedate</span><span class="o">.</span><span class="n">microseconds</span> <span class="o">+</span> <span class="p">(</span>
+                                            <span class="n">timedate</span><span class="o">.</span><span class="n">seconds</span> <span class="o">+</span> <span class="n">timedate</span><span class="o">.</span><span class="n">days</span> <span class="o">*</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span><span class="p">)</span>
+                                    <span class="p">)</span> <span class="o">/</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span>
+
+                                <span class="n">curelap_time</span> <span class="o">=</span> <span class="n">total_seconds</span><span class="p">(</span><span class="n">timedelta</span><span class="p">)</span>
+
+                            <span class="k">if</span> <span class="n">curelap_time</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">prevrunseconds</span> <span class="o">*</span> <span class="n">alertscale</span><span class="p">)</span> <span class="ow">and</span> <span class="n">firstalert</span><span class="p">:</span>
+                                <span class="c1"># Threshold is based on a scale in self.getalertscale</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                                    <span class="s2">&quot;[AUTOMATION_CENTER][TC_Monitor_Thread] Testcase </span><span class="si">{}</span><span class="s2"> runtime of&quot;</span>
+                                    <span class="s2">&quot; </span><span class="si">{}</span><span class="s2"> seconds has exceeded previous &#39;Passed&#39; runtime </span><span class="si">{}</span><span class="s2">.&quot;</span>
+                                    <span class="s2">&quot; Threshold=</span><span class="si">{}</span><span class="s2"> seconds.  SENDING ALERT!&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                        <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">curelap_time</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span>
+                                            <span class="n">prevtc_runinfo</span><span class="p">[</span><span class="s1">&#39;Elapsed&#39;</span><span class="p">]),</span>
+                                        <span class="nb">str</span><span class="p">(</span><span class="n">AC_Defines</span><span class="o">.</span><span class="n">TC_MONITOR_THRESHOLD</span><span class="p">)))</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">acobj</span><span class="o">.</span><span class="n">updatetc_status</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">tc_id</span><span class="p">),</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">AC_UNRESPONSIVE</span><span class="p">)</span>
+                                <span class="c1"># Status 8=Hanging\Unresponsive</span>
+                                <span class="c1"># Send the alert after monitor thread is stopped.</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">sendalert</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc_id</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">,</span>
+                                               <span class="n">prevtc_runinfo</span><span class="p">[</span><span class="s1">&#39;Elapsed&#39;</span><span class="p">],</span> <span class="s1">&#39;First&#39;</span><span class="p">)</span>
+
+                                <span class="n">firstalert</span> <span class="o">=</span> <span class="kc">False</span>
+
+                            <span class="k">if</span> <span class="n">curelap_time</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">prevrunseconds</span> <span class="o">*</span> <span class="n">alertscale</span><span class="p">)</span> <span class="o">+</span>\
+                                    <span class="n">secondalert</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">firstalert</span><span class="p">:</span>
+                                <span class="c1"># This means an alert was already sent; if it&#39;s 30 min after first</span>
+                                <span class="c1"># alert, send second alert.</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">sendalert</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ts_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc_id</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">,</span>
+                                               <span class="n">prevtc_runinfo</span><span class="p">[</span><span class="s1">&#39;Elapsed&#39;</span><span class="p">],</span> <span class="s1">&#39;Second&#39;</span><span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>  <span class="c1"># We can stop monitoring after the second alert.</span>
+
+                            <span class="c1"># Testcase is within the threshold.  Keep monitoring every 2 seconds</span>
+                            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+                        <span class="k">raise</span>
+
+            <span class="c1"># This function is called when a testcase STARTS execution.</span>
+            <span class="n">starttime</span> <span class="o">=</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">MonitorThread</span><span class="p">(</span><span class="n">ts_id</span><span class="p">,</span> <span class="n">tc_id</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">starttime</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.getsec"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.getsec">[docs]</a>    <span class="k">def</span> <span class="nf">getsec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;get the time in seconds&#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="mi">3600</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div>
+
+<div class="viewcode-block" id="Autocenter.get_failure_email_string"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.Autocenter.get_failure_email_string">[docs]</a>    <span class="k">def</span> <span class="nf">get_failure_email_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        get the email list to send the mail for a specific test set.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select ed.emailList from testsetNEW ts INNER JOIN&quot;</span>
+            <span class="s2">&quot; testsetProp tsp ON ts.testsetID=tsp.testsetID INNER JOIN&quot;</span>
+            <span class="s2">&quot; emailDistribution ed ON tsp.emailDistIDFail=ed.emailDistID&quot;</span>
+            <span class="s2">&quot; where ts.testsetID=&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">testset</span><span class="p">)</span>
+            <span class="n">notify_faillist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_db_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">autocommit</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">notify_faillist</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">email_text</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">emaillist</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;,&#39;</span> <span class="o">+</span> <span class="n">notify_faillist</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">emai_text</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">emaillist</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">emai_text</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span></div></div>
+
+
+<div class="viewcode-block" id="AutomationController"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.AutomationController">[docs]</a><span class="k">class</span> <span class="nc">AutomationController</span><span class="p">():</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Extending the machine class so we can use all of its properties and methods.</span>
+
+<span class="sd">    &#39;&#39;&#39;</span>
+
+<div class="viewcode-block" id="AutomationController.add_property"><a class="viewcode-back" href="../../../Automation.Autocenter.html#Automation.Autocenter.Autocenter.AutomationController.add_property">[docs]</a>    <span class="k">def</span> <span class="nf">add_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        create local fget and fset functions</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="k">def</span> <span class="nf">fget</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_property</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">fset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_property</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+        <span class="c1"># add property to self</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="nb">property</span><span class="p">(</span><span class="n">fget</span><span class="p">,</span> <span class="n">fset</span><span class="p">))</span>
+        <span class="c1"># add corresponding local variable</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">entries</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">entries</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

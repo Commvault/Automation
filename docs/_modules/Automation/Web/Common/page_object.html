@@ -1,0 +1,1290 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.Web.Common.page_object &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.Web.Common.page_object</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module has the necessary classes to support the PagedObject design for</span>
+<span class="sd">automating any Web based code in our Automation framework.</span>
+
+<span class="sd">Since PageObject is not a standard design pattern as described in the GOF, we will</span>
+<span class="sd">use https://github.com/SeleniumHQ/selenium/wiki/PageObjects as a reference document</span>
+
+<span class="sd">-----------------------------</span>
+<span class="sd">PagedObject Design Highlights</span>
+<span class="sd">-----------------------------</span>
+
+<span class="sd">* Creating classes:</span>
+<span class="sd">    You are allowed to create individual classes for each and every page, however</span>
+<span class="sd">    creating individual classes for each and every page is not mandated and this</span>
+<span class="sd">    decision has to be made depending on the application. eg, If we consider</span>
+<span class="sd">    Google Docs as a feature to automate, it has hundreds of options in one page</span>
+<span class="sd">    and putting them all together in a single class is not advisable, however if</span>
+<span class="sd">    you consider Google Search page, adding the necessary options in a single</span>
+<span class="sd">    class might be beneficial.</span>
+
+<span class="sd">    Summary: PagedObject model is not about mapping classes to Pages, it is about</span>
+<span class="sd">    classifying methods into two main categories as PageServices and WebActions like</span>
+<span class="sd">    explained below</span>
+
+<span class="sd">* PageServices (Public methods/APIs):</span>
+<span class="sd">    This is the most crucial element of the PagedObject design and its well explained</span>
+<span class="sd">    by SeleniumHQ at https://github.com/SeleniumHQ/selenium/wiki/PageObjects, in simple</span>
+<span class="sd">    words your helper files should only expose the functionality/services/use-cases that</span>
+<span class="sd">    are exposed by the WebApp under test. For eg, if we were automating GMail, some of</span>
+<span class="sd">    the services offered could be &#39;send_email&#39; and &#39;delete_email&#39; and its advised that</span>
+<span class="sd">    we create public methods only for such functions, creating public methods like</span>
+<span class="sd">    set_search_field, click_send_button is not a very good idea.</span>
+
+<span class="sd">* WebActions (Private methods):</span>
+<span class="sd">    These methods form the internal operations of a PageService method. So in our GMail</span>
+<span class="sd">    example methods like __click_button, __set_search_field are good examples of WebAction</span>
+<span class="sd">    methods. These methods should follow the following rules</span>
+<span class="sd">        * Should have ONLY ONE XPath inside them.</span>
+<span class="sd">        * Should be marked private or protected</span>
+
+<span class="sd">    SeleniumHQ explains about WebElement in the link given below, the WebElements</span>
+<span class="sd">    declared in the documentation are Java centric. There is also a class inside</span>
+<span class="sd">    Selenium library with the same name WebElement, so to avoid confusion we renamed</span>
+<span class="sd">    the Java WebElements to WebActions in our codebase.</span>
+<span class="sd">    Link: https://github.com/SeleniumHQ/selenium/wiki/PageFactory</span>
+
+<span class="sd">----------------------</span>
+<span class="sd">PagedObject Decorators</span>
+<span class="sd">----------------------</span>
+
+<span class="sd">*   To support the PageObject design, we have written some default decorators which help</span>
+<span class="sd">    you do the following</span>
+<span class="sd">        *   Automatically log the flow of control to the testcase log file</span>
+<span class="sd">        *   Record screenshot and URL at the point where selenium exception is raised and</span>
+<span class="sd">            add it to Error summary which can be logged later by using formatted_error_summary</span>
+<span class="sd">            method, we call this &#39;error summary&#39;.</span>
+<span class="sd">        *   Provide support for integration testing</span>
+
+<span class="sd">*   If the method has to be decorated, they are expected to follow the following rules</span>
+<span class="sd">        *   Any method decorated should have a valid doc string</span>
+<span class="sd">        *   WebAction decorator is only supposed to throw WebDriverException, so the below</span>
+<span class="sd">            code example would be considered as an incorrect usage of function for the following</span>
+<span class="sd">            reason</span>
+<span class="sd">            By default find_element_by_xpath or click would only raise WebDriverException, and</span>
+<span class="sd">            here we are re-raising the exception as &#39;Exception&#39; object type, and now the caller</span>
+<span class="sd">            has no idea why the exception was raised as the type information was lost. Re-raising</span>
+<span class="sd">            exceptions as &#39;Exception&#39; type is always bad, you should only catch specific exception</span>
+<span class="sd">            types like IndexError, ValueError, WebdriverException etc etc .., but never re raise</span>
+<span class="sd">            any specific exception type as Exception. An example of incorrect Exception handling is</span>
+<span class="sd">            shown below,</span>
+
+<span class="sd">    &gt;&gt;&gt; def __click_button(self):</span>
+<span class="sd">    &gt;&gt;&gt;     &#39;&#39;&#39;Click button&#39;&#39;&#39;</span>
+<span class="sd">    &gt;&gt;&gt;     try:</span>
+<span class="sd">    &gt;&gt;&gt;         button = self.driver.find_element_by_xpath(&quot;//*[li]&quot;)</span>
+<span class="sd">    &gt;&gt;&gt;         button.click()</span>
+<span class="sd">    &gt;&gt;&gt;     except Exception as e:</span>
+<span class="sd">    &gt;&gt;&gt;         raise Exception(&quot;Something went wrong while clicking button &quot; + str(e))</span>
+
+<span class="sd">        One possible reason why someone would do the below is to add extra information to</span>
+<span class="sd">        the error, but that part will automatically be done by the WebAction decorator. The</span>
+<span class="sd">        correct implementation of the above code would be like below</span>
+
+<span class="sd">    &gt;&gt;&gt;</span>
+<span class="sd">    &gt;&gt;&gt; @WebAction()</span>
+<span class="sd">    &gt;&gt;&gt; def __click_button(self):</span>
+<span class="sd">    &gt;&gt;&gt;     &#39;&#39;&#39;Click button&#39;&#39;&#39;</span>
+<span class="sd">    &gt;&gt;&gt;     button = self.driver.find_element_by_xpath(&quot;//*[li]&quot;)</span>
+<span class="sd">    &gt;&gt;&gt;     button.click()</span>
+
+
+<span class="sd">It is strongly advised that you use these decorators inside your helper files</span>
+
+<span class="sd">----------</span>
+<span class="sd">References</span>
+<span class="sd">----------</span>
+
+<span class="sd">* https://cvs.commvault.com/source/xref/win/vaultcx/Source/tools/Automation/Web/WebConsole/webconsole.py</span>
+<span class="sd">* https://cvs.commvault.com/source/xref/win/vaultcx/Source/tools/Automation/Web/WebConsole/Store/storeapp.py</span>
+<span class="sd">* https://cvs.commvault.com/source/xref/win/vaultcx/Source/tools/Automation/Web/WebConsole/Reports/navigator.py</span>
+
+<span class="sd">--------------------------------------------------</span>
+<span class="sd">Example GMail PagedObject Helper file and TestCase</span>
+<span class="sd">--------------------------------------------------</span>
+
+<span class="sd">The below example explains how the WebAction and PageService decorator can be used</span>
+<span class="sd">in the helper files. The TestCase class here attempts to simulate how the user can</span>
+<span class="sd">extract the Error Summary from the exception raised.</span>
+
+<span class="sd">&gt;&gt;&gt; # gmail.py helper file</span>
+<span class="sd">&gt;&gt;&gt; from Web.Common.page_object import (</span>
+<span class="sd">&gt;&gt;&gt;     WebAction,</span>
+<span class="sd">&gt;&gt;&gt;     PageService</span>
+<span class="sd">&gt;&gt;&gt; )</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt; class GMail:</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;    def __init__(self, browser_obj):</span>
+<span class="sd">&gt;&gt;&gt;        self.driver = browser_obj.driver</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;    # this method is an example of WebAction</span>
+<span class="sd">&gt;&gt;&gt;    @WebAction()</span>
+<span class="sd">&gt;&gt;&gt;    def __set_search_field(self, string):</span>
+<span class="sd">&gt;&gt;&gt;        &#39;&#39;&#39;Set search string on Search Field&#39;&#39;&#39;</span>
+<span class="sd">&gt;&gt;&gt;        search_field = self.driver.find_element_by_xpath(&quot;//textbox[@id=&#39;q&#39;]&quot;)</span>
+<span class="sd">&gt;&gt;&gt;        search_field.send_keys(string)</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;    @WebAction() # this decorator now logs the doc string along with the string argument</span>
+<span class="sd">&gt;&gt;&gt;    def __click_inbox_tab(self): # please note that this method is private</span>
+<span class="sd">&gt;&gt;&gt;        &#39;&#39;&#39;Click the Inbox tab&#39;&#39;&#39;  # its mandated that you add doc string to all PagedObject methods</span>
+<span class="sd">&gt;&gt;&gt;        # must have only one XPath here, if you depend on one more field, add it to a new method</span>
+<span class="sd">&gt;&gt;&gt;       self.driver.find_elements_by_id(&quot;inbox&quot;).click()</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;    # Please note how all the actions related to unread_emails are completely done inside a single method</span>
+<span class="sd">&gt;&gt;&gt;    # using one more XPath inside this method could have ended up against our design</span>
+<span class="sd">&gt;&gt;&gt;    @WebAction()</span>
+<span class="sd">&gt;&gt;&gt;    def __read_all_listed_emails(self):</span>
+<span class="sd">&gt;&gt;&gt;        &#39;&#39;&#39;Get email content of all unread emails&#39;&#39;&#39;</span>
+<span class="sd">&gt;&gt;&gt;        email_texts = []</span>
+<span class="sd">&gt;&gt;&gt;        elements = self.driver.find_elements_by_id(&quot;email_text_content&quot;)</span>
+<span class="sd">&gt;&gt;&gt;        for element in elements:</span>
+<span class="sd">&gt;&gt;&gt;            email_texts.append(element.text)</span>
+<span class="sd">&gt;&gt;&gt;        return email_texts</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;    # This method is an example of Service method</span>
+<span class="sd">&gt;&gt;&gt;    @PageService()</span>
+<span class="sd">&gt;&gt;&gt;    def get_email(self, sent_from, to, subject):</span>
+<span class="sd">&gt;&gt;&gt;        &#39;&#39;&#39;Get all emails matching the given to, from and subject&#39;&#39;&#39;</span>
+<span class="sd">&gt;&gt;&gt;        self.__click_inbox()</span>
+<span class="sd">&gt;&gt;&gt;        search_str = &quot;from:&quot; + sent_from + &quot; to:&quot; + to + &quot; subject:&quot; + subject</span>
+<span class="sd">&gt;&gt;&gt;        self.__set_search_field(search_str)</span>
+<span class="sd">&gt;&gt;&gt;        email_list = self.__read_all_listed_emails()</span>
+<span class="sd">&gt;&gt;&gt;        return email_list</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt; # TestCase file, eg. 51001.py</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt; from Web.Common.page_object import formatted_error_summary</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt; class TestCase(CVTestCase):  # This is the testcase class you would use</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;     def __init__(self):</span>
+<span class="sd">&gt;&gt;&gt;         self.name = &quot;Verify email works&quot;</span>
+<span class="sd">&gt;&gt;&gt;         # ... the usual stuff done in testcase</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;     # Error summary has the URL, Screenshot and Docstrings of the method which fails</span>
+<span class="sd">&gt;&gt;&gt;     # These information are added by the WebAction and PageService decorators, you need</span>
+<span class="sd">&gt;&gt;&gt;     # to log this info from the exception in your testcase like below</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;     def run(self):</span>
+<span class="sd">&gt;&gt;&gt;         try:</span>
+<span class="sd">&gt;&gt;&gt;             browser = BrowserFactory().create_browser_object()</span>
+<span class="sd">&gt;&gt;&gt;             gmail = GMail(browser)</span>
+<span class="sd">&gt;&gt;&gt;             emails = gmail.get_email(&quot;god@heaven.com&quot;, &quot;me@cv.com&quot;, &quot;Lunch Invite&quot;)</span>
+<span class="sd">&gt;&gt;&gt;         except Exception as e:</span>
+<span class="sd">&gt;&gt;&gt;             error_summary = formatted_error_summary(e)</span>
+<span class="sd">&gt;&gt;&gt;             self.log.error(error_summary)</span>
+<span class="sd">&gt;&gt;&gt; # A sample error summary is as below, formatted_error_summary(e) will return the string representing the error summary</span>
+<span class="sd">&gt;&gt;&gt; # &#39;SeleniumError&#39;:   &#39;no such element: Unable to locate element: {&quot;method&quot;:&quot;xpath&quot;,&quot;selector&quot;:&quot;//input[@id=&#39;email_text_content&#39;]&#39;</span>
+<span class="sd">&gt;&gt;&gt; # &#39;Web Operation&#39;:  &#39;Set username&#39;</span>
+<span class="sd">&gt;&gt;&gt; # &#39;Functionality&#39;:  &#39;Login using store login popup; &#39;</span>
+<span class="sd">&gt;&gt;&gt; # &#39;Screenshot&#39;   :  &#39;C:\\Automation\\Log Files\\Screenshot_50167 1507871141.png&#39;</span>
+<span class="sd">&gt;&gt;&gt; # &#39;URL&#39;          :  &#39;http://machine/webconsole/login.do?disableSSO&#39;</span>
+
+<span class="sd">-------------------</span>
+<span class="sd">Integration Testing</span>
+<span class="sd">-------------------</span>
+
+<span class="sd">One of the most important reason for using the default decorators provided is Integration</span>
+<span class="sd">testing. Using integration test script you will help you execute all the helper file&#39;s</span>
+<span class="sd">WebActions without executing TestCases. This is very helpful during service pack upgrades,</span>
+<span class="sd">when you only execute the WebAction, you get all the broken XPaths in you helper file a</span>
+<span class="sd">single email. As a result all the broken XPaths can be identified early, the accuracy and</span>
+<span class="sd">confidence of a regular testcase increases.</span>
+
+<span class="sd">Below are the key constructs of integration test,</span>
+<span class="sd">    * IntegrationTestCase class: This class extends the AutomationUtils.CVTestCase class</span>
+<span class="sd">      and adds the extra code necessary for integration test. The main difference between the</span>
+<span class="sd">      CVTestCase and IntegrationTestCase class is, you don&#39;t need to define run method. So</span>
+<span class="sd">      the testcase result string and status are set automatically. All the integration</span>
+<span class="sd">      TestSteps would be executed automatically. Rest of the functionality like inputJSON</span>
+<span class="sd">      file, testcase name and everything stays the same.</span>
+
+<span class="sd">    * IntegrationTestStep decorator</span>
+
+<span class="sd">    * WebActionsExecutor: This is the class which extracts all the WebActions inside the</span>
+<span class="sd">      given helper file and manages the WebDriverException associated to the WebAction. This</span>
+<span class="sd">      class helps execute the next method even if one method fails.</span>
+
+<span class="sd">consider the following class in the helper file webconsole.py</span>
+
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt; class WebConsole:</span>
+<span class="sd">&gt;&gt;&gt;     @WebAction()</span>
+<span class="sd">&gt;&gt;&gt;     def __set_username():</span>
+<span class="sd">&gt;&gt;&gt;         ...</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;     @WebAction()</span>
+<span class="sd">&gt;&gt;&gt;     def __set_password():</span>
+<span class="sd">&gt;&gt;&gt;         ...</span>
+
+<span class="sd">If you were to integration test the above helper file, your test case would look like below</span>
+
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt; class TestCase(IntegrationTestCase):</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;     def __init__(self):</span>
+<span class="sd">&gt;&gt;&gt;         super().__init__()</span>
+<span class="sd">&gt;&gt;&gt;         self.name = &quot;Integration test for WebConsole&quot;</span>
+<span class="sd">&gt;&gt;&gt;         self.applicable_os = self.os_list.WINDOWS</span>
+<span class="sd">&gt;&gt;&gt;         self.feature = self.features_list.WEBCONSOLE</span>
+<span class="sd">&gt;&gt;&gt;         self.browser = None</span>
+<span class="sd">&gt;&gt;&gt;</span>
+<span class="sd">&gt;&gt;&gt;     @IntegrationTestStep(WebConsole)  # Pass the class which you are trying to integration test as arg</span>
+<span class="sd">&gt;&gt;&gt;     def test_login():</span>
+<span class="sd">&gt;&gt;&gt;         &#39;&#39;&#39;This integration test method tests the login WebActions of WebConsole&#39;&#39;&#39;</span>
+<span class="sd">&gt;&gt;&gt;         browser = BrowserFactory().create_browser_object()</span>
+<span class="sd">&gt;&gt;&gt;         wc = Webconsole(b, &quot;voldemort.idcprodcert.loc&quot;)</span>
+<span class="sd">&gt;&gt;&gt;         webconsole_web_actions = WebActionsExecutor(wc)  # you now have an object which will execute the web actions</span>
+<span class="sd">&gt;&gt;&gt;         print(webconsole_web_actions.all_methods())   # This method will list all the executable web actions inside the</span>
+<span class="sd">&gt;&gt;&gt;                                                       # WebConsole class</span>
+<span class="sd">&gt;&gt;&gt;         browser.driver.get(&quot;login page url here&quot;)</span>
+<span class="sd">&gt;&gt;&gt;         webconsole_web_actions.set_username(&quot;admin&quot;)  # please note that the leading __ and _ are not used, its not</span>
+<span class="sd">&gt;&gt;&gt;                                                       # necessary to specify that when executed via WebrActionsExecutor</span>
+<span class="sd">&gt;&gt;&gt;         webconsole_web_actions.set_password(&quot;veryBigAdmin&quot;)</span>
+<span class="sd">&gt;&gt;&gt;         webconsole_web_actions.finish_and_exit()</span>
+
+<span class="sd">That is it, you have your integration test, if you open the log corresponding to the above testcase</span>
+<span class="sd">you will see the execution result of all WebActions</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">types</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">ABC</span><span class="p">,</span>
+    <span class="n">abstractmethod</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">chain</span>
+
+<span class="kn">from</span> <span class="nn">selenium.common.exceptions</span> <span class="k">import</span> <span class="n">WebDriverException</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils.config</span> <span class="k">import</span> <span class="n">get_config</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="k">import</span> <span class="n">LOG_DIR</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="k">import</span> <span class="n">CVTestCase</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.logger</span> <span class="k">import</span> <span class="n">get_log</span>
+<span class="kn">from</span> <span class="nn">Web.Common.exceptions</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">CVException</span><span class="p">,</span>
+    <span class="n">CVTestStepFailure</span>
+<span class="p">)</span>
+
+<span class="n">_CONF</span> <span class="o">=</span> <span class="n">get_config</span><span class="p">()</span><span class="o">.</span><span class="n">Common</span><span class="o">.</span><span class="n">PagedObject</span>
+
+
+<span class="k">class</span> <span class="nc">_ProxyFunction</span><span class="p">:</span>
+
+    <span class="sd">&quot;&quot;&quot;Internal execution unit&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">self_</span><span class="p">,</span> <span class="n">mangle</span><span class="p">,</span> <span class="n">un_mangle</span><span class="p">,</span> <span class="n">store</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="bp">self</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">_ProxyFunction</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">self_</span> <span class="o">=</span> <span class="n">self_</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mangle</span> <span class="o">=</span> <span class="n">mangle</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">un_mangle</span> <span class="o">=</span> <span class="n">un_mangle</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">store</span> <span class="o">=</span> <span class="n">store</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">excp</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ret</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">self_</span><span class="p">,</span> <span class="s2">&quot;self_&quot;</span><span class="p">):</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="n">self_</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="n">args</span>
+            <span class="n">tmp_kw</span> <span class="o">=</span> <span class="n">self_</span><span class="o">.</span><span class="n">keywords</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">tmp_kw</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="n">tmp_kw</span>
+            <span class="k">del</span> <span class="n">tmp_kw</span>
+            <span class="n">self_</span> <span class="o">=</span> <span class="n">self_</span><span class="o">.</span><span class="n">self_</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">self_</span> <span class="o">=</span> <span class="n">self_</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">get_log</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__doc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mangle</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">m_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mangle</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">m_name</span> <span class="o">=</span> <span class="s2">&quot;__&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mangle</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">:][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">DocTablePlugin</span><span class="o">.</span><span class="n">get_doc</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">self_</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">m_name</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__m_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ret</span><span class="p">,</span> <span class="n">excp</span><span class="p">):</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">self_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mangle</span><span class="p">)</span>
+        <span class="n">exec_info</span> <span class="o">=</span> <span class="n">ExecInfo</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">summary</span> <span class="o">=</span> <span class="n">ExceptionStore</span><span class="o">.</span><span class="n">get_errors</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span> <span class="k">if</span> <span class="n">excp</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mangle</span><span class="p">,</span> <span class="p">{</span>
+                <span class="s2">&quot;MangledName&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mangle</span><span class="p">,</span>
+                <span class="s2">&quot;UnMangledName&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">un_mangle</span><span class="p">,</span>
+                <span class="s2">&quot;Description&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__doc</span><span class="p">(),</span>
+                <span class="s2">&quot;Args&quot;</span><span class="p">:</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">args_str</span><span class="p">,</span>
+                <span class="s2">&quot;Return&quot;</span><span class="p">:</span> <span class="n">ret</span><span class="p">,</span>
+                <span class="s2">&quot;Exception&quot;</span><span class="p">:</span> <span class="n">excp</span><span class="p">,</span>
+                <span class="s2">&quot;ErrorSummary&quot;</span><span class="p">:</span> <span class="n">summary</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__log_m_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">m_info</span><span class="p">):</span>
+        <span class="n">excp</span> <span class="o">=</span> <span class="n">m_info</span><span class="p">[</span><span class="s2">&quot;Exception&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;PASSED&quot;</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span>
+
+        <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;.  .    &quot;</span>
+        <span class="n">log</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prefix}{status}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">m_info</span><span class="p">[</span><span class="s2">&quot;Return&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prefix}{m_info[&#39;MangledName&#39;]}</span><span class="s2">() -&gt; </span><span class="si">{m_info[&#39;Return&#39;]}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">summary</span> <span class="o">=</span> <span class="n">m_info</span><span class="p">[</span><span class="s2">&quot;ErrorSummary&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">summary</span><span class="p">:</span>
+            <span class="n">log</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prefix}</span><span class="s2">URL: {summary.get(&#39;URL&#39;, &#39;&#39;)}&quot;</span><span class="p">)</span>
+            <span class="n">log</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prefix}</span><span class="s2">Screenshot: {summary.get(&#39;Screenshot&#39;, &#39;&#39;)}&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">err_str</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())</span>
+            <span class="n">log</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{prefix}</span><span class="s2">Error: &quot;</span> <span class="o">+</span> <span class="n">err_str</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__validate_result</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="n">result_validator</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">result_validator</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result_validator</span><span class="p">,</span> <span class="n">ResultValidator</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">result_validator</span><span class="o">.</span><span class="n">test_return</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">_CVResultValidationFailure</span><span class="p">(</span>
+                        <span class="n">result_validator</span><span class="o">.</span><span class="n">failure_message</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;result_validator argument is of unexpected &quot;</span>
+                    <span class="s2">&quot;object type. Please pass any object of a class &quot;</span>
+                    <span class="s2">&quot;which extends ResultValidator class and implements &quot;</span>
+                    <span class="s2">&quot;the test_return method&quot;</span>
+                <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">result_validator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">self_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mangle</span><span class="p">)</span>
+            <span class="n">ret</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__validate_result</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="n">result_validator</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__log_m_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__m_info</span><span class="p">(</span><span class="n">ret</span><span class="p">,</span> <span class="kc">None</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ret</span> <span class="o">=</span> <span class="n">ret</span>
+            <span class="k">return</span> <span class="n">ret</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">WebDriverException</span><span class="p">,</span> <span class="n">_CVResultValidationFailure</span><span class="p">)</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">excp</span> <span class="o">=</span> <span class="n">excp</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__log_m_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__m_info</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">excp</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">cls_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">self_</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+            <span class="n">m_name</span><span class="p">,</span> <span class="n">m_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__m_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ret</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">excp</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cls_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">[</span><span class="n">cls_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">store</span><span class="p">[</span><span class="n">cls_name</span><span class="p">][</span><span class="n">m_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">m_info</span>
+
+
+<span class="k">class</span> <span class="nc">_CVIntegrationTestStepComplete</span><span class="p">(</span><span class="n">CVException</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Internal exception type for TestStep failure message propagation&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">err_store</span><span class="p">,</span> <span class="n">clazz</span><span class="p">,</span> <span class="n">skip_parent_methods</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">err_store</span> <span class="o">=</span> <span class="n">err_store</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clazz</span> <span class="o">=</span> <span class="n">clazz</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip_parent_methods</span> <span class="o">=</span> <span class="n">skip_parent_methods</span>
+
+
+<span class="k">class</span> <span class="nc">_CVResultValidationFailure</span><span class="p">(</span><span class="n">CVException</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Internal exception type for WebAction failure message propagation&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">failure_msg</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failure_msg</span> <span class="o">=</span> <span class="n">failure_msg</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">failure_msg</span>
+
+
+<span class="k">class</span> <span class="nc">_ClosureHandler</span><span class="p">:</span>
+
+    <span class="sd">&quot;&quot;&quot;Wrapper for closure&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">clazz</span><span class="p">,</span> <span class="n">extraction_target</span><span class="p">,</span>
+            <span class="n">skip_parent_methods</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">self_</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clazz</span> <span class="o">=</span> <span class="n">clazz</span> <span class="k">if</span> <span class="n">clazz</span> <span class="k">else</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__class__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip_parent_methods</span> <span class="o">=</span> <span class="n">skip_parent_methods</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">extraction_target</span>
+
+    <span class="k">def</span> <span class="nf">__attribs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_parent_methods</span><span class="p">:</span>
+            <span class="n">callable_objects</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">clazz</span><span class="o">.</span><span class="vm">__dict__</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">callable_objects</span> <span class="o">=</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clazz</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">attr</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clazz</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">callable_objects</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__closures__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># Fake recursive closure to mimic actual closure</span>
+        <span class="n">attribs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__attribs</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">callable_name</span><span class="p">:</span> <span class="n">callable_value</span><span class="o">.</span><span class="vm">__closure__</span>
+            <span class="k">for</span> <span class="n">callable_name</span><span class="p">,</span> <span class="n">callable_value</span> <span class="ow">in</span> <span class="n">attribs</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">callable</span><span class="p">(</span><span class="n">callable_value</span><span class="p">)</span> <span class="ow">and</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="n">callable_value</span><span class="p">,</span> <span class="s2">&quot;__closure__&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__mangled</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">closures</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__closures__</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">cell_name</span><span class="p">:</span> <span class="n">cell_values</span>
+            <span class="k">for</span> <span class="n">cell_name</span><span class="p">,</span> <span class="n">cell_values</span> <span class="ow">in</span> <span class="n">closures</span>
+            <span class="k">for</span> <span class="n">cell_value</span> <span class="ow">in</span> <span class="n">cell_values</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">cell_value</span><span class="o">.</span><span class="n">cell_contents</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">target</span>
+            <span class="p">)</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">cell_methods</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;List of methods available WebAction methods available inside executor&quot;&quot;&quot;</span>
+        <span class="n">methods</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">method</span><span class="p">,</span> <span class="n">cells</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__mangled</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">cells</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cell</span><span class="o">.</span><span class="n">cell_contents</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">FunctionType</span><span class="p">):</span>
+                    <span class="n">methods</span><span class="o">.</span><span class="n">append</span><span class="p">((</span>
+                        <span class="n">method</span><span class="p">,</span>
+                        <span class="n">cell</span><span class="o">.</span><span class="n">cell_contents</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_firstlineno</span>
+                    <span class="p">))</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">methods</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
+
+    <span class="k">def</span> <span class="nf">methods</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the dict representation of method names in the following format</span>
+<span class="sd">        {</span>
+<span class="sd">            &#39;un_mangled_name&#39;: manged_name,</span>
+<span class="sd">            ...</span>
+<span class="sd">        }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;^[^A-Za-z0-9]*&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">um</span><span class="p">):</span> <span class="n">m</span>
+            <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">um</span> <span class="ow">in</span> <span class="p">{</span>
+                <span class="n">func</span><span class="p">:</span> <span class="n">func</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">func</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__mangled</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+            <span class="p">}</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">}</span>
+
+
+<div class="viewcode-block" id="BaseDecorator"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.BaseDecorator">[docs]</a><span class="k">class</span> <span class="nc">BaseDecorator</span><span class="p">:</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base decorator which coordinates the execution of Plugins</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__plugins</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__exception</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__no_raise_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">_rmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="n">object_</span><span class="p">,</span> <span class="n">func</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">object_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__plugins</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">object_</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function_object</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rmap</span><span class="p">(</span><span class="s2">&quot;init&quot;</span><span class="p">,</span> <span class="n">function_object</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">_executor</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+
+                <span class="n">exec_info</span> <span class="o">=</span> <span class="n">ExecInfo</span><span class="p">(</span><span class="n">function_object</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_rmap</span><span class="p">(</span><span class="s2">&quot;pre&quot;</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">)</span>
+                <span class="n">ret</span> <span class="o">=</span> <span class="n">function_object</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_rmap</span><span class="p">(</span><span class="s2">&quot;post&quot;</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">result</span><span class="o">=</span><span class="n">ret</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">ret</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exception</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__exception</span> <span class="o">=</span> <span class="n">exception</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_rmap</span><span class="p">(</span><span class="s2">&quot;excep&quot;</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">exception</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">exception</span>
+
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_rmap</span><span class="p">(</span><span class="s2">&quot;final&quot;</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__exception</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">_executor</span>
+
+<div class="viewcode-block" id="BaseDecorator.add_plugin"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.BaseDecorator.add_plugin">[docs]</a>    <span class="k">def</span> <span class="nf">add_plugin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plugin</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__plugins</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plugin</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ExecInfo"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ExecInfo">[docs]</a><span class="k">class</span> <span class="nc">ExecInfo</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Utility class to pass the execution env info&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">doc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Doc string of the method&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__doc__</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Not doc string found for method [</span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">func_name</span>
+            <span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">self_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Self instance variable of the method being decorated&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No instance object found&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">arg_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Dict representing the keyword and positional args&quot;&quot;&quot;</span>
+        <span class="n">arg_specs</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getfullargspec</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">)</span>
+        <span class="n">func_arg_names</span> <span class="o">=</span> <span class="n">arg_specs</span><span class="o">.</span><span class="n">args</span>
+        <span class="n">func_defaults</span> <span class="o">=</span> <span class="n">arg_specs</span><span class="o">.</span><span class="n">defaults</span> <span class="k">if</span> <span class="n">arg_specs</span><span class="o">.</span><span class="n">defaults</span> <span class="k">else</span> <span class="p">()</span>
+        <span class="n">func_arg_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">func_defaults</span><span class="p">)</span>
+        <span class="n">arg_dict_</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">func_arg_names</span><span class="p">,</span> <span class="n">func_arg_values</span><span class="p">))</span>
+        <span class="n">arg_dict_</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">arg_dict_</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">args_str</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;String representation of arg_dict&quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">arg_val</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s2">&quot;&#39;&quot;</span> <span class="o">+</span> <span class="n">value</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span> <span class="o">+</span> <span class="n">arg_val</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">arg_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="o">!=</span> <span class="s2">&quot;self&quot;</span>
+        <span class="p">])</span>
+
+<div class="viewcode-block" id="ExecInfo.extract_object"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ExecInfo.extract_object">[docs]</a>    <span class="k">def</span> <span class="nf">extract_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Utility to extract object of given type&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">attrib</span> <span class="k">for</span> <span class="n">attrib</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">self_</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attrib</span><span class="p">,</span> <span class="n">type_</span><span class="p">)</span>
+        <span class="p">]</span></div></div>
+
+
+<div class="viewcode-block" id="Plugin"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.Plugin">[docs]</a><span class="k">class</span> <span class="nc">Plugin</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    All plugins which has to plug into the BaseDecorator need to</span>
+<span class="sd">    inherit this class</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Plugin.init"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.Plugin.init">[docs]</a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Plugin.pre"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.Plugin.pre">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">pre</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="Plugin.post"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.Plugin.post">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="Plugin.excep"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.Plugin.excep">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">excep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">exception</span><span class="p">:</span> <span class="ne">Exception</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="Plugin.final"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.Plugin.final">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">final</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">exception</span><span class="p">:</span> <span class="ne">Exception</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div></div>
+
+
+<div class="viewcode-block" id="WebExecInfo"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebExecInfo">[docs]</a><span class="k">class</span> <span class="nc">WebExecInfo</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Expands the exec_info object with the web execution utilities&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info_object</span><span class="p">,</span> <span class="n">excp_type_to_process</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exec_info</span> <span class="o">=</span> <span class="n">exec_info_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">excp_type</span> <span class="o">=</span> <span class="n">excp_type_to_process</span>
+
+    <span class="k">def</span> <span class="nf">__lookup_webconsole_for_driver</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">Web.WebConsole.webconsole</span> <span class="k">import</span> <span class="n">WebConsole</span>
+        <span class="k">for</span> <span class="n">wc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">exec_info</span><span class="o">.</span><span class="n">extract_object</span><span class="p">(</span><span class="n">WebConsole</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">wc</span><span class="o">.</span><span class="n">browser</span><span class="o">.</span><span class="n">driver</span>
+
+    <span class="k">def</span> <span class="nf">__lookup_browser_for_driver</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">Web.Common.cvbrowser</span> <span class="k">import</span> <span class="n">Browser</span>
+        <span class="k">for</span> <span class="n">wc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">exec_info</span><span class="o">.</span><span class="n">extract_object</span><span class="p">(</span><span class="n">Browser</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">wc</span><span class="o">.</span><span class="n">driver</span>
+
+    <span class="k">def</span> <span class="nf">__lookup_selenium_for_driver</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">selenium.webdriver.remote.webdriver</span> <span class="k">import</span> <span class="n">WebDriver</span>
+        <span class="k">for</span> <span class="n">webdriver</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">exec_info</span><span class="o">.</span><span class="n">extract_object</span><span class="p">(</span><span class="n">WebDriver</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">webdriver</span>
+
+    <span class="k">def</span> <span class="nf">__lookup_drivers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">g_drivers</span> <span class="o">=</span> <span class="n">chain</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__lookup_selenium_for_driver</span><span class="p">(),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__lookup_browser_for_driver</span><span class="p">(),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__lookup_webconsole_for_driver</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="n">driver</span> <span class="k">for</span> <span class="n">driver</span> <span class="ow">in</span> <span class="n">g_drivers</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WebExecInfo.save_screenshot"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebExecInfo.save_screenshot">[docs]</a>    <span class="k">def</span> <span class="nf">save_screenshot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">screenshots</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">driver</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__lookup_drivers</span><span class="p">():</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">&quot;Screenshot TC &quot;</span>
+                <span class="o">+</span> <span class="n">threading</span><span class="o">.</span><span class="n">current_thread</span><span class="p">()</span><span class="o">.</span><span class="n">getName</span><span class="p">()</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span>
+                <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="o">+</span> <span class="s2">&quot;.png&quot;</span>
+            <span class="p">)</span>
+            <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">LOG_DIR</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">driver</span><span class="o">.</span><span class="n">save_screenshot</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+                    <span class="n">screenshots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">WebDriverException</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">screenshots</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">screenshots</span><span class="p">)</span> <span class="ow">is</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">screenshots</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s2">&quot;; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">screenshots</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="WebExecInfo.url"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebExecInfo.url">[docs]</a>    <span class="k">def</span> <span class="nf">url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">urls</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;Browser &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span> <span class="n">driver</span><span class="o">.</span><span class="n">current_url</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">driver</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__lookup_drivers</span><span class="p">())</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">urls</span><span class="p">)</span> <span class="ow">is</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">urls</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+                <span class="n">browser</span> <span class="o">+</span> <span class="s2">&quot;: &quot;</span> <span class="o">+</span> <span class="n">url</span>
+                <span class="k">for</span> <span class="n">browser</span><span class="p">,</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">])</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span></div></div>
+
+
+<div class="viewcode-block" id="ExcpWrapper"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ExcpWrapper">[docs]</a><span class="k">class</span> <span class="nc">ExcpWrapper</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Wrapper utility for exception&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">excp</span><span class="p">,</span> <span class="n">type_</span><span class="p">,</span> <span class="n">order</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">excp</span> <span class="o">=</span> <span class="n">excp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">type_</span> <span class="o">=</span> <span class="n">type_</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="n">order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">excp</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%-27s</span><span class="s2">  : </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">type_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">msg</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ExceptionStore"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ExceptionStore">[docs]</a><span class="k">class</span> <span class="nc">ExceptionStore</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Exception store house&quot;&quot;&quot;</span>
+    <span class="n">__errors</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">__get_excp</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">excp</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__errors</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">__id</span><span class="p">(</span><span class="n">excp</span><span class="p">),</span> <span class="p">[])</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">__sorted_excp_summary</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">excp</span><span class="p">):</span>
+        <span class="n">error_summary</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__get_excp</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+        <span class="nb">sorted</span><span class="p">(</span>
+            <span class="n">error_summary</span><span class="p">,</span>
+            <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">entry</span><span class="p">:</span> <span class="n">entry</span><span class="o">.</span><span class="n">order</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">error_summary</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">__id</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">excp</span><span class="p">):</span>
+        <span class="n">excp_</span> <span class="o">=</span> <span class="n">excp</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">excp_</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">id</span><span class="p">(</span><span class="n">excp_</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__errors</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="n">excp_</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">excp_</span> <span class="o">=</span> <span class="n">excp</span><span class="o">.</span><span class="n">__context__</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="nb">id</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ExceptionStore.store_excp"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ExceptionStore.store_excp">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">store_excp</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">excp_wrapper</span><span class="p">:</span> <span class="n">ExcpWrapper</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Save exception to the store&quot;&quot;&quot;</span>
+        <span class="n">id_</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__id</span><span class="p">(</span><span class="n">excp_wrapper</span><span class="o">.</span><span class="n">excp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">id_</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__errors</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">__errors</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">excp_wrapper</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">__errors</span><span class="p">[</span><span class="n">id_</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">excp_wrapper</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="ExceptionStore.has_type"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ExceptionStore.has_type">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">has_type</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">excp</span><span class="p">,</span> <span class="n">type_</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">type_</span> <span class="ow">in</span> <span class="p">[</span><span class="n">excp_</span><span class="o">.</span><span class="n">type_</span> <span class="k">for</span> <span class="n">excp_</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__get_excp</span><span class="p">(</span><span class="n">excp</span><span class="p">)]</span></div>
+
+<div class="viewcode-block" id="ExceptionStore.formatted_error_str"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ExceptionStore.formatted_error_str">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">formatted_error_str</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">excp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Format the exception which can be printed&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;Error Summary</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">get_errors</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+        <span class="p">])</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span></div>
+
+<div class="viewcode-block" id="ExceptionStore.trimmed_exception_str"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ExceptionStore.trimmed_exception_str">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">trimmed_exception_str</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">excp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Remove all traces or page_object.py methods from the stacktrace&quot;&quot;&quot;</span>
+        <span class="n">excp_str</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{excp_str}</span><span class="se">\n</span><span class="s2">Trace from page_object.py is removed, &quot;</span>
+        <span class="k">return</span> <span class="n">prefix</span> <span class="o">+</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="n">tb</span> <span class="k">for</span> <span class="n">tb</span> <span class="ow">in</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exception</span><span class="p">(</span><span class="o">*</span><span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">())</span>
+            <span class="k">if</span> <span class="s2">&quot;page_object.py&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tb</span>
+        <span class="p">])</span></div>
+
+<div class="viewcode-block" id="ExceptionStore.get_errors"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ExceptionStore.get_errors">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_errors</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">excp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the list of error handles associated to the exception&quot;&quot;&quot;</span>
+        <span class="n">excp_type_name</span> <span class="o">=</span> <span class="n">excp</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;; &quot;</span>
+        <span class="n">excp_args_str</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())</span>
+        <span class="n">excp_wrapper</span> <span class="o">=</span> <span class="n">ExcpWrapper</span><span class="p">(</span>
+            <span class="n">excp</span><span class="p">,</span> <span class="s2">&quot;Error&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">excp_type_name</span> <span class="o">+</span> <span class="n">excp_args_str</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">excp_wrapper</span><span class="p">]</span> <span class="o">+</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__sorted_excp_summary</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="LoggerPlugin"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.LoggerPlugin">[docs]</a><span class="k">class</span> <span class="nc">LoggerPlugin</span><span class="p">(</span><span class="n">Plugin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Plugin to log the events&quot;&quot;&quot;</span>
+    <span class="n">log_return_value</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">log_code</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">hide_args</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                 <span class="n">hide_ret</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">post_prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="n">level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_code</span> <span class="o">=</span> <span class="n">log_code</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hide_args</span> <span class="o">=</span> <span class="n">hide_args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span> <span class="o">=</span> <span class="n">prefix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hide_ret</span> <span class="o">=</span> <span class="n">hide_ret</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">post_prefix</span> <span class="o">=</span> <span class="n">post_prefix</span> <span class="k">if</span> <span class="n">post_prefix</span> <span class="k">else</span> <span class="s2">&quot;.. &quot;</span>
+
+    <span class="k">def</span> <span class="nf">_log_maker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">logging</span><span class="o">.</span><span class="n">makeLogRecord</span><span class="p">({</span>
+            <span class="s2">&quot;module&quot;</span><span class="p">:</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__module__</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;levelname&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_code</span><span class="p">,</span>
+            <span class="s2">&quot;levelno&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">,</span>
+            <span class="s2">&quot;lineno&quot;</span><span class="p">:</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__code__</span><span class="o">.</span><span class="n">co_firstlineno</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">&quot;funcName&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exec_info</span><span class="o">.</span><span class="n">self_</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span>
+            <span class="s2">&quot;msg&quot;</span><span class="p">:</span> <span class="n">msg</span>
+        <span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">__is_args_logging_allowed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">hide_args</span><span class="p">)</span> <span class="ow">or</span> <span class="n">_CONF</span><span class="o">.</span><span class="n">LoggerPlugin</span><span class="o">.</span><span class="n">FORCE_ALL_LOGS</span>
+
+    <span class="k">def</span> <span class="nf">__is_logging_allowed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="ow">or</span> <span class="n">_CONF</span><span class="o">.</span><span class="n">LoggerPlugin</span><span class="o">.</span><span class="n">FORCE_ALL_LOGS</span>
+
+    <span class="k">def</span> <span class="nf">__is_result_logging_allowed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="n">flags</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">LoggerPlugin</span><span class="o">.</span><span class="n">log_return_value</span> <span class="ow">and</span>
+            <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">hide_ret</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="p">(</span><span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">flags</span> <span class="ow">or</span> <span class="n">_CONF</span><span class="o">.</span><span class="n">LoggerPlugin</span><span class="o">.</span><span class="n">FORCE_ALL_LOGS</span>
+
+<div class="viewcode-block" id="LoggerPlugin.init"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.LoggerPlugin.init">[docs]</a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="n">ExecInfo</span><span class="p">(</span><span class="n">func</span><span class="p">)</span><span class="o">.</span><span class="n">doc</span></div>
+
+<div class="viewcode-block" id="LoggerPlugin.final"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.LoggerPlugin.final">[docs]</a>    <span class="k">def</span> <span class="nf">final</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+        <span class="c1"># do nothing</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="LoggerPlugin.excep"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.LoggerPlugin.excep">[docs]</a>    <span class="k">def</span> <span class="nf">excep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">excp_instance</span><span class="p">):</span>
+        <span class="c1"># do nothing</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="LoggerPlugin.post"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.LoggerPlugin.post">[docs]</a>    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__is_result_logging_allowed</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_prefix</span> <span class="o">+</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;(): -&gt; &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">msg</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">splitlines</span><span class="p">())[:</span><span class="mi">350</span><span class="p">]</span>
+        <span class="n">get_log</span><span class="p">()</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_maker</span><span class="p">(</span><span class="n">exec_info</span><span class="p">,</span> <span class="n">msg</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="LoggerPlugin.pre"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.LoggerPlugin.pre">[docs]</a>    <span class="k">def</span> <span class="nf">pre</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__is_logging_allowed</span><span class="p">():</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__is_args_logging_allowed</span><span class="p">():</span>
+            <span class="n">args_str</span> <span class="o">=</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">args_str</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">args_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s%s</span><span class="s2"> [</span><span class="si">%s</span><span class="s2">(</span><span class="si">%s</span><span class="s2">)]&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span>
+            <span class="n">exec_info</span><span class="o">.</span><span class="n">doc</span><span class="p">,</span>
+            <span class="n">exec_info</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="n">args_str</span>
+        <span class="p">)</span>
+        <span class="n">record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log_maker</span><span class="p">(</span><span class="n">exec_info</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+        <span class="n">get_log</span><span class="p">()</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span><span class="n">record</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestStepLoggerPlugin"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.TestStepLoggerPlugin">[docs]</a><span class="k">class</span> <span class="nc">TestStepLoggerPlugin</span><span class="p">(</span><span class="n">LoggerPlugin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Plugin to log the execution of TestStep&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="TestStepLoggerPlugin.pre"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.TestStepLoggerPlugin.pre">[docs]</a>    <span class="k">def</span> <span class="nf">pre</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">):</span>
+        <span class="n">log_msgs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">30</span> <span class="o">+</span> <span class="s2">&quot; Starting Test Step &quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">30</span><span class="p">]</span>
+        <span class="n">log_msgs</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;   &quot;</span> <span class="o">+</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">doc</span><span class="p">]</span>
+        <span class="n">log_msgs</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">log_msg</span> <span class="ow">in</span> <span class="n">log_msgs</span><span class="p">:</span>
+            <span class="n">get_log</span><span class="p">()</span><span class="o">.</span><span class="n">handle</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_maker</span><span class="p">(</span><span class="n">exec_info</span><span class="p">,</span> <span class="n">log_msg</span><span class="p">)</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestStepLoggerPlugin.post"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.TestStepLoggerPlugin.post">[docs]</a>    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">pass</span></div></div>
+
+
+<div class="viewcode-block" id="DelayPlugin"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DelayPlugin">[docs]</a><span class="k">class</span> <span class="nc">DelayPlugin</span><span class="p">(</span><span class="n">Plugin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Plugin to add delay to execution&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delay</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delay</span> <span class="o">=</span> <span class="n">delay</span>
+
+<div class="viewcode-block" id="DelayPlugin.excep"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DelayPlugin.excep">[docs]</a>    <span class="k">def</span> <span class="nf">excep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="DelayPlugin.pre"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DelayPlugin.pre">[docs]</a>    <span class="k">def</span> <span class="nf">pre</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">):</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delay</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DelayPlugin.post"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DelayPlugin.post">[docs]</a>    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="DelayPlugin.final"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DelayPlugin.final">[docs]</a>    <span class="k">def</span> <span class="nf">final</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+        <span class="k">pass</span></div></div>
+
+
+<div class="viewcode-block" id="WebSupportPlugin"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebSupportPlugin">[docs]</a><span class="k">class</span> <span class="nc">WebSupportPlugin</span><span class="p">(</span><span class="n">Plugin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Plugin to save screenshot and URL&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">operation_name</span><span class="p">,</span> <span class="n">operation_order</span><span class="p">,</span> <span class="n">excp_type_to_process</span><span class="p">,</span>
+            <span class="n">enable_args</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">hide_method</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">web_exec_info</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">operation_name</span> <span class="o">=</span> <span class="n">operation_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">excep_type_to_process</span> <span class="o">=</span> <span class="n">excp_type_to_process</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">operation_order</span> <span class="o">=</span> <span class="n">operation_order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enable_args</span> <span class="o">=</span> <span class="n">enable_args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hide_method</span> <span class="o">=</span> <span class="n">hide_method</span>
+
+<div class="viewcode-block" id="WebSupportPlugin.excep"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebSupportPlugin.excep">[docs]</a>    <span class="k">def</span> <span class="nf">excep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">excp</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">web_exec_info</span> <span class="o">=</span> <span class="n">WebExecInfo</span><span class="p">(</span>
+            <span class="n">exec_info</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">excep_type_to_process</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hide_method</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">doc</span> <span class="o">+</span> <span class="s2">&quot;; &quot;</span> <span class="o">+</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">+</span> <span class="s2">&quot;(&quot;</span> <span class="o">+</span> <span class="p">(</span><span class="n">exec_info</span><span class="o">.</span><span class="n">args_str</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_args</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">doc</span>
+
+        <span class="n">ExceptionStore</span><span class="o">.</span><span class="n">store_excp</span><span class="p">(</span>
+            <span class="n">ExcpWrapper</span><span class="p">(</span>
+                <span class="n">excp</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">operation_name</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">operation_order</span><span class="p">,</span>
+                <span class="n">msg</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">excp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">excep_type_to_process</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ExceptionStore</span><span class="o">.</span><span class="n">has_type</span><span class="p">(</span><span class="n">excp</span><span class="p">,</span> <span class="s2">&quot;Screenshot&quot;</span><span class="p">):</span>
+            <span class="n">screenshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">web_exec_info</span><span class="o">.</span><span class="n">save_screenshot</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">screenshot</span><span class="p">:</span>
+                <span class="n">e</span> <span class="o">=</span> <span class="n">ExcpWrapper</span><span class="p">(</span><span class="n">excp</span><span class="p">,</span> <span class="s2">&quot;Screenshot&quot;</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="n">screenshot</span><span class="p">)</span>
+                <span class="n">ExceptionStore</span><span class="o">.</span><span class="n">store_excp</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">ExceptionStore</span><span class="o">.</span><span class="n">has_type</span><span class="p">(</span><span class="n">excp</span><span class="p">,</span> <span class="s2">&quot;URL&quot;</span><span class="p">):</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">web_exec_info</span><span class="o">.</span><span class="n">url</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">url</span><span class="p">:</span>
+                <span class="n">e</span> <span class="o">=</span> <span class="n">ExcpWrapper</span><span class="p">(</span><span class="n">excp</span><span class="p">,</span> <span class="s2">&quot;URL&quot;</span><span class="p">,</span> <span class="mi">110</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+                <span class="n">ExceptionStore</span><span class="o">.</span><span class="n">store_excp</span><span class="p">(</span><span class="n">e</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WebSupportPlugin.pre"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebSupportPlugin.pre">[docs]</a>    <span class="k">def</span> <span class="nf">pre</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="WebSupportPlugin.post"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebSupportPlugin.post">[docs]</a>    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="WebSupportPlugin.final"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebSupportPlugin.final">[docs]</a>    <span class="k">def</span> <span class="nf">final</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+        <span class="k">pass</span></div></div>
+
+
+<div class="viewcode-block" id="IntegrationTestPlugin"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestPlugin">[docs]</a><span class="k">class</span> <span class="nc">IntegrationTestPlugin</span><span class="p">(</span><span class="n">Plugin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Plugin to configure other plugins for Integration test&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clazz</span><span class="p">):</span>
+        <span class="n">WebAction</span><span class="o">.</span><span class="n">enable_doc_table</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">LoggerPlugin</span><span class="o">.</span><span class="n">log_return_value</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clazz</span> <span class="o">=</span> <span class="n">clazz</span>
+
+<div class="viewcode-block" id="IntegrationTestPlugin.post"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestPlugin.post">[docs]</a>    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;finish_and_exit() method not called&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="IntegrationTestPlugin.final"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestPlugin.final">[docs]</a>    <span class="k">def</span> <span class="nf">final</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="IntegrationTestPlugin.excep"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestPlugin.excep">[docs]</a>    <span class="k">def</span> <span class="nf">excep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="IntegrationTestPlugin.pre"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestPlugin.pre">[docs]</a>    <span class="k">def</span> <span class="nf">pre</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">):</span>
+        <span class="k">pass</span></div></div>
+
+
+<div class="viewcode-block" id="DocTablePlugin"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DocTablePlugin">[docs]</a><span class="k">class</span> <span class="nc">DocTablePlugin</span><span class="p">(</span><span class="n">Plugin</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;HashTable to for doc string lookup&quot;&quot;&quot;</span>
+    <span class="n">__doc_table</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="DocTablePlugin.excep"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DocTablePlugin.excep">[docs]</a>    <span class="k">def</span> <span class="nf">excep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="DocTablePlugin.post"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DocTablePlugin.post">[docs]</a>    <span class="k">def</span> <span class="nf">post</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="DocTablePlugin.pre"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DocTablePlugin.pre">[docs]</a>    <span class="k">def</span> <span class="nf">pre</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">WebAction</span><span class="o">.</span><span class="n">enable_doc_table</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">self_</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">func_name</span>
+            <span class="n">DocTablePlugin</span><span class="o">.</span><span class="n">__doc_table</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">exec_info</span><span class="o">.</span><span class="n">doc</span></div>
+
+<div class="viewcode-block" id="DocTablePlugin.get_doc"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DocTablePlugin.get_doc">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_doc</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">class_name</span><span class="p">,</span> <span class="n">method_name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__doc_table</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">class_name</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="n">method_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DocTablePlugin.final"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.DocTablePlugin.final">[docs]</a>    <span class="k">def</span> <span class="nf">final</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exec_info</span><span class="p">:</span> <span class="n">ExecInfo</span><span class="p">,</span> <span class="n">exception</span><span class="p">):</span>
+        <span class="k">pass</span></div></div>
+
+
+<div class="viewcode-block" id="WebAction"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebAction">[docs]</a><span class="k">class</span> <span class="nc">WebAction</span><span class="p">(</span><span class="n">BaseDecorator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Decorator to decorate all the WebActions on the HelperFile&quot;&quot;&quot;</span>
+    <span class="n">enable_doc_table</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">hide_args</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">delay</span><span class="o">=</span><span class="n">_CONF</span><span class="o">.</span><span class="n">WebAction</span><span class="o">.</span><span class="n">DELAY</span><span class="p">,</span> <span class="n">hide_ret</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_plugin</span><span class="p">(</span><span class="n">log</span><span class="p">,</span> <span class="n">hide_args</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="n">hide_ret</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WebAction.load_plugin"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebAction.load_plugin">[docs]</a>    <span class="k">def</span> <span class="nf">load_plugin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">hide_args</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="n">hide_ret</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_plugin</span><span class="p">(</span>
+            <span class="n">LoggerPlugin</span><span class="p">(</span>
+                <span class="s2">&quot;WEB&quot;</span><span class="p">,</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+                <span class="n">hide_args</span><span class="o">=</span><span class="n">hide_args</span><span class="p">,</span>
+                <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;.  &quot;</span><span class="p">,</span>
+                <span class="n">hide_ret</span><span class="o">=</span><span class="n">hide_ret</span><span class="p">,</span>
+                <span class="n">log</span><span class="o">=</span><span class="n">log</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">delay</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_plugin</span><span class="p">(</span><span class="n">DelayPlugin</span><span class="p">(</span><span class="n">delay</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_plugin</span><span class="p">(</span>
+            <span class="n">WebSupportPlugin</span><span class="p">(</span>
+                <span class="s2">&quot;Web Operation&quot;</span><span class="p">,</span>
+                <span class="mi">2</span><span class="p">,</span>
+                <span class="n">WebDriverException</span><span class="p">,</span>
+                <span class="n">enable_args</span><span class="o">=</span><span class="n">log</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">hide_args</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_plugin</span><span class="p">(</span><span class="n">DocTablePlugin</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="PageService"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.PageService">[docs]</a><span class="k">class</span> <span class="nc">PageService</span><span class="p">(</span><span class="n">BaseDecorator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Decorator to decorate all the PageService methods on the HelperFile&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">log</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">hide_args</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">hide_ret</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_plugins</span><span class="p">(</span><span class="n">log</span><span class="p">,</span> <span class="n">hide_args</span><span class="p">,</span> <span class="n">hide_ret</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PageService.load_plugins"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.PageService.load_plugins">[docs]</a>    <span class="k">def</span> <span class="nf">load_plugins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">log</span><span class="p">,</span> <span class="n">hide_args</span><span class="p">,</span> <span class="n">hide_ret</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_plugin</span><span class="p">(</span>
+            <span class="n">LoggerPlugin</span><span class="p">(</span>
+                <span class="s2">&quot;SVC&quot;</span><span class="p">,</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+                <span class="n">hide_args</span><span class="o">=</span><span class="n">hide_args</span><span class="p">,</span>
+                <span class="n">hide_ret</span><span class="o">=</span><span class="n">hide_ret</span><span class="p">,</span>
+                <span class="n">log</span><span class="o">=</span><span class="n">log</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">selenium_plugin</span> <span class="o">=</span> <span class="n">WebSupportPlugin</span><span class="p">(</span>
+            <span class="s2">&quot;Functionality&quot;</span><span class="p">,</span>
+            <span class="mi">3</span><span class="p">,</span>
+            <span class="n">CVException</span><span class="p">,</span>
+            <span class="n">enable_args</span><span class="o">=</span><span class="n">log</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">hide_args</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_plugin</span><span class="p">(</span><span class="n">selenium_plugin</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestStep"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.TestStep">[docs]</a><span class="k">class</span> <span class="nc">TestStep</span><span class="p">(</span><span class="n">BaseDecorator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Decorator to decorate the TestStep inside the TestCases&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_plugins</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TestStep.load_plugins"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.TestStep.load_plugins">[docs]</a>    <span class="k">def</span> <span class="nf">load_plugins</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_plugin</span><span class="p">(</span>
+            <span class="n">TestStepLoggerPlugin</span><span class="p">(</span><span class="s2">&quot;TS&quot;</span><span class="p">,</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_plugin</span><span class="p">(</span>
+            <span class="n">WebSupportPlugin</span><span class="p">(</span>
+                <span class="s2">&quot;TestStep&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">CVTestStepFailure</span><span class="p">,</span> <span class="n">hide_method</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="IntegrationTestStep"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestStep">[docs]</a><span class="k">class</span> <span class="nc">IntegrationTestStep</span><span class="p">(</span><span class="n">TestStep</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Decorator to decorate the Integration TestStep on the TestCase&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clazz</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_plugin</span><span class="p">(</span><span class="n">IntegrationTestPlugin</span><span class="p">(</span><span class="n">clazz</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="get_errors"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.get_errors">[docs]</a><span class="k">def</span> <span class="nf">get_errors</span><span class="p">(</span><span class="n">excp</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">ExceptionStore</span><span class="o">.</span><span class="n">get_errors</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="formatted_error_summary"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.formatted_error_summary">[docs]</a><span class="k">def</span> <span class="nf">formatted_error_summary</span><span class="p">(</span><span class="n">excp</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">ExceptionStore</span><span class="o">.</span><span class="n">formatted_error_str</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="trimmed_excp"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.trimmed_excp">[docs]</a><span class="k">def</span> <span class="nf">trimmed_excp</span><span class="p">(</span><span class="n">excp</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">ExceptionStore</span><span class="o">.</span><span class="n">trimmed_exception_str</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WebActionsExecutor"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebActionsExecutor">[docs]</a><span class="k">class</span> <span class="nc">WebActionsExecutor</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Extracts all the web actions on the helper, use this for Integration test&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">skip_parent_methods</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">self_</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clazz</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__class__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip_parent_methods</span> <span class="o">=</span> <span class="n">skip_parent_methods</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__closure_handler</span> <span class="o">=</span> <span class="n">_ClosureHandler</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">self_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">clazz</span><span class="p">,</span> <span class="n">WebAction</span><span class="p">,</span> <span class="n">skip_parent_methods</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__method_table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__closure_handler</span><span class="o">.</span><span class="n">methods</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__remaining_methods</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__method_table</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__local_store</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">proxy_methods</span> <span class="o">=</span> <span class="n">_ProxyFunction</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">self_</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__method_table</span><span class="p">[</span><span class="n">func</span><span class="p">],</span>
+                <span class="n">func</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__local_store</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__remaining_methods</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">return</span> <span class="n">proxy_methods</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span>
+                <span class="n">func</span> <span class="o">+</span> <span class="s2">&quot; not found, please call WebActionsExecutor.all_methods &quot;</span>
+                       <span class="s2">&quot;function to see the list of functions available for &quot;</span>
+                       <span class="s2">&quot;integration testing.&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WebActionsExecutor.all_methods"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebActionsExecutor.all_methods">[docs]</a>    <span class="k">def</span> <span class="nf">all_methods</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__method_table</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="WebActionsExecutor.remaining_methods"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebActionsExecutor.remaining_methods">[docs]</a>    <span class="k">def</span> <span class="nf">remaining_methods</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the list of WebAction methods&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__remaining_methods</span></div>
+
+<div class="viewcode-block" id="WebActionsExecutor.finish_and_exit"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.WebActionsExecutor.finish_and_exit">[docs]</a>    <span class="k">def</span> <span class="nf">finish_and_exit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Call this method at the end of test completion&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="n">_CVIntegrationTestStepComplete</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__local_store</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">clazz</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">skip_parent_methods</span>
+        <span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ResultValidator"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ResultValidator">[docs]</a><span class="k">class</span> <span class="nc">ResultValidator</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<div class="viewcode-block" id="ResultValidator.test_return"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ResultValidator.test_return">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">test_return</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">return_</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="ResultValidator.failure_message"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.ResultValidator.failure_message">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">failure_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">return_</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div></div>
+
+
+<div class="viewcode-block" id="IntegrationTestCase"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestCase">[docs]</a><span class="k">class</span> <span class="nc">IntegrationTestCase</span><span class="p">(</span><span class="n">CVTestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Inherit this class instead of extending the CVTestCase class</span>
+<span class="sd">    for integration tests</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__it_results</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__build_result_for_clazz</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clazz</span><span class="p">,</span> <span class="n">skip_parent_methods</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">clazz</span><span class="o">.</span><span class="vm">__name__</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__it_results</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">closure</span> <span class="o">=</span> <span class="n">_ClosureHandler</span><span class="p">(</span>
+                <span class="kc">None</span><span class="p">,</span> <span class="n">clazz</span><span class="p">,</span> <span class="n">WebAction</span><span class="p">,</span>
+                <span class="n">skip_parent_methods</span><span class="o">=</span><span class="n">skip_parent_methods</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__it_results</span><span class="p">[</span><span class="n">clazz</span><span class="o">.</span><span class="vm">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">name</span><span class="p">:</span> <span class="kc">None</span>
+                <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span>
+                    <span class="n">m</span> <span class="k">for</span> <span class="n">um</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">closure</span><span class="o">.</span><span class="n">methods</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="p">]</span>
+            <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__add_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">err_store</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">cls_name</span> <span class="ow">in</span> <span class="n">err_store</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">method</span> <span class="ow">in</span> <span class="n">err_store</span><span class="p">[</span><span class="n">cls_name</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">m_info</span> <span class="o">=</span> <span class="n">err_store</span><span class="p">[</span><span class="n">cls_name</span><span class="p">][</span><span class="n">method</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__it_results</span><span class="p">[</span><span class="n">cls_name</span><span class="p">][</span><span class="n">method</span><span class="p">]</span> <span class="o">=</span> <span class="n">m_info</span>
+
+    <span class="k">def</span> <span class="nf">__log_integration_results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">get_log</span><span class="p">()</span><span class="o">.</span><span class="n">info</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n\n\n</span><span class="s2">&quot;</span>
+        <span class="n">s</span> <span class="o">+=</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">30</span> <span class="o">+</span> <span class="s2">&quot; Test Summary &quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">30</span>
+        <span class="k">for</span> <span class="n">cls_name</span><span class="p">,</span> <span class="n">method</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">integration_results</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">*</span> <span class="mi">15</span> <span class="o">+</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{cls_name}</span><span class="s2"> :</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">method</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">s</span> <span class="o">+=</span> <span class="n">f</span><span class="s2">&quot;   </span><span class="si">{name:&lt;40}</span><span class="s2"> </span><span class="si">{info[&#39;Description&#39;]:&lt;60}</span><span class="s2"> </span><span class="si">{info[&#39;Result&#39;]}</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">s</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="mi">72</span>
+        <span class="n">log</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;  &quot;</span><span class="p">,</span> <span class="s2">&quot;. &quot;</span><span class="p">))</span>
+
+<div class="viewcode-block" id="IntegrationTestCase.verbose_integration_results"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestCase.verbose_integration_results">[docs]</a>    <span class="k">def</span> <span class="nf">verbose_integration_results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__it_results</span></div>
+
+<div class="viewcode-block" id="IntegrationTestCase.integration_results"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestCase.integration_results">[docs]</a>    <span class="k">def</span> <span class="nf">integration_results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">v_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose_integration_results</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="n">ret_res</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">cls_name</span><span class="p">,</span> <span class="n">methods</span> <span class="ow">in</span> <span class="n">v_results</span><span class="p">:</span>
+            <span class="n">ret_res</span><span class="p">[</span><span class="n">cls_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">m_name</span><span class="p">,</span> <span class="n">m_info</span> <span class="ow">in</span> <span class="n">methods</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">ret_res</span><span class="p">[</span><span class="n">cls_name</span><span class="p">][</span><span class="n">m_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">res_p</span> <span class="o">=</span> <span class="n">ret_res</span><span class="p">[</span><span class="n">cls_name</span><span class="p">][</span><span class="n">m_name</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">m_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">res_p</span><span class="p">[</span><span class="s2">&quot;Result&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Not automated&quot;</span>
+                    <span class="n">res_p</span><span class="p">[</span><span class="s2">&quot;Description&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;N/A&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">m_info</span><span class="p">[</span><span class="s2">&quot;Exception&quot;</span><span class="p">]:</span>
+                        <span class="n">res_p</span><span class="p">[</span><span class="s2">&quot;Result&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;FAILED&quot;</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">res_p</span><span class="p">[</span><span class="s2">&quot;Result&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;PASSED&quot;</span>
+                    <span class="n">res_p</span><span class="p">[</span><span class="s2">&quot;Description&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">m_info</span><span class="p">[</span><span class="s2">&quot;Description&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">ret_res</span></div>
+
+<div class="viewcode-block" id="IntegrationTestCase.run"><a class="viewcode-back" href="../../../../Automation.Web.Common.html#Automation.Web.Common.page_object.IntegrationTestCase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">closures</span> <span class="o">=</span> <span class="n">_ClosureHandler</span><span class="p">(</span>
+            <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">TestStep</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">method</span> <span class="ow">in</span> <span class="n">closures</span><span class="o">.</span><span class="n">cell_methods</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">)()</span>
+            <span class="k">except</span> <span class="n">_CVIntegrationTestStepComplete</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__build_result_for_clazz</span><span class="p">(</span>
+                    <span class="n">excp</span><span class="o">.</span><span class="n">clazz</span><span class="p">,</span> <span class="n">excp</span><span class="o">.</span><span class="n">skip_parent_methods</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__add_error</span><span class="p">(</span><span class="n">excp</span><span class="o">.</span><span class="n">err_store</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__log_integration_results</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

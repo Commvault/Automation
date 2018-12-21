@@ -1,0 +1,262 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.AutomationUtils.mailer &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.AutomationUtils.mailer</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for sending Automation Report emails.</span>
+
+<span class="sd">Mailer is the only class defined in this file.</span>
+
+<span class="sd">Mailer: Class that makes a request to the server to send email report to specified users.</span>
+
+<span class="sd">Mailer:</span>
+<span class="sd">    __init__()                  --  initialize objects of Mailer class</span>
+
+<span class="sd">    mail()                      --  Sends the email to specified receivers</span>
+
+<span class="sd">    parse_template_config()     --  checks for valid json file and correcponding keys</span>
+
+<span class="sd">    parse_receiver()            -- checks for receivers and replaces the delimiters in the</span>
+<span class="sd">                                   mail addresses by &#39;,&#39;.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">smtplib</span> <span class="k">import</span> <span class="n">SMTP</span>
+<span class="kn">from</span> <span class="nn">email.mime.text</span> <span class="k">import</span> <span class="n">MIMEText</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">AUTOMATION_EMAIL</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">CONFIG_FILE_PATH</span>
+
+
+<div class="viewcode-block" id="Mailer"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.mailer.Mailer">[docs]</a><span class="k">class</span> <span class="nc">Mailer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class that makes a request to the server to send email report to specified users.&quot;&quot;&quot;</span>
+
+    <span class="n">RECEIVERS</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mailing_inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize required attributes of the mailer object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            mailing_inputs      (dict)    --  required inputs to send an email</span>
+<span class="sd">                    default: None</span>
+
+<span class="sd">                    Example:</span>
+<span class="sd">                        {</span>
+<span class="sd">                            &quot;receiver&quot;: &quot;user1@test.com,user2@test.com&quot;</span>
+
+<span class="sd">                        }</span>
+
+<span class="sd">            commcell_object     (object)  --  object reference to this commcell</span>
+<span class="sd">                    default: None</span>
+
+<span class="sd">        **Note:**  If mailing_inputs is not defined we pick the mailing inputs from</span>
+<span class="sd">                    static attribute (Mailer.RECEIVERS)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span> <span class="o">=</span> <span class="n">commcell_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_data</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">parse_template_config</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">commcell_object</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">error_message</span> <span class="o">=</span> <span class="s2">&quot;Commcell object is not initialized.&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">parse_receiver</span><span class="p">(</span><span class="n">mailing_inputs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Mailer.mail"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.mailer.Mailer.mail">[docs]</a>    <span class="k">def</span> <span class="nf">mail</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">autocenter</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Sends the mail notification to specified recipients via REST API if commcell</span>
+<span class="sd">            object is initialized or via SMTPlib when commcell object is not initialized</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                subject   (str)     --  subject of the mail to be sent</span>
+
+<span class="sd">                body      (str)     --  content to be sent in the mail</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">autocenter</span><span class="p">:</span>
+                <span class="n">receiver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sending email to: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">receiver</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span><span class="o">.</span><span class="n">send_mail</span><span class="p">(</span>
+                    <span class="n">receiver</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span>
+                    <span class="n">copy_sender</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;email&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;copySender&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully sent email to: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">receiver</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Commcell Object is not initialized. Will check email configuration&quot;</span>
+                    <span class="s2">&quot; details from config file.&quot;</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="p">][</span><span class="s1">&#39;server&#39;</span><span class="p">]:</span>
+                    <span class="n">error_message</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;Email server details are not specified in configuration&quot;</span>
+                    <span class="s2">&quot; file. Please configure email server details.&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+
+                <span class="n">message</span> <span class="o">=</span> <span class="n">MIMEText</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="s1">&#39;html&#39;</span><span class="p">)</span>
+                <span class="n">message</span><span class="p">[</span><span class="s1">&#39;Subject&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">subject</span>
+                <span class="k">if</span> <span class="n">autocenter</span><span class="p">:</span>
+                    <span class="kn">from</span> <span class="nn">Autocenter</span> <span class="k">import</span> <span class="n">defines</span> <span class="k">as</span> <span class="n">AC_Defines</span>
+                    <span class="n">message</span><span class="p">[</span><span class="s1">&#39;From&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">AC_Defines</span><span class="o">.</span><span class="n">DEV_AUTOCENTER</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">message</span><span class="p">[</span><span class="s1">&#39;From&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">AUTOMATION_EMAIL</span>
+                <span class="n">message</span><span class="p">[</span><span class="s1">&#39;To&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span>
+
+                <span class="n">mail</span> <span class="o">=</span> <span class="n">SMTP</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="p">][</span><span class="s1">&#39;server&#39;</span><span class="p">])</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="p">][</span><span class="s1">&#39;username&#39;</span><span class="p">]:</span>
+                        <span class="n">mail</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="p">][</span><span class="s1">&#39;username&#39;</span><span class="p">],</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">config_data</span><span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="p">][</span><span class="s1">&#39;password&#39;</span><span class="p">])</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sending email to: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span><span class="p">)</span>
+                    <span class="n">mail</span><span class="o">.</span><span class="n">sendmail</span><span class="p">(</span><span class="n">message</span><span class="p">[</span><span class="s1">&#39;From&#39;</span><span class="p">],</span> <span class="n">message</span><span class="p">[</span><span class="s1">&#39;To&#39;</span><span class="p">],</span> <span class="n">message</span><span class="o">.</span><span class="n">as_string</span><span class="p">())</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;E-mail sent via SMTP server.&quot;</span><span class="p">)</span>
+                <span class="k">finally</span><span class="p">:</span>
+                    <span class="n">mail</span><span class="o">.</span><span class="n">quit</span><span class="p">()</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="n">exp_msg</span> <span class="o">=</span> <span class="s2">&quot;Failed to send mail with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">exp_msg</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Mailer.parse_template_config"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.mailer.Mailer.parse_template_config">[docs]</a>    <span class="k">def</span> <span class="nf">parse_template_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Checks whether the path to the template_config.json is valid  and parses</span>
+<span class="sd">            the template_config.json to get the values of server, username and password.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            OSError: When the json file does not exist.</span>
+<span class="sd">                     Permission is not granted to execute os.stat() on the requested file,</span>
+<span class="sd">                     even if the path physically exists.</span>
+
+<span class="sd">            IOError: Unable to read the file.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">CONFIG_FILE_PATH</span><span class="p">):</span>
+            <span class="n">error_message</span> <span class="o">=</span> <span class="s2">&quot;Failed to read configuration file. Either the user doesn’t have&quot;</span>
+            <span class="s2">&quot; permission or configuration file is not present. Skip sending email via SMTP.&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;Failed to send email.&quot;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">CONFIG_FILE_PATH</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">config_file</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">config_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+            <span class="n">error_message</span> <span class="o">=</span> <span class="s2">&quot;Unable to read template_config.json.&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Mailer.parse_receiver"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.mailer.Mailer.parse_receiver">[docs]</a>    <span class="k">def</span> <span class="nf">parse_receiver</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mailing_inputs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; checks for list of receiver email and also replaces the delimiters &#39;:&#39; and &#39;;&#39;</span>
+<span class="sd">            with &#39;,&#39;.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">                mailing_inputs   (str)     --  email_addresses to which email has to be sent.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">                Exception: When the email receiver list is empty.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">mailing_inputs</span> <span class="ow">and</span> <span class="s1">&#39;receiver&#39;</span> <span class="ow">in</span> <span class="n">mailing_inputs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">mailing_inputs</span><span class="p">[</span><span class="s1">&#39;receiver&#39;</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">Mailer</span><span class="o">.</span><span class="n">RECEIVERS</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span> <span class="o">=</span> <span class="n">Mailer</span><span class="o">.</span><span class="n">RECEIVERS</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">error_message</span> <span class="o">=</span> <span class="s2">&quot;Email receiver&#39;s list is empty. Please specify the receiver&#39;s.&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;:&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s1">&#39;;&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receiver</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

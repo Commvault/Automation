@@ -1,0 +1,932 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.FileSystem.FSUtils.onepasshelper &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.FileSystem.FSUtils.onepasshelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for performing onepass operations</span>
+
+<span class="sd">cvonepas_helper: Helper class to perform file system onepass operations</span>
+
+<span class="sd">cvonepas_helper:</span>
+<span class="sd">    __init__()              --  initializes cvonepas_helper helper object</span>
+
+<span class="sd">    populate_inputs()       -- use to pass all the input values</span>
+<span class="sd">                               to related variables</span>
+
+<span class="sd">    get_client_machine()    -- return client machine object</span>
+
+<span class="sd">    set_client_machine()    --  create new client machine object</span>
+<span class="sd">                                and assign to self.client_machine</span>
+
+<span class="sd">    create_backupset()      -- create new backupset</span>
+
+<span class="sd">    create_subclient()      --  creates new subclient</span>
+
+<span class="sd">    run_archive()           --  run onpass subclient archive job</span>
+
+<span class="sd">    set_scan_type()         -- change subclient scan type setting</span>
+
+<span class="sd">    verify_stub()           --  verify stub creation</span>
+
+<span class="sd">    recall()                --  do onepass recall process</span>
+
+<span class="sd">    restore_in_place_restoreStub_unconditional()</span>
+<span class="sd">                            --  Run onepass in place restore with</span>
+<span class="sd">                                restore stub option enabled</span>
+
+<span class="sd">    verify_restore_result() --  verify onepass restore result</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">FileSystem.FSUtils.fshelper</span> <span class="k">import</span> <span class="n">ScanType</span><span class="p">,</span> <span class="n">FSHelper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.unix_machine</span> <span class="k">import</span> <span class="n">UnixMachine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="k">import</span> <span class="n">CVTestCase</span>
+
+
+<div class="viewcode-block" id="cvonepas_helper"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper">[docs]</a><span class="k">class</span> <span class="nc">cvonepas_helper</span><span class="p">(</span><span class="n">FSHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to perform file system operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize instance of the OnePass class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                testcase    (object)  --    Object of CVTestCase</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if a valid CVTestCase object is not passed.</span>
+<span class="sd">                    if CVTestCase object doesn&#39;t have agent initialized</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">testcase</span><span class="p">,</span> <span class="n">CVTestCase</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Valid test case object must be passed as argument&quot;</span>
+            <span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">cvonepas_helper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">testcase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">media_agent</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">library_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_host_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_host_user_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_host_password</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">archiveset_name</span> <span class="o">=</span> <span class="s1">&#39;DefaultArchiveSet&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_archiver_instance_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">access_path</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agent_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agent_machine_host_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agent_name_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nas_turbo_type</span> <span class="o">=</span> <span class="s1">&#39;Local&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subclient_prop</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">restore_path</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">org_hashcode</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recall_hash</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">restore_hashcode</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feature</span> <span class="o">=</span> <span class="s2">&quot;Data Protection&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">product</span> <span class="o">=</span> <span class="s2">&quot;FileSystem&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slash_format</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scan_type</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Change Journal&#39;</span><span class="p">,</span> <span class="s1">&#39;Classic File Scan&#39;</span><span class="p">,</span>
+                          <span class="s1">&#39;DC for FS backups&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_file_list</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">&quot;shouldbearchived.txt&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                               <span class="p">(</span><span class="s2">&quot;shouldnotbearchived.txt&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)]</span>
+
+<div class="viewcode-block" id="cvonepas_helper.populate_inputs"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.populate_inputs">[docs]</a>    <span class="k">def</span> <span class="nf">populate_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mandatory</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes all the test case inputs after validation</span>
+<span class="sd">            Args:</span>
+<span class="sd">                mandatory      (bool)   --  whether to check  mandatory inputs</span>
+<span class="sd">                                            and raise exception if not found</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                 Exception:</span>
+<span class="sd">                     if a valid CVTestCase object is not passed.</span>
+<span class="sd">                     if CVTestCase object doesn&#39;t have agent initialized</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;at populate_inputs function&quot;</span><span class="p">)</span>
+        <span class="n">case</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;start parsing test case input parameters&#39;</span><span class="p">)</span>
+            <span class="c1"># initial all the input value in parent class first</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">populate_tc_inputs</span><span class="p">(</span><span class="n">case</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">product</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">products_list</span><span class="o">.</span><span class="n">FILESYSTEM</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">feature</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">features_list</span><span class="o">.</span><span class="n">DATAPROTECTION</span>
+            <span class="n">case</span><span class="o">.</span><span class="n">show_to_user</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">access_path</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;TestPath&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;storage_policy_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s1">&#39;StoragePolicyName&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ClientName&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_host_name</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;HostName&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_host_user_name</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;UserName&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_host_password</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Password&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">agent_name_list</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;DataAccessNodes&#39;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_name_list</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">agent_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_name_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">agent_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nas_turbo_type</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;NASTurboType&#39;</span><span class="p">,</span> <span class="s1">&#39;Local&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nas_turbo_type</span> <span class="o">==</span> <span class="s1">&#39;Local&#39;</span>
+                    <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agent_name_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">nas_turbo_type</span> <span class="o">=</span> <span class="s1">&#39;NetworkShare&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">nas_turbo_type</span> <span class="o">=</span> <span class="s1">&#39;Local&#39;</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;storage_policy_name&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+                    <span class="n">mandatory</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;StoragePolicyName is a&quot;</span>
+                    <span class="s2">&quot; mandatory string input for the test case&quot;</span>
+                    <span class="p">)</span>
+            <span class="k">if</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">access_path</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">mandatory</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;TestPath is a&quot;</span>
+                    <span class="s2">&quot; mandatory string input for the test case&quot;</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">((</span><span class="n">case</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">agent_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;file system&quot;</span><span class="p">)</span> <span class="ow">or</span>
+                    <span class="n">case</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">agent_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="c1"># provide default value</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="n">case</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="s2">&quot;DefaultInstanceName&quot;</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># not support for other agent</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_client_machine</span><span class="p">()</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s1">&#39;exception raised at with error : </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Backupset Creation Failed with error&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.get_client_machine"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.get_client_machine">[docs]</a>    <span class="k">def</span> <span class="nf">get_client_machine</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the machine object.&quot;&quot;&quot;</span>
+
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;at get_client_machine function&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Client machine  not initialized&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;exception raised with error </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;exception raise at get_client_machine function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.set_client_machine"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.set_client_machine">[docs]</a>    <span class="k">def</span> <span class="nf">set_client_machine</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; set machine object</span>
+
+<span class="sd">            for traditional file system and onepass local Agent, we will</span>
+<span class="sd">            use actual client machine to create machine object</span>
+<span class="sd">            for pseudo client, we will create machine object point</span>
+<span class="sd">            to agent machine</span>
+<span class="sd">            for multi-nodes pseudo client, we will use the first node</span>
+<span class="sd">            as main node, and create machine object point to first node</span>
+<span class="sd">            since all the agent machine should be active machine on CS,</span>
+<span class="sd">            so we will create agent machine object based on cvd method</span>
+<span class="sd">            to minimize the input requirements (no extra agent machine</span>
+<span class="sd">            login account info needed)</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Return:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                 Exception:</span>
+<span class="sd">                     if fail to create machine object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;at set_client_machine function&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cv_testcase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">agent_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;file system&quot;</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">nas_turbo_type</span> <span class="o">==</span> <span class="s1">&#39;Local&#39;</span><span class="p">):</span>
+                <span class="n">_actual_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span>
+                <span class="n">_actual_client_host_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_host_name</span>
+                <span class="n">_actual_client_username</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_host_user_name</span>
+                <span class="n">_actual_client_password</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_host_password</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># in case for multi-node, only use the</span>
+                <span class="c1"># fist node as access machine</span>
+                <span class="n">_actual_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_name_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="c1"># for sudo client,since proxy machine should be active machine</span>
+                <span class="n">_actual_client_host_name</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="c1"># for sudo client, we will rely on cvd to do</span>
+                <span class="c1"># actual client side access</span>
+                <span class="n">_actual_client_host_user_name</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="c1"># to simplify the input parameters for each test case</span>
+                <span class="n">_actual_client_host_password</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">_actual_client_username</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                    <span class="n">_actual_client_password</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="c1"># If credentials are given, directly login using credentials</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">_actual_client_host_name</span><span class="p">,</span>
+                                              <span class="n">_actual_client_username</span><span class="p">,</span>
+                                              <span class="n">_actual_client_password</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># If no credentials are given, use cvd for all communications</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">_actual_client</span><span class="p">,</span>
+                                              <span class="n">cv_testcase</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="p">,</span> <span class="n">UnixMachine</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slash_format</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slash_format</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;exception raised at with error </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;exception raise at set_client_machine function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.create_backupset"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.create_backupset">[docs]</a>    <span class="k">def</span> <span class="nf">create_backupset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        this is wrap function, it will just pass the request to</span>
+<span class="sd">        superclass create_backupset function</span>
+
+<span class="sd">         Args:</span>
+<span class="sd">                name: (str)</span>
+
+<span class="sd">                            --need provide string value of testcase.id</span>
+
+<span class="sd">                            default: None, function will assign backupset</span>
+<span class="sd">                                     Name  as Backupset_testcase.Id</span>
+
+<span class="sd">                delete:         (bool)</span>
+
+<span class="sd">                            default: False - will not recreate backupset</span>
+<span class="sd">                                             if existed</span>
+<span class="sd">                                     True - will recreate backupset</span>
+
+<span class="sd">            Return:</span>
+<span class="sd">                parent class create_backupset function</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;at create_backupset function&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_backpupset_name</span> <span class="o">=</span> <span class="s1">&#39;Backupset_</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_backpupset_name</span> <span class="o">=</span> <span class="n">name</span>
+
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">cvonepas_helper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">create_backupset</span><span class="p">(</span>
+            <span class="n">_backpupset_name</span><span class="p">,</span>
+            <span class="n">delete</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.create_subclient"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.create_subclient">[docs]</a>    <span class="k">def</span> <span class="nf">create_subclient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">storage_policy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">content</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filter_content</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">exception_content</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">trueup_option</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                         <span class="n">trueup_days</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">scan_type</span><span class="o">=</span><span class="n">ScanType</span><span class="o">.</span><span class="n">OPTIMIZED</span><span class="p">,</span>
+                         <span class="n">data_readers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">allow_multiple_readers</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                         <span class="n">read_buffer_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                         <span class="n">block_level_backup</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                         <span class="n">data_access_nodes</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function is a wrap  function and will pass value to</span>
+<span class="sd">        parent class create_subclient function</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                storage_policy:  (str) -- associated storage policy Name</span>
+
+<span class="sd">                name:     (str) -- name of subclient, function will</span>
+<span class="sd">                                                set default name</span>
+<span class="sd">                                                dfault: None</span>
+
+<span class="sd">                content:  (list) -- subclient content, function will</span>
+<span class="sd">                                                set default content if not</span>
+<span class="sd">                                                default: None</span>
+
+<span class="sd">                filter_content:   (list) -- filter list</span>
+<span class="sd">                                                default: None</span>
+
+<span class="sd">                exception_content:(list) -- exception list</span>
+<span class="sd">                                                default: None</span>
+
+<span class="sd">                trueup_option:     (bool) -- enable / disable true up</span>
+<span class="sd">                                                default: True</span>
+
+<span class="sd">                trueup_days:        (int)  -- trueup after n days</span>
+<span class="sd">                                                default: 30</span>
+
+<span class="sd">                scan_type:          (ScanType(Enum))</span>
+<span class="sd">                                               --scan type as one of below</span>
+<span class="sd">                                                         RECURSIVE</span>
+<span class="sd">                                                         OPTIMIZED</span>
+<span class="sd">                                                         CHANGEJOURNAL</span>
+<span class="sd">                                                default: ScanType.OPTIMIZED</span>
+
+<span class="sd">                data_readers:           (int) --number of data readers</span>
+<span class="sd">                                                default: 2</span>
+
+
+<span class="sd">                allow_multiple_readers: (bool)--enable / disable</span>
+<span class="sd">                                                allow multiple readers</span>
+<span class="sd">                                                default: False</span>
+
+
+
+<span class="sd">                read_buffer_size:   (int) --read buffer size in KB</span>
+<span class="sd">                                                default: 512</span>
+
+<span class="sd">                delete:             (bool) -- indicates whether existing</span>
+<span class="sd">                                                subclient should be deleted</span>
+<span class="sd">                                                default: False</span>
+
+<span class="sd">                block_level_backup  (str) -- blocklevel backup data switch</span>
+<span class="sd">                                               default: None</span>
+
+<span class="sd">                data_access_nodes   (list) --creates a subclient with</span>
+<span class="sd">                                             access nodes for NAS onepas</span>
+<span class="sd">                                             default : None</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                 parent class create_subclient function will assigned value</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                 Exception - Any error occurred during Subclient creation</span>
+
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Create Subclient, TestContent and  Path info</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;at create_subclient function&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;start create new test_set&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">storage_policy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_storage_policy</span> <span class="o">=</span> <span class="n">storage_policy</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_storage_policy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;storage_policy_name&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;SC_</span><span class="si">{0}</span><span class="s1">_</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="n">scan_type</span><span class="o">.</span><span class="n">name</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">name</span>
+
+            <span class="k">if</span> <span class="n">content</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_content&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">access_path</span> <span class="o">+</span>
+                        <span class="s1">&#39;</span><span class="si">{0}{1}</span><span class="s1">_</span><span class="si">{2}</span><span class="s1">_data&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">slash_format</span><span class="p">,</span>
+                            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+                            <span class="n">scan_type</span><span class="o">.</span><span class="n">name</span>
+                            <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_content&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">content</span>
+            <span class="n">_src_path1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_content&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">_restore_path</span> <span class="o">=</span> <span class="n">_src_path1</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;data&#39;</span><span class="p">,</span> <span class="s1">&#39;restore&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;outofplace_restore_path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_restore_path</span>
+            <span class="k">if</span> <span class="n">data_access_nodes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_data_access_node</span> <span class="o">=</span> <span class="n">data_access_nodes</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_data_access_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent_name_list</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;filter&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">filter_content</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;exception&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">exception_content</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;trueup_enabled&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">trueup_option</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;trueup_days&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">trueup_days</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;scan_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scan_type</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;multiple_readers&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">allow_multiple_readers</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;data_readers&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data_readers</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;data_buffer&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">read_buffer_size</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">cvonepas_helper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">create_subclient</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_name&#39;</span><span class="p">],</span>
+                <span class="n">_storage_policy</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_content&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;filter&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;exception&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;trueup_enabled&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;trueup_days&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;scan_type&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;data_readers&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;multiple_readers&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;data_buffer&#39;</span><span class="p">],</span>
+                <span class="n">block_level_backup</span><span class="o">=</span><span class="n">block_level_backup</span><span class="p">,</span>
+                <span class="n">delete</span><span class="o">=</span><span class="n">delete</span><span class="p">,</span>
+                <span class="n">data_access_nodes</span><span class="o">=</span><span class="n">_data_access_node</span>
+                <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;exception raised at  with error </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;exception raise at create_subclient function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.set_scan_type"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.set_scan_type">[docs]</a>    <span class="k">def</span> <span class="nf">set_scan_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scan_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set subclient scan type</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                  scan_type  (ScanType(Enum))</span>
+<span class="sd">                                        --scan type as one of below</span>
+<span class="sd">                                                RECURSIVE</span>
+<span class="sd">                                                OPTIMIZED</span>
+<span class="sd">                                                CHANGEJOURNAL</span>
+<span class="sd">                                                default: ScanType.OPTIMIZED</span>
+
+<span class="sd">            Return:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                 Exception - Any error occurred during Subclient creation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;at set_scan_type function&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">scan_type</span> <span class="o">=</span> <span class="n">scan_type</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;exception raised with error </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;exception raise at set_scan_type function&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.prepare_turbo_testdata"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.prepare_turbo_testdata">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_turbo_testdata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content_path</span><span class="p">,</span> <span class="n">test_file_list</span><span class="p">,</span>
+                               <span class="n">size1</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">size2</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">backup_type</span><span class="o">=</span><span class="s1">&#39;Full&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function will generate test files mainly for onepass use</span>
+<span class="sd">            Args:</span>
+
+<span class="sd">                content_path (str): the folder path</span>
+
+<span class="sd">                test_file_list (list):</span>
+<span class="sd">                         e.g</span>
+<span class="sd">                         [(&#39;shouldbearchive.txt &#39;True&#39;),</span>
+<span class="sd">                         (&#39;shouldnotbearchive.txt &#39;False&#39;)]</span>
+<span class="sd">                         each item in testFileList will be tuple type</span>
+<span class="sd">                         include fileName and &#39;True&#39;/&#39;False&#39;</span>
+<span class="sd">                         fileName- the name of the file it will create</span>
+<span class="sd">                         &#39;True&#39; - means this file will meet migration rule</span>
+<span class="sd">                         and will create file with size as Size1</span>
+<span class="sd">                         &#39;False&#39;- means this file will not meet migration rule</span>
+<span class="sd">                         and will create file with size as Size2</span>
+
+<span class="sd">                size1   (int) -size of file using byte as unit, default is 0</span>
+
+<span class="sd">                size2   (int) -size of file using byte as unit, default is 0</span>
+
+<span class="sd">                backup_type  (str) backup job type, default is &#39;Full&#39;</span>
+
+<span class="sd">            Return:</span>
+
+<span class="sd">                self.client_machine.get_checksum_list(content_path)</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if error occurred</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="c1"># begin to backup</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;start parepare turbo test data &quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="p">,</span> <span class="n">Machine</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;client machine didn&#39;t initial,&quot;</span> <span class="o">+</span>
+                                <span class="s2">&quot; please call set_client_machine &quot;</span> <span class="o">+</span>
+                                <span class="s2">&quot;initial client first&quot;</span><span class="p">)</span>
+
+            <span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span>
+            <span class="k">if</span> <span class="n">backup_type</span> <span class="o">==</span> <span class="s1">&#39;Full&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_client</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">content_path</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Exception raised &quot;</span><span class="p">)</span>
+                <span class="n">_status</span> <span class="o">=</span> <span class="n">_client</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">content_path</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">_status</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to create modify directory&quot;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">_file</span><span class="p">,</span> <span class="n">_status</span> <span class="ow">in</span> <span class="n">test_file_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_status</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="n">_size</span> <span class="o">=</span> <span class="n">size1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">_size</span> <span class="o">=</span> <span class="n">size2</span>
+
+                <span class="n">_file_full_name</span> <span class="o">=</span> <span class="n">_client</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">content_path</span><span class="p">,</span> <span class="n">_file</span><span class="p">)</span>
+                <span class="n">_client</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="n">_file_full_name</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">file_size</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">_size</span><span class="p">))</span>
+
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">get_checksum_list</span><span class="p">(</span><span class="n">content_path</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;exception raised with error </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.run_archive"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.run_archive">[docs]</a>    <span class="k">def</span> <span class="nf">run_archive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backup_level</span><span class="o">=</span><span class="s1">&#39;INCREMENTAL&#39;</span><span class="p">,</span> <span class="n">do_not_wait</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; This function is a wrap function to run an archive job</span>
+<span class="sd">        for related subclient</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                 backup_level  (str)</span>
+<span class="sd">                                Full -&gt;FULL job,</span>
+<span class="sd">                                INCREMENTAL-&gt;INCREMENTAL job,</span>
+<span class="sd">                                DIFFERENTIAL-&gt;DIFFERENTIAL job,</span>
+<span class="sd">                                SYNTHETIC_FULL-&gt;</span>
+<span class="sd">                                    SYNTHETIC_FULL -runIncrementalBackup false,</span>
+<span class="sd">                                SynFullBackupWithIncBefore-&gt;</span>
+<span class="sd">                                    SYNTHETIC_FULL -runIncrementalBackup true,</span>
+<span class="sd">                                SynFullBackupWithIncAfter-&gt;</span>
+<span class="sd">                                    SYNTHETIC_FULL -runIncrementalBackup true</span>
+
+<span class="sd">                do_not_wait    (bool) True  - will return job instance and</span>
+<span class="sd">                                              not wait job finish</span>
+<span class="sd">                                      False - will wait job finish then</span>
+<span class="sd">                                              return the job instance</span>
+
+<span class="sd">             Returns:</span>
+<span class="sd">                 object - instance of the Job class for this archive job if</span>
+<span class="sd">                          its an immediate return Job</span>
+<span class="sd">                          instance of the Job class for the archive job if</span>
+<span class="sd">                          its a finished Job</span>
+
+<span class="sd">             Raises:</span>
+<span class="sd">                 SDKException:</span>
+<span class="sd">                     if backup level specified is not correct</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="c1"># begin to backup</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;start archive job with backup type: &quot;</span> <span class="o">+</span> <span class="n">backup_level</span><span class="p">)</span>
+        <span class="n">backup_map</span> <span class="o">=</span> \
+            <span class="p">{</span>
+                <span class="s1">&#39;Full&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Full&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;BEFORE_SYNTH&#39;</span><span class="p">),</span>
+                <span class="s1">&#39;INCREMENTAL&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Incremental&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;BEFORE_SYNTH&#39;</span><span class="p">),</span>
+                <span class="s1">&#39;DIFFERENTIAL&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Differential&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;BEFORE_SYNTH&#39;</span><span class="p">),</span>
+                <span class="s1">&#39;SYNTHETIC_FULL&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Synthetic_full&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;BEFORE_SYNTH&#39;</span><span class="p">),</span>
+                <span class="s1">&#39;SynFullBackupWithIncBefore&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Synthetic_full&#39;</span><span class="p">,</span>
+                                               <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;BEFORE_SYNTH&#39;</span><span class="p">),</span>
+                <span class="s1">&#39;SynFullBackupWithIncAfter&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;Synthetic_full&#39;</span><span class="p">,</span>
+                                              <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;AFTER_SYNTH&#39;</span><span class="p">),</span>
+            <span class="p">}</span>
+
+        <span class="p">(</span><span class="n">_backup_level</span><span class="p">,</span> <span class="n">_inc_backup</span><span class="p">,</span> <span class="n">_inc_level</span><span class="p">)</span> <span class="o">=</span> <span class="n">backup_map</span><span class="p">[</span><span class="n">backup_level</span><span class="p">]</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;at run_Archive function&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;start job with inc value = </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">backup_level</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span><span class="p">(</span><span class="n">do_not_wait</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span>
+               <span class="n">backup_level</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;SynFullBackupWithIncBefore&#39;</span><span class="p">,</span>
+                                    <span class="s1">&#39;SynFullBackupWithIncAfter&#39;</span><span class="p">)):</span>
+                <span class="n">current_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">_backup_level</span><span class="p">,</span>
+                                                             <span class="n">_inc_backup</span><span class="p">,</span>
+                                                             <span class="n">_inc_level</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">[</span><span class="n">current_job</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="n">do_not_wait</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span>
+                  <span class="n">backup_level</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;SynFullBackupWithIncBefore&#39;</span><span class="p">,</span>
+                                   <span class="s1">&#39;SynFullBackupWithIncAfter&#39;</span><span class="p">)):</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;do not wait option is only applicable for &#39;</span> <span class="o">+</span>
+                          <span class="s1">&#39;SynFullBackupWithIncBefore and &#39;</span> <span class="o">+</span>
+                          <span class="s1">&#39; SynFullBackupWithIncAfter backuptype&#39;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;exception raise at run_Archive function&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_inc_backup</span><span class="p">:</span>
+                    <span class="n">_backup_type_fullname</span> <span class="o">=</span> <span class="n">backup_level</span> <span class="o">+</span> <span class="s1">&#39; with incremental &#39;</span> \
+                                            <span class="o">+</span> <span class="n">_inc_level</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">_backup_type_fullname</span> <span class="o">=</span> <span class="n">backup_level</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting </span><span class="si">{0}</span><span class="s2"> Backup &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_backup_type_fullname</span><span class="p">))</span>
+                <span class="n">job_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_backup</span><span class="p">(</span><span class="n">backup_level</span><span class="o">=</span><span class="n">_backup_level</span><span class="p">,</span>
+                                           <span class="n">incremental_backup</span><span class="o">=</span><span class="n">_inc_backup</span><span class="p">,</span>
+                                           <span class="n">incremental_level</span><span class="o">=</span><span class="n">_inc_level</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">job_list</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Job error : </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Exception raise with error:</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.verify_stub"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.verify_stub">[docs]</a>    <span class="k">def</span> <span class="nf">verify_stub</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">test_data_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; this function will verify whether stub rules get honor</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">               path     (str)  parent folder path</span>
+<span class="sd">                               default: None function will automatically assign</span>
+<span class="sd">                                        self.subclient_props[&#39;subclient_content&#39;][0]</span>
+
+<span class="sd">               test_data_list (list) with each item as tuple type</span>
+<span class="sd">                        e.g</span>
+<span class="sd">                            [(&#39;shouldbearchive.txt &#39;True&#39;),</span>
+<span class="sd">                            (&#39;shouldnotbearchive.txt &#39;False&#39;)]</span>
+<span class="sd">                            fileName- the name of the file it will create</span>
+<span class="sd">                            &#39;True&#39; - means this file will meet migration rule</span>
+<span class="sd">                                    and will create file with size as Size1</span>
+<span class="sd">                            &#39;False&#39;- means file will not meet migration rule</span>
+<span class="sd">                                    and will create file with size as Size2</span>
+
+<span class="sd">                            default: None, function will automatically</span>
+<span class="sd">                                     assign self.test_file_list</span>
+
+<span class="sd">             Return:</span>
+<span class="sd">                 None</span>
+
+<span class="sd">             Raises:</span>
+<span class="sd">                 exception:</span>
+<span class="sd">                     if should stub file didn&#39;t stub or</span>
+<span class="sd">                     should not stub file get stubbed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;start to verify_stub job&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_content&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_path</span> <span class="o">=</span> <span class="n">path</span>
+
+            <span class="k">if</span> <span class="n">test_data_list</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_test_file_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_file_list</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_test_file_list</span> <span class="o">=</span> <span class="n">test_data_list</span>
+            <span class="c1"># Verify the stub result</span>
+            <span class="k">for</span> <span class="n">_filename</span><span class="p">,</span> <span class="n">_status</span> <span class="ow">in</span> <span class="n">_test_file_list</span><span class="p">:</span>
+                <span class="n">_stub_file_name</span> <span class="o">=</span> <span class="n">_path</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">slash_format</span> <span class="o">+</span> <span class="n">_filename</span>
+                <span class="n">_ret_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">is_stub</span><span class="p">(</span><span class="n">_stub_file_name</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">_ret_val</span> <span class="o">!=</span> <span class="n">_status</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> doesn&#39;t follow stub rule&quot;</span> <span class="o">%</span> <span class="n">_stub_file_name</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Exception raised at verify_stub function&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">_status</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot; create [</span><span class="si">%s</span><span class="s2">] file&#39;s stub &quot;</span> <span class="o">%</span> <span class="n">_stub_file_name</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot; system follow the migration rules setting, &quot;</span> <span class="o">+</span>
+                             <span class="s2">&quot; and didn&#39;t create stub file for file &quot;</span> <span class="o">+</span>
+                             <span class="s2">&quot; that doesn&#39;t meet migration rule&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;exception raised with error :</span><span class="si">%s</span><span class="s1"> &#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;exception raised at verify_stub function&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.recall"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.recall">[docs]</a>    <span class="k">def</span> <span class="nf">recall</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">org_hashcode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,):</span>
+        <span class="sd">&quot;&quot;&quot; This function will do stub recall and verify recall result</span>
+<span class="sd">            should match original file</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                org_hashcode  (list)  with each item is a tuple object</span>
+<span class="sd">                                    e.g</span>
+<span class="sd">                                    {(&#39;file1.txt&#39; hashcode_valule),</span>
+<span class="sd">                                    (&#39;file2.txt&#39; hashcode_valule)}</span>
+<span class="sd">                                    default: None ,</span>
+<span class="sd">                                    function will use self.org_hashcode</span>
+
+<span class="sd">                path               (str)  parent folder path</span>
+<span class="sd">                                    default: None, function will use</span>
+<span class="sd">                                    subclient content path</span>
+
+<span class="sd">            Return:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                    exception:</span>
+<span class="sd">                        if recalled stub file hash code doesn&#39;t match</span>
+<span class="sd">                        original file hash value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;start recall the existing stubs&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">org_hashcode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">org_hashcode</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;fail to get file original hash code information&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">org_hashcode</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_org_hashcode</span> <span class="o">=</span> <span class="n">org_hashcode</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_org_hashcode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">org_hashcode</span>
+
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_content&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_path</span> <span class="o">=</span> <span class="n">path</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">recall_hash</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">get_checksum_list</span><span class="p">(</span><span class="n">_path</span><span class="p">)</span>
+        <span class="c1"># compared the recalled file hash code with original hash code</span>
+        <span class="n">_matched</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">_compare_lists</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">recall_hash</span><span class="p">,</span>
+            <span class="n">_org_hashcode</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">_matched</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;At least one recalled stub content &quot;</span> <span class="o">+</span>
+                            <span class="s2">&quot; does not match with the original&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Recalled stubs are matching with the original content&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.restore_in_place_restore_stub"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.restore_in_place_restore_stub">[docs]</a>    <span class="k">def</span> <span class="nf">restore_in_place_restore_stub</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">paths</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                      <span class="n">from_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">to_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                      <span class="n">delete_original_path</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Restores the files/folders specified</span>
+<span class="sd">            in the input paths list to the same location.</span>
+<span class="sd">            by default _restore_in_place function will set restore ACL = True,</span>
+<span class="sd">            unconditional overwrite = True</span>
+<span class="sd">            then do in palce restore, this is a wrap function to explicitly</span>
+<span class="sd">            set restoreDatainsteadofStub= True</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                paths                   (list)  --  list of full paths</span>
+<span class="sd">                                                    of files/folders to restore</span>
+
+<span class="sd">                from_time           (str)       --  time to</span>
+<span class="sd">                                                    retore the contents after</span>
+<span class="sd">                    format: YYYY-MM-DD HH:MM:SS</span>
+<span class="sd">                    default: None</span>
+
+<span class="sd">                to_time           (str)         --  time to</span>
+<span class="sd">                                                    retore the contents before</span>
+<span class="sd">                    format: YYYY-MM-DD HH:MM:SS</span>
+<span class="sd">                    default: None</span>
+
+<span class="sd">                delete_original_path (bool)</span>
+<span class="sd">                        default - True, it will delete existing path</span>
+<span class="sd">                                        before restore</span>
+<span class="sd">                                  False, will not clean restore path</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                object - instance of the Job class for this restore job</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception - Any error occurred while running restore</span>
+<span class="sd">                            or restore didn&#39;t complete successfully.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;start onepass unconditional restore stub operation&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">delete_original_path</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">_item</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">_item</span><span class="p">)</span>
+
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">(</span>
+                <span class="n">paths</span><span class="o">=</span><span class="n">paths</span><span class="p">,</span>
+                <span class="n">from_time</span><span class="o">=</span><span class="n">from_time</span><span class="p">,</span>
+                <span class="n">to_time</span><span class="o">=</span><span class="n">to_time</span><span class="p">,</span>
+                <span class="n">restoreDataInsteadOfStub</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">overwriteFiles</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">onePassRestore</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Started restore in place job with job id: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Failed to run restore in place job with error: &quot;</span>
+                    <span class="o">+</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;completed&quot;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Job status is not Completed, job has status: &quot;</span>
+                    <span class="o">+</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span>
+                <span class="p">)</span>
+
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished onepass in place restore stub job&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">job</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Job error : &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Job error : &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="cvonepas_helper.verify_restore_result"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.onepasshelper.cvonepas_helper.verify_restore_result">[docs]</a>    <span class="k">def</span> <span class="nf">verify_restore_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dest_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                              <span class="n">verify_acl</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot;this function will verify restore result</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                source_path  (str) original path of test data</span>
+
+<span class="sd">                dest_path    (str)  restored data path</span>
+
+<span class="sd">                verify_acl   (bool) True - will verify ACL</span>
+<span class="sd">                                    False - will not verify ACL</span>
+
+<span class="sd">                                    default: False</span>
+<span class="sd">            Return:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception - Any error occurred while running restore</span>
+<span class="sd">                            or restore didn&#39;t complete successfully.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;start to verify in place restore result&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span>
+            <span class="k">if</span> <span class="n">source_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_source_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_content&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_source_path</span> <span class="o">=</span> <span class="n">source_path</span>
+            <span class="k">if</span> <span class="n">dest_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_dest_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;outofplace_restore_path&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_dest_path</span> <span class="o">=</span> <span class="n">dest_path</span>
+
+            <span class="k">if</span> <span class="p">((</span><span class="n">_source_path</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_props</span><span class="p">[</span><span class="s1">&#39;subclient_content&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">org_hashcode</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="n">_source_hash</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">org_hashcode</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_source_hash</span> <span class="o">=</span> <span class="n">_client</span><span class="o">.</span><span class="n">get_checksum_list</span><span class="p">(</span><span class="n">_source_path</span><span class="p">)</span>
+
+            <span class="n">_restore_hash</span> <span class="o">=</span> <span class="n">_client</span><span class="o">.</span><span class="n">get_checksum_list</span><span class="p">(</span><span class="n">_dest_path</span><span class="p">)</span>
+            <span class="n">_matched</span><span class="p">,</span> <span class="n">_code</span> <span class="o">=</span> <span class="n">_client</span><span class="o">.</span><span class="n">_compare_lists</span><span class="p">(</span>
+                <span class="n">_restore_hash</span><span class="p">,</span>
+                <span class="n">_source_hash</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">_matched</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;At least one restored data content &quot;</span>
+                                <span class="s2">&quot;does not match with the original&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">verify_acl</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="n">_return_status</span> <span class="o">=</span> <span class="n">_matched</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_acl</span><span class="p">,</span> <span class="n">_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">compare_acl</span><span class="p">(</span>
+                    <span class="n">_source_path</span><span class="p">,</span>
+                    <span class="n">_dest_path</span>
+                    <span class="p">)</span>
+                <span class="n">_return_status</span> <span class="o">=</span> <span class="n">_acl</span> <span class="o">&amp;</span> <span class="n">_matched</span>
+
+            <span class="k">if</span> <span class="n">_return_status</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;restore data matches with original data,&quot;</span> <span class="o">+</span>
+                         <span class="s2">&quot;pass restore verification&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">_return_status</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;restore data doesn&#39;t match with original data,&quot;</span> <span class="o">+</span>
+                         <span class="s2">&quot;fail restore verification process &quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;fail to pass restore verification,&#39;</span> <span class="o">+</span>
+                                <span class="s1">&#39;raise exception here&#39;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Job error : </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Job error : </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

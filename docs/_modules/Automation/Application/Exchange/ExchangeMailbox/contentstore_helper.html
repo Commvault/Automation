@@ -1,0 +1,421 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.Application.Exchange.ExchangeMailbox.contentstore_helper &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.Application.Exchange.ExchangeMailbox.contentstore_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main Module for invoking ContentStore MailServer operations.</span>
+
+<span class="sd">CvEML, ContentStore are the classes defined in this file.</span>
+
+<span class="sd">CvEML: Class for all EMLS properties.</span>
+
+<span class="sd">ContentStore: Class for performing all ContentStore related operations.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sqlite3</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">machine</span>
+<span class="kn">from</span> <span class="nn">.exchangelib_helper</span> <span class="k">import</span> <span class="n">CVMailbox</span>
+<span class="kn">from</span> <span class="nn">.exchangelib_helper</span> <span class="k">import</span> <span class="n">CVFolder</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">utils</span>
+
+
+<div class="viewcode-block" id="CvEML"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.CvEML">[docs]</a><span class="k">class</span> <span class="nc">CvEML</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Class for CvEML Detail &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the CvEML object.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_file_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_from_address</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_from_address</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_to_address</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_cc_address</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_to_address</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_cc_address</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bcc_address</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_subject</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_subject</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_received_time</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_received_time</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_message_id</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_message_id</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_description</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_content_type</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_received</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_received</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_mime_version</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_mime_version</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_original_arrival_time</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_return_path</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_sender</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_return_path</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_mime_version</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eml_content_type</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="ContentStore"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore">[docs]</a><span class="k">class</span> <span class="nc">ContentStore</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Class for ContentStore Mail Server related operations.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the ContentStore object.</span>
+<span class="sd">            Args:</span>
+<span class="sd">                ex_object  (Object)  --  instance of ExchangeMailbox module</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                object  --  instance of ContentStore class&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc_object</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">tc_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ex_object</span> <span class="o">=</span> <span class="n">ex_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mail_users</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">users</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_name</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">content_store_mail_server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_type</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">mailbox_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">csdb</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">admin_user</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">service_account_user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">admin_pwd</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">service_account_password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span>
+            <span class="n">ex_object</span><span class="o">.</span><span class="n">server_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ex_object</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">imap_server</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">install_directory</span><span class="p">,</span> <span class="s2">&quot;ImapServer&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_folder_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">contentstore_mailbox_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ex_object</span><span class="o">.</span><span class="n">smtp_mailbox_path</span><span class="p">,</span> <span class="s2">&quot;Mailboxes&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smtp_property_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">install_directory</span><span class="p">,</span>
+            <span class="s2">&quot;eml_properties.txt&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">restore_path</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;RestorePath&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_folder_paths</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_prop</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="ContentStore.write_eml_properties_to_file"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore.write_eml_properties_to_file">[docs]</a>    <span class="k">def</span> <span class="nf">write_eml_properties_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write properties of EMLs folder path to file</span>
+<span class="sd">            Args:</span>
+<span class="sd">                folder_path  (str)  --  folder path having EMLs&quot;&quot;&quot;</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.imap_server}</span><span class="se">\\</span><span class="s1">SMTPGateway.exe -dump -srcdir </span><span class="se">\&quot;</span><span class="si">{folder_path}</span><span class="se">\&quot;</span><span class="s1"> &#39;</span>
+                   <span class="n">f</span><span class="s1">&#39;|Out-File -Encoding utf8 </span><span class="se">\&quot;</span><span class="si">{self.smtp_property_file}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ContentStore.read_eml_properties_from_file"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore.read_eml_properties_from_file">[docs]</a>    <span class="k">def</span> <span class="nf">read_eml_properties_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Read eml properties from file and stores in CvEML object</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                eml_messages (List) -- returns list of CvEML properties object&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">eml_messages</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">smtp_property_file</span><span class="p">)</span>
+            <span class="n">output_list</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;* File :&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">output_list</span><span class="p">)):</span>
+
+                <span class="n">string</span> <span class="o">=</span> <span class="n">output_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;Attachement :&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">string</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">contentstore</span> <span class="o">=</span> <span class="n">string</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">contentstore</span> <span class="o">=</span> <span class="n">string</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">exchange</span> <span class="o">=</span> <span class="n">string</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">eachline</span> <span class="o">=</span> <span class="n">exchange</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">eml_message</span> <span class="o">=</span> <span class="n">CvEML</span><span class="p">()</span>
+
+                <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">eachline</span><span class="p">):</span>
+
+                    <span class="k">if</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Description :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span>
+                            <span class="s2">&quot;Description :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_description</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                            <span class="s2">&quot;Description :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;ContentType :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+                          <span class="ow">and</span> <span class="s2">&quot;ContentType :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_content_type</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                            <span class="s2">&quot;ContentType :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Received :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span>
+                          <span class="s2">&quot;Received :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_received</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                            <span class="s2">&quot;Received :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;MIME-Version :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span>
+                          <span class="s2">&quot;MIME-Version :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_mime_version</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                            <span class="s2">&quot;MIME-Version :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;From :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span>
+                          <span class="s2">&quot;From :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_from_address</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;From :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;To :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span>
+                          <span class="s2">&quot;To :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_to_address</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;To :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;CC :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;CC :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_cc_address</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;CC :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Date :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;Date :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_received_time</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;Date :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Subject :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;Subject :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_subject</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;Subject :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Message-ID :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span>
+                          <span class="s2">&quot;Message-ID :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_message_id</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                            <span class="s2">&quot;Message-ID :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Return-Path :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span>
+                          <span class="s2">&quot;Return-Path :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_return_path</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                            <span class="s2">&quot;Return-Path :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span>
+                            <span class="s2">&quot;X-MS-Exchange-Organization-OriginalArrivalTime :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+                          <span class="ow">and</span> <span class="s2">&quot;X-MS-Exchange-Organization-OriginalArrivalTime :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">exch_original_arrival_time</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                            <span class="s2">&quot;X-MS-Exchange-Organization-OriginalArrivalTime :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+                <span class="n">eachline</span> <span class="o">=</span> <span class="n">contentstore</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">eachline</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">fil_name</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_file_name</span> <span class="o">=</span> <span class="n">fil_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Subject :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;Subject :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_subject</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;Subject :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Date :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;Date :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_received_time</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;Date :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;From :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;From :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_from_address</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;From :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;To :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;To :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_to_address</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;To :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;Cc :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;Cc :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_cc_address</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;Cc :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;- Return-Path :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span>
+                          <span class="s2">&quot;- Return-Path :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_return_path</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;- Return-Path :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;- Received :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;- Received :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_received</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;- Received :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;- Content-Type :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;Date :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_content_type</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;- Content-Type :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;- Sender :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;- Content-Type :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_sender</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;- Sender :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="p">(</span><span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;- Message-ID :&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span>
+                          <span class="s2">&quot;- Message-ID :&quot;</span> <span class="ow">in</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">eml_message</span><span class="o">.</span><span class="n">eml_message_id</span> <span class="o">=</span> <span class="n">eachline</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;- Message-ID :&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">eml_messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">eml_message</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">eml_messages</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in read_eml_properties_from_file(): &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ContentStore.get_folder_properties"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore.get_folder_properties">[docs]</a>    <span class="k">def</span> <span class="nf">get_folder_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get properties of EMLs and stores in CVFolder object</span>
+<span class="sd">            Args:</span>
+<span class="sd">                folder_path  (str)  --  folder path having EMLs</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                cvfolder (CVFolder) -- returns CVFolder object&quot;&quot;&quot;</span>
+        <span class="n">folder_name</span> <span class="o">=</span> <span class="n">folder_path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">cvfolder</span> <span class="o">=</span> <span class="n">CVFolder</span><span class="p">()</span>
+        <span class="n">cvfolder</span><span class="o">.</span><span class="n">foldername</span> <span class="o">=</span> <span class="n">folder_name</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_eml_properties_to_file</span><span class="p">(</span><span class="n">folder_path</span><span class="p">)</span>
+        <span class="n">eml_messages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_eml_properties_from_file</span><span class="p">()</span>
+        <span class="n">cvfolder</span><span class="o">.</span><span class="n">messages</span> <span class="o">=</span> <span class="n">eml_messages</span>
+        <span class="k">return</span> <span class="n">cvfolder</span></div>
+
+<div class="viewcode-block" id="ContentStore.get_mailbox_properties"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore.get_mailbox_properties">[docs]</a>    <span class="k">def</span> <span class="nf">get_mailbox_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eml_folder_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get properties of mailboxes assocaited to subclient</span>
+<span class="sd">            Args:</span>
+<span class="sd">                folder_path  (str)  --  if folder path is given read properties</span>
+<span class="sd">                of EMls from folder_path&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">eml_folder_path</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">user</span><span class="p">,</span> <span class="n">folders_path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_folder_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">cvmailbox_object</span> <span class="o">=</span> <span class="n">CVMailbox</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">folder_path</span> <span class="ow">in</span> <span class="n">folders_path</span><span class="p">:</span>
+                    <span class="n">cvmailbox_object</span><span class="o">.</span><span class="n">folders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_folder_properties</span><span class="p">(</span><span class="n">folder_path</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_prop</span><span class="p">[</span><span class="n">user</span><span class="p">]</span> <span class="o">=</span> <span class="n">cvmailbox_object</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cvmailbox_object</span> <span class="o">=</span> <span class="n">CVMailbox</span><span class="p">()</span>
+            <span class="n">cvmailbox_object</span><span class="o">.</span><span class="n">folders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_folder_properties</span><span class="p">(</span><span class="n">eml_folder_path</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_prop</span><span class="p">[</span><span class="s2">&quot;restore_path&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cvmailbox_object</span></div>
+
+<div class="viewcode-block" id="ContentStore.get_folder_paths"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore.get_folder_paths">[docs]</a>    <span class="k">def</span> <span class="nf">get_folder_paths</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get folder path in mailbox and save it in self.mailbox_folder_dict&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_users</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">contentstore_mailbox_path</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">user</span><span class="p">))</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">get_files_and_directory_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\n\r\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">folder_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;.eml&quot;</span> <span class="ow">in</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">name</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">folder_list</span><span class="p">:</span>
+                        <span class="n">folder_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_folder_dict</span><span class="p">[</span><span class="n">user</span><span class="p">]</span> <span class="o">=</span> <span class="n">folder_list</span></div>
+
+<div class="viewcode-block" id="ContentStore.delete_restore_data"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore.delete_restore_data">[docs]</a>    <span class="k">def</span> <span class="nf">delete_restore_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deletes the data in restore path from previous jobs&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;RestorePath&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Please provide restore to disk path in Input Json File&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;RestorePath&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="ContentStore.get_folder_status"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore.get_folder_status">[docs]</a>    <span class="k">def</span> <span class="nf">get_folder_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get status from _master.db3 file&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">user</span><span class="p">,</span> <span class="n">folders_path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_folder_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting folder status from master db for mailbox </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span>
+                <span class="n">master_db_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">folders_path</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">drive</span> <span class="o">=</span> <span class="n">master_db_path</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">master_db_path</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+                <span class="n">master_db_path</span> <span class="o">=</span> <span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="se">\\\\</span><span class="si">{self.host_machine.client_object.client_name}</span><span class="se">\\</span><span class="s1">&#39;</span>
+                                  <span class="n">f</span><span class="s1">&#39;</span><span class="si">{drive}</span><span class="s1">$</span><span class="se">\\</span><span class="si">{path}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">master_dat_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">master_db_path</span><span class="p">,</span> <span class="s2">&quot;_master.db3&quot;</span><span class="p">)</span>
+                <span class="n">conn</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">master_dat_file</span><span class="p">)</span>
+                <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select subfoldername, status from Info&quot;</span>
+                <span class="n">master_result</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">master_result</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in get_folder_status(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">excp</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ContentStore.verify_datfile"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore.verify_datfile">[docs]</a>    <span class="k">def</span> <span class="nf">verify_datfile</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Verify _MessagesInfo.db3  dat file after content store archive job</span>
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If verification of _MessagesInfo.db3 was not successful&quot;&quot;&quot;</span>
+        <span class="n">messages</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Verifying .dat file after archive job&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">user</span><span class="p">,</span> <span class="n">folders_path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_folder_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validating _MessagesInfo.db3 dat files for mailbox : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span>
+                <span class="n">mailbox_guid</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_mailbox_guid</span><span class="p">(</span>
+                    <span class="n">user</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ex_object</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">subclient_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">folders_path</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking folder : &quot;</span> <span class="o">+</span> <span class="n">folder</span><span class="p">)</span>
+                    <span class="n">folder_split</span> <span class="o">=</span> <span class="n">folder</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">prop_folder</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_prop</span><span class="p">[</span><span class="n">user</span><span class="p">]</span><span class="o">.</span><span class="n">folders</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">prop_folder</span><span class="o">.</span><span class="n">foldername</span> <span class="o">==</span> <span class="n">folder</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                            <span class="n">messages</span> <span class="o">=</span> <span class="n">prop_folder</span><span class="o">.</span><span class="n">messages</span>
+                    <span class="n">drive</span> <span class="o">=</span> <span class="n">folder_split</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder_split</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                    <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="se">\\\\</span><span class="si">{self.host_machine.client_object.client_name}</span><span class="se">\\</span><span class="s1">&#39;</span>
+                            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{drive}</span><span class="s1">$</span><span class="se">\\</span><span class="si">{path}</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="n">dat_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="s2">&quot;_MessagesInfo.db3&quot;</span><span class="p">)</span>
+                    <span class="n">conn</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">dat_file</span><span class="p">)</span>
+                    <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+                    <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select id, size, backedup ,internetmessageid from MessagesInfo&quot;</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+                    <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="n">folder</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+                    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">message</span> <span class="ow">in</span> <span class="n">messages</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">message</span><span class="o">.</span><span class="n">eml_file_name</span> <span class="o">==</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                                <span class="n">intrenet_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">mailbox_guid</span><span class="p">)</span> <span class="o">+</span> <span class="n">message</span><span class="o">.</span><span class="n">eml_message_id</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+                                <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;true&quot;</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Dump&quot;</span><span class="p">:</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                                        <span class="s2">&quot;Message is backed up from current folder </span><span class="si">%s</span><span class="s2"> &quot;</span><span class="p">,</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Message is backed up from current folder&quot;</span><span class="p">)</span>
+                                <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">!=</span> <span class="n">intrenet_id</span><span class="p">:</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Intranet id not saved properly.&quot;</span><span class="p">)</span>
+                                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Intranet id not saved properly&quot;</span><span class="p">)</span>
+                                <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;true&quot;</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Archive&quot;</span><span class="p">:</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Message not backed up </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Message not backed up&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in verify_datfile(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">excp</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ContentStore.verify_after_cleanup"><a class="viewcode-back" href="../../../../../Automation.Application.Exchange.ExchangeMailbox.html#Automation.Application.Exchange.ExchangeMailbox.contentstore_helper.ContentStore.verify_after_cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">verify_after_cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Verify folders are deleted after cleanup job</span>
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If cleanup of mailbox folder is not successful&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">user</span><span class="p">,</span> <span class="n">folders_path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailbox_folder_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;################################################&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">folders_path</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot; Checking for folder path: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+                    <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="n">folder</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
+                    <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;cleanup&quot;</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">folder</span><span class="p">):</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Cleanup was not successful of folder : </span><span class="si">%s</span><span class="s1">,&#39;</span>
+                                           <span class="s1">&#39; Mailbox </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">user</span><span class="p">)</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Cleanup Validation failed for mailbox.&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in verify_after_cleanup(): </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">excp</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

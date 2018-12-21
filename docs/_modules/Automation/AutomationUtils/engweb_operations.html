@@ -1,0 +1,724 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.AutomationUtils.engweb_operations &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.AutomationUtils.engweb_operations</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># pylint: disable=R0913</span>
+<span class="c1"># pylint: disable=W0703</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">File for operations on EngWeb via REST API.</span>
+
+<span class="sd">EngWeb is the class representing the connection to EngWeb, and operations on EngWeb via REST API.</span>
+
+<span class="sd">EngWeb:</span>
+
+<span class="sd">    __init__()                          --  initialize connection to EngWeb using given credentials</span>
+
+<span class="sd">    _update_response()                  --  parse the response received, and extract the error</span>
+
+<span class="sd">    _get_testset_id_by_display_name()   --  get the test set id using the test set display name</span>
+
+<span class="sd">    _get_testset_id_by_params()         --  get the test set id using the full test set name</span>
+
+<span class="sd">    domain                              --  returns value of domain attribute</span>
+
+<span class="sd">    username                            --  returns value of username attribu</span>
+
+<span class="sd">    password                            --  returns value of password attributete</span>
+
+<span class="sd">    auth                                --  returns the NTLM Auth object</span>
+
+<span class="sd">    api                                 --  returns value of the base API URL</span>
+
+<span class="sd">    features                            --  list consisting of the features listed on EngWeb</span>
+
+<span class="sd">    get_features()                      --  gets the list of all the features on EngWeb</span>
+
+<span class="sd">    get_testsets()                      --  gets the list of all testsets for a release / feature</span>
+
+<span class="sd">    get_testset_id()                    --  returns the test set id for the given test set</span>
+
+<span class="sd">    get_testcases()                     --  gets the list of all test cases for a test set</span>
+
+<span class="sd">    get_testcase_details()              --  returns the details of a test case</span>
+
+<span class="sd">    get_instance_id()                   --  returns the instance id for test set and a test case</span>
+
+<span class="sd">    update_testcase_status()            --  updates the test case run status to QA</span>
+
+<span class="sd">    update_qa()                         --  wrapper method to update the QA with test case status</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">requests_ntlm</span>
+
+
+<span class="n">ERROR_MESSAGE</span> <span class="o">=</span> <span class="s2">&quot;No Error Returned from the Server&quot;</span>
+
+
+<div class="viewcode-block" id="EngWeb"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.engweb_operations.EngWeb">[docs]</a><span class="k">class</span> <span class="nc">EngWeb</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for operations on EngWeb.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s1">&#39;commvault-nj&#39;</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="s1">&#39;gbuilder&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s1">&#39;builder!12&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the connection to EngWeb with the given credentials.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                domain      (str)   --  Domain to use for connecting to EngWeb</span>
+
+<span class="sd">                    default: commvault-nj</span>
+
+<span class="sd">                username    (str)   --  Username to use for connecting to EngWeb</span>
+
+<span class="sd">                    default: gbuilder</span>
+
+<span class="sd">                password    (str)   --  Password for the above mentioned user</span>
+
+<span class="sd">                    default: builder!12</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_domain</span> <span class="o">=</span> <span class="n">domain</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_username</span> <span class="o">=</span> <span class="n">username</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_password</span> <span class="o">=</span> <span class="n">password</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auth</span> <span class="o">=</span> <span class="n">requests_ntlm</span><span class="o">.</span><span class="n">HttpNtlmAuth</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">domain</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_api</span> <span class="o">=</span> <span class="s1">&#39;https://engweb.commvault.com/api/qa/</span><span class="si">{0}</span><span class="s1">&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_features</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_update_response</span><span class="p">(</span><span class="n">input_string</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns only the relevant response from the response received from the server.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                input_string    (str)   --  input string to retrieve the relevant response from</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   final response to be used</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;&lt;title&gt;&#39;</span> <span class="ow">in</span> <span class="n">input_string</span> <span class="ow">and</span> <span class="s1">&#39;&lt;/title&gt;&#39;</span> <span class="ow">in</span> <span class="n">input_string</span><span class="p">:</span>
+            <span class="n">response_string</span> <span class="o">=</span> <span class="n">input_string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;&lt;title&gt;&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">response_string</span> <span class="o">=</span> <span class="n">response_string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;&lt;/title&gt;&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">response_string</span>
+
+        <span class="k">return</span> <span class="n">input_string</span>
+
+    <span class="k">def</span> <span class="nf">_get_testset_id_by_display_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the id of the Test Set for the given Test Set Display Name.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                testset_name    (str)   --  Display Name of the Test Set</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                int     -   id of the testset</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the key `testset` is not present in the response</span>
+
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">request_uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;testset&#39;</span><span class="p">)</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;displayname&quot;</span><span class="p">:</span> <span class="n">testset_name</span>
+        <span class="p">}</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_uri</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;testset&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s1">&#39;Test Set not returned in the API response</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Message: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                            <span class="s1">&#39;errList&#39;</span><span class="p">,</span> <span class="p">[</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;msg&#39;</span><span class="p">,</span> <span class="n">ERROR_MESSAGE</span><span class="p">)]</span>
+                        <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span>
+
+            <span class="n">testset</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;testset&#39;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">testset</span><span class="p">[</span><span class="s1">&#39;nTestSetID&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Failed to get the test set details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_testset_id_by_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the id of the Test Set for the given Test Set name.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                testset_name    (str)   --  Name of the Test Set</span>
+
+<span class="sd">                    testset name should of the format:</span>
+
+<span class="sd">                    **release_feature_os_applicationVersion_additionalProp**</span>
+
+<span class="sd">                    if any property is missing in the testset name, it will be replaced by</span>
+<span class="sd">                    **&#39;&#39; (empty strings)**</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                int     -   id of the testset</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the key `testset` is not present in the response</span>
+
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">testset_attributes</span> <span class="o">=</span> <span class="n">testset_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">testset_attributes</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">:</span>
+            <span class="n">testset_attributes</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">5</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">testset_attributes</span><span class="p">))</span>
+
+        <span class="n">release</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">os_name</span><span class="p">,</span> <span class="n">application_version</span><span class="p">,</span> <span class="n">additional_prop</span> <span class="o">=</span> <span class="n">testset_attributes</span>
+
+        <span class="n">request_uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;testset&#39;</span><span class="p">)</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;release&quot;</span><span class="p">:</span> <span class="n">release</span><span class="p">,</span>
+            <span class="s2">&quot;feature&quot;</span><span class="p">:</span> <span class="n">feature</span><span class="p">,</span>
+            <span class="s2">&quot;os&quot;</span><span class="p">:</span> <span class="n">os_name</span><span class="p">,</span>
+            <span class="s2">&quot;applicationversion&quot;</span><span class="p">:</span> <span class="n">application_version</span><span class="p">,</span>
+            <span class="s2">&quot;additionalprop&quot;</span><span class="p">:</span> <span class="n">additional_prop</span>
+        <span class="p">}</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_uri</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;testset&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s1">&#39;Test Set not returned in the API response</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Message: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                            <span class="s1">&#39;errList&#39;</span><span class="p">,</span> <span class="p">[</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;msg&#39;</span><span class="p">,</span> <span class="n">ERROR_MESSAGE</span><span class="p">)]</span>
+                        <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span>
+
+            <span class="n">testset</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;testset&#39;</span><span class="p">]</span>
+
+            <span class="k">return</span> <span class="n">testset</span><span class="p">[</span><span class="s1">&#39;nTestSetID&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Failed to get the test set details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">domain</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the value of domain attribute.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_domain</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">username</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the value of username attribute.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_username</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">password</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the value of password attribute.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_password</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">auth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the value of auth attribute.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auth</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">api</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the value of api attribute.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">features</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the value of features attribute.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_features</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EngWeb.get_features"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.engweb_operations.EngWeb.get_features">[docs]</a>    <span class="k">def</span> <span class="nf">get_features</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of features on EngWeb.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                list    -   list of feature names</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the key `features` is not present in the response</span>
+
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;features&#39;</span><span class="p">),</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;features&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s1">&#39;Features not returned in the API response</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span>
+
+            <span class="n">features</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;features&#39;</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">features</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_features</span><span class="p">[</span><span class="n">feature</span><span class="p">[</span><span class="s1">&#39;sFeatureName&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">feature</span><span class="p">[</span><span class="s1">&#39;nFeatureID&#39;</span><span class="p">]</span>
+
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Failed to get the features</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EngWeb.get_testsets"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.engweb_operations.EngWeb.get_testsets">[docs]</a>    <span class="k">def</span> <span class="nf">get_testsets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">release</span><span class="p">,</span> <span class="n">feature</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of all the test sets for the specified release.</span>
+<span class="sd">            Filters the test sets if the feature is also provided.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                release     (str)   --  Release for the test set</span>
+
+<span class="sd">                feature     (str)   --  Feature name as given in the features list</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dict    -   dictionary consisting of the testset name as the key,</span>
+<span class="sd">                and testset id as its value</span>
+
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;testset1_name&quot;: &quot;testset1_id&quot;,</span>
+
+<span class="sd">                        &quot;testset2_name&quot;: &quot;testset2_id&quot;,</span>
+
+<span class="sd">                        &quot;testset3_name&quot;: &quot;testset3_id&quot;,</span>
+
+<span class="sd">                        &quot;testset4_name&quot;: &quot;testset4_id&quot;</span>
+<span class="sd">                    }</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the key `testsets` is not present in the response</span>
+
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">request_uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;testsets?release=</span><span class="si">{0}</span><span class="s1">&amp;feature=</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">release</span><span class="p">,</span> <span class="n">feature</span><span class="p">))</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_uri</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;testsets&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s1">&#39;Test Sets not returned in the API response</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span>
+
+            <span class="n">testsets</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;testsets&#39;</span><span class="p">]</span>
+
+            <span class="n">testsets_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="k">for</span> <span class="n">testset</span> <span class="ow">in</span> <span class="n">testsets</span><span class="p">:</span>
+                <span class="n">testset_name</span> <span class="o">=</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="n">testset</span><span class="p">[</span><span class="s1">&#39;sRelease&#39;</span><span class="p">],</span>
+                        <span class="n">testset</span><span class="p">[</span><span class="s1">&#39;sFeatureName&#39;</span><span class="p">],</span>
+                        <span class="n">testset</span><span class="p">[</span><span class="s1">&#39;sOSTypeName&#39;</span><span class="p">]</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">testset</span><span class="p">[</span><span class="s1">&#39;sApplicationVersionName&#39;</span><span class="p">]:</span>
+                    <span class="n">testset_name</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;_</span><span class="si">{testset[&quot;sApplicationVersionName&quot;]}</span><span class="s1">&#39;</span>
+
+                <span class="k">if</span> <span class="n">testset</span><span class="p">[</span><span class="s1">&#39;sAdditionalPropName&#39;</span><span class="p">]:</span>
+                    <span class="n">testset_name</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;_</span><span class="si">{testset[&quot;sAdditionalPropName&quot;]}</span><span class="s1">&#39;</span>
+
+                <span class="n">testsets_dict</span><span class="p">[</span><span class="n">testset_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">testset</span><span class="p">[</span><span class="s1">&#39;nTestSetID&#39;</span><span class="p">]</span>
+
+            <span class="k">return</span> <span class="n">testsets_dict</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Failed to get the test sets</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EngWeb.get_testset_id"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.engweb_operations.EngWeb.get_testset_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_testset_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the id of the Test Set for the given Test Set name.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                testset_name    (str)   --  Name of the Test Set</span>
+
+<span class="sd">                testset name should either be the Test Set Display Name, or of the format:</span>
+
+<span class="sd">                    **release_feature_os_applicationVersion_additionalProp**</span>
+
+<span class="sd">                if any property is missing in the testset name, it will be replaced by</span>
+<span class="sd">                **&#39;&#39; (empty strings)**</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                int     -   id of the testset</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the key `testset` is not present in the response</span>
+
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_testset_id_by_display_name</span><span class="p">(</span><span class="n">testset_name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_testset_id_by_params</span><span class="p">(</span><span class="n">testset_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EngWeb.get_testcases"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.engweb_operations.EngWeb.get_testcases">[docs]</a>    <span class="k">def</span> <span class="nf">get_testcases</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of all the test cases for the specified test set.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                testset_id  (int)   --  ID for the Test Set to get the test cases of</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dict    -   dictionary consisting of the testcase name as the key,</span>
+<span class="sd">                and testset id as its value</span>
+
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;testset1_name&quot;: &quot;testset1_id&quot;,</span>
+
+<span class="sd">                        &quot;testset2_name&quot;: &quot;testset2_id&quot;,</span>
+
+<span class="sd">                        &quot;testset3_name&quot;: &quot;testset3_id&quot;,</span>
+
+<span class="sd">                        &quot;testset4_name&quot;: &quot;testset4_id&quot;</span>
+<span class="sd">                    }</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the key `testcases` is not present in the response</span>
+
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">request_uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;testcases?testset=</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">testset_id</span><span class="p">))</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_uri</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;testcases&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s1">&#39;Test Cases not returned in the API response</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span>
+
+            <span class="n">testcases</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;testcases&#39;</span><span class="p">]</span>
+
+            <span class="n">testcases_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="k">for</span> <span class="n">testcase</span> <span class="ow">in</span> <span class="n">testcases</span><span class="p">:</span>
+                <span class="n">testcase_id</span> <span class="o">=</span> <span class="n">testcase</span><span class="p">[</span><span class="s1">&#39;nTestCaseID&#39;</span><span class="p">]</span>
+                <span class="n">testcase_instance_id</span> <span class="o">=</span> <span class="n">testcase</span><span class="p">[</span><span class="s1">&#39;nInstanceID&#39;</span><span class="p">]</span>
+                <span class="n">testcase_name</span> <span class="o">=</span> <span class="n">testcase</span><span class="p">[</span><span class="s1">&#39;sTestCaseName&#39;</span><span class="p">]</span>
+                <span class="n">testcases_dict</span><span class="p">[</span><span class="n">testcase_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">testcase_name</span><span class="p">,</span>
+                    <span class="s1">&#39;instance_id&#39;</span><span class="p">:</span> <span class="n">testcase_instance_id</span>
+                <span class="p">}</span>
+
+            <span class="k">return</span> <span class="n">testcases_dict</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Failed to get the test cases</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EngWeb.get_testcase_details"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.engweb_operations.EngWeb.get_testcase_details">[docs]</a>    <span class="k">def</span> <span class="nf">get_testcase_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the details of the test case for the given test case id.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                testcase_id     (int)   --  ID of the Test Case</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dict    -   details dict for the test case</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the key `details` is not present in the response</span>
+
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">request_uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;testcase/</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">testcase_id</span><span class="p">))</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_uri</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;details&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s1">&#39;Test Case Details not returned in the API response</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Message: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                            <span class="s1">&#39;errList&#39;</span><span class="p">,</span> <span class="p">[</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;msg&#39;</span><span class="p">,</span> <span class="n">ERROR_MESSAGE</span><span class="p">)]</span>
+                        <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;details&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Failed to get the test case details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EngWeb.get_instance_id"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.engweb_operations.EngWeb.get_instance_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_instance_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset_id</span><span class="p">,</span> <span class="n">testcase_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the Instance ID for the given test set, and test case id.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                testset_id      (int)   --  ID of the Test Set</span>
+
+<span class="sd">                testcase_id     (int)   --  ID of the Test Case</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                int     -   instance ID for the test set and test case</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the key `details` is not present in the response</span>
+
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">request_uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="s1">&#39;instance?testset=</span><span class="si">{0}</span><span class="s1">&amp;testcase=</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">testset_id</span><span class="p">,</span> <span class="n">testcase_id</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request_uri</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;instance&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="s1">&#39;Instance Details not returned in the API response</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Response Message: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+                        <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                            <span class="s1">&#39;errList&#39;</span><span class="p">,</span> <span class="p">[</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;msg&#39;</span><span class="p">,</span> <span class="n">ERROR_MESSAGE</span><span class="p">)]</span>
+                        <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;instance&#39;</span><span class="p">][</span><span class="s1">&#39;nInstanceID&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Failed to get the instance details</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EngWeb.update_testcase_status"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.engweb_operations.EngWeb.update_testcase_status">[docs]</a>    <span class="k">def</span> <span class="nf">update_testcase_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset_id</span><span class="p">,</span> <span class="n">testcase_id</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">comments</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the Test Case run status to the Quality Center.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                testset_id      (int)   --  ID of the Test Set being run</span>
+
+<span class="sd">                testcase_id     (int)   --  ID of the Test Case to update the status of</span>
+
+<span class="sd">                instance_id     (int)   --  Instance ID for the Test Case and the Test Set</span>
+
+<span class="sd">                status          (int)   --  Test Case run status</span>
+
+<span class="sd">                    **1**, for SUCCESS</span>
+
+<span class="sd">                    **0**, for FAILURE</span>
+
+<span class="sd">                comments        (str)   --  Additional comments for the test case run (if any)</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   True, if updated the Test Case run status successfully</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">request_body</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;testset&quot;</span><span class="p">:</span> <span class="n">testset_id</span><span class="p">,</span>
+            <span class="s2">&quot;testcase&quot;</span><span class="p">:</span> <span class="n">testcase_id</span><span class="p">,</span>
+            <span class="s2">&quot;instance&quot;</span><span class="p">:</span> <span class="n">instance_id</span><span class="p">,</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+            <span class="s2">&quot;comments&quot;</span><span class="p">:</span> <span class="n">comments</span>
+        <span class="p">}</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;automationrun&#39;</span><span class="p">),</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">auth</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">request_body</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">exception_message</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s1">&#39;Failed to Update the Test Case run status</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Status Code: </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Response Text: </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_response</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exception_message</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EngWeb.update_qa"><a class="viewcode-back" href="../../../Automation.AutomationUtils.html#Automation.AutomationUtils.engweb_operations.EngWeb.update_qa">[docs]</a>    <span class="k">def</span> <span class="nf">update_qa</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testset_name</span><span class="p">,</span> <span class="n">testcase_id</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">comments</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the Test Case run status to the Quality Center.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                testset_name    (str)   --  Name of the Test Set</span>
+
+<span class="sd">                testset name should either be the Test Set Display Name, or of the format:</span>
+
+<span class="sd">                    **release_features_os_applicationVersion_additionalProp**</span>
+
+<span class="sd">                if any property is missing in the testset name, it will be replaced by</span>
+<span class="sd">                **&#39;&#39; (empty strings)**</span>
+
+<span class="sd">                testcase_id     (int)   --  ID of the Test Case to update the status of</span>
+
+<span class="sd">                status          (int)   --  Test Case run status</span>
+
+<span class="sd">                    **1**, for SUCCESS</span>
+
+<span class="sd">                    **0**, for FAILURE</span>
+
+<span class="sd">                comments        (str)   --  Additional comments for the test case run (if any)</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   True, if updated the Test Case run status successfully</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the response is not SUCCESS</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">testset_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_testset_id</span><span class="p">(</span><span class="n">testset_name</span><span class="p">)</span>
+        <span class="n">instance_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_instance_id</span><span class="p">(</span><span class="n">testset_id</span><span class="p">,</span> <span class="n">testcase_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_testcase_status</span><span class="p">(</span><span class="n">testset_id</span><span class="p">,</span> <span class="n">testcase_id</span><span class="p">,</span> <span class="n">instance_id</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">comments</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

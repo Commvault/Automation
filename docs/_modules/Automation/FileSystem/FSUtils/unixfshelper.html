@@ -1,0 +1,313 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.FileSystem.FSUtils.unixfshelper &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.FileSystem.FSUtils.unixfshelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for performing Unix File System operations</span>
+
+<span class="sd">UnixFSHelper is the only class defined in this file.</span>
+
+<span class="sd">UnixFSHelper: Helper class to perform file system operations</span>
+
+<span class="sd">UnixFSHelper:</span>
+<span class="sd">    __init__()                   --  initializes unix file system helper object</span>
+
+<span class="sd">    verify_dc()                  --  Verifies whether the job used Scan optimization</span>
+
+<span class="sd">    mount_openvms_testpath()     --  Mounts OpenVMS test path on the associated unix proxy</span>
+
+<span class="sd">    execute_openvms_command()    --  Executes a command on OpenVMS remotely using ssh</span>
+
+<span class="sd">    unmount_openvms_testpath()   --  Unmounts the OpenVMS test path mounted on the proxy client.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="k">import</span> <span class="n">UNIX_VERIFY_DC</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="k">import</span> <span class="n">VMS_MOUNTED_DISK</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="k">import</span> <span class="n">VMS_UNIX_MOUNT_PATH</span>
+<span class="kn">from</span> <span class="nn">FileSystem.FSUtils.fshelper</span> <span class="k">import</span> <span class="n">FSHelper</span>
+
+
+<div class="viewcode-block" id="UnixFSHelper"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.unixfshelper.UnixFSHelper">[docs]</a><span class="k">class</span> <span class="nc">UnixFSHelper</span><span class="p">(</span><span class="n">FSHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to perform file system operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize instance of the UnixFSHelper class.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">UnixFSHelper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">testcase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_openvms_testpath_mounted</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">os_flavour</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">os_flavour</span> <span class="o">!=</span> <span class="s2">&quot;OS400&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">os_flavour</span> <span class="o">==</span> <span class="s2">&quot;OpenVMS&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">proxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">proxy_name</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">proxy</span><span class="o">.</span><span class="n">instance</span>
+            <span class="k">elif</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">is_client_big_data_apps</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">True</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">is_client_network_share</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">True</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">instance</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">registry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">get_registry_dict</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">galaxy_home</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">registry</span><span class="p">[</span><span class="s1">&#39;dGALAXYHOME&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">base_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">registry</span><span class="p">[</span><span class="s1">&#39;dBASEHOME&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">job_results_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">registry</span><span class="p">[</span><span class="s1">&#39;dJOBRESULTSDIR&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_files_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">registry</span><span class="p">[</span><span class="s1">&#39;dEVLOGDIR&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="UnixFSHelper.verify_dc"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.unixfshelper.UnixFSHelper.verify_dc">[docs]</a>    <span class="k">def</span> <span class="nf">verify_dc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jobid</span><span class="p">,</span> <span class="n">log_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Verifies whether the job used Scan optimization</span>
+
+<span class="sd">             Args:</span>
+<span class="sd">                jobid    (int)  -- jobid to be checked</span>
+
+<span class="sd">                log_dir  (str)  -- path of the log directory</span>
+<span class="sd">                    default:None</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool   -   Returns True if dc scan was successful or else false</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurred while verifying the scan status</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">log_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_files_dir</span>
+        <span class="n">script_arguments</span> <span class="o">=</span> <span class="s2">&quot;-logdir </span><span class="si">{0}</span><span class="s2"> -jobid </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">log_dir</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">jobid</span><span class="p">))</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">UNIX_VERIFY_DC</span><span class="p">,</span> <span class="n">script_arguments</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Error occurred while verifying the scan status </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Error occurred while verifying the scan status </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+                    <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span> <span class="o">==</span> <span class="s2">&quot;success&quot;</span></div>
+
+<div class="viewcode-block" id="UnixFSHelper.mount_openvms_testpath"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.unixfshelper.UnixFSHelper.mount_openvms_testpath">[docs]</a>    <span class="k">def</span> <span class="nf">mount_openvms_testpath</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Mounts OpenVMS test path on the proxy associated with the OpenVMS client.</span>
+
+<span class="sd">            For OpenVMS,</span>
+<span class="sd">            since we cannot directly execute shell script on OpenVMS,</span>
+<span class="sd">            we first mount the OpenVMS test path onto the associated proxy client.</span>
+<span class="sd">            Finally, we execute the shell scripts or commands to generate data,</span>
+<span class="sd">            verify data or related tasks on the proxy client at the mount location.</span>
+
+<span class="sd">             Args:</span>
+<span class="sd">                test_path   (str)   -- OpenVMS test path to be mounted.</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurred while mounting OpenVMS test path.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">test_path</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">disk_name_openvms</span> <span class="o">=</span> <span class="n">test_path</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">pos</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span>
+        <span class="n">mounted_path_openvms</span> <span class="o">=</span> <span class="n">VMS_MOUNTED_DISK</span> <span class="o">+</span> <span class="n">test_path</span><span class="p">[</span><span class="n">pos</span><span class="p">:]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Mounting OpenVMS test path [</span><span class="si">%s</span><span class="s2">] onto proxy path [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span>
+            <span class="n">test_path</span><span class="p">,</span>
+            <span class="n">VMS_UNIX_MOUNT_PATH</span><span class="p">)</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;TCPIP ADD PROXY </span><span class="si">{0}</span><span class="s2"> /uid=0 /gid=0 /HOST=*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">username</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute_openvms_command</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;TCPIP MAP </span><span class="se">\&quot;</span><span class="si">{0}</span><span class="se">\&quot;</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">VMS_MOUNTED_DISK</span><span class="p">,</span> <span class="n">disk_name_openvms</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute_openvms_command</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;TCPIP ADD EXPORT </span><span class="se">\&quot;</span><span class="si">{0}</span><span class="se">\&quot;</span><span class="s2"> /HOST=* /OPTIONS=NAME_CONVERSION&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">mounted_path_openvms</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute_openvms_command</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;showmount -e </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mounted_path_openvms</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span> <span class="ow">or</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="ow">is</span> <span class="ow">not</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Error occurred while mounting OpenVMS test path </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error occurred while mounting OpenVMS test path </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">VMS_UNIX_MOUNT_PATH</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">VMS_UNIX_MOUNT_PATH</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s2">&quot;Error occurred while creating directory </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+                    <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error occurred while mounting OpenVMS test path </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">))</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;mount -vt nfs </span><span class="si">{0}</span><span class="s2">:</span><span class="si">{1}</span><span class="s2"> </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">,</span> <span class="n">mounted_path_openvms</span><span class="p">,</span> <span class="n">VMS_UNIX_MOUNT_PATH</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Error occurred while mounting OpenVMS test path </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error occurred while mounting OpenVMS test path </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_openvms_testpath_mounted</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="UnixFSHelper.unmount_openvms_testpath"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.unixfshelper.UnixFSHelper.unmount_openvms_testpath">[docs]</a>    <span class="k">def</span> <span class="nf">unmount_openvms_testpath</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Unmounts the OpenVMS test path mounted on the proxy client.</span>
+<span class="sd">        This function is only executed when the mounting was successful.</span>
+<span class="sd">        To check that we use the boolean variable is_openvms_testpath_mounted.</span>
+
+<span class="sd">             Args:</span>
+<span class="sd">                test_path   (str)   -- OpenVMS test path to be unmounted.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_openvms_testpath_mounted</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">test_path</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">mounted_path_openvms</span> <span class="o">=</span> <span class="n">VMS_MOUNTED_DISK</span> <span class="o">+</span> <span class="n">test_path</span><span class="p">[</span><span class="n">pos</span><span class="p">:]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Unmounting OpenVMS test path [</span><span class="si">%s</span><span class="s2">] from proxy client path [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span>
+            <span class="n">test_path</span><span class="p">,</span>
+            <span class="n">VMS_UNIX_MOUNT_PATH</span><span class="p">)</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;umount -f </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">VMS_UNIX_MOUNT_PATH</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Error occurred while unmounting OpenVMS test path </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;TCPIP REMOVE EXPORT </span><span class="se">\&quot;</span><span class="si">{0}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">mounted_path_openvms</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute_openvms_command</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;TCPIP UNMAP </span><span class="se">\&quot;</span><span class="si">{0}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">VMS_MOUNTED_DISK</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute_openvms_command</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;TCPIP REMOVE PROXY </span><span class="se">\&quot;</span><span class="si">{0}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">username</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute_openvms_command</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+
+        <span class="n">command_string</span> <span class="o">=</span> <span class="s2">&quot;showmount -e </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mounted_path_openvms</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span> <span class="ow">or</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="ow">is</span> <span class="ow">not</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Error occurred while unmounting OpenVMS test path </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UnixFSHelper.execute_openvms_command"><a class="viewcode-back" href="../../../../Automation.FileSystem.FSUtils.html#Automation.FileSystem.FSUtils.unixfshelper.UnixFSHelper.execute_openvms_command">[docs]</a>    <span class="k">def</span> <span class="nf">execute_openvms_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command_string</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Verifies whether the job used Scan optimization</span>
+
+<span class="sd">             Args:</span>
+<span class="sd">                command_string  (str)   -- command to be executed</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurred while executing the command on OpenVMS</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">command_string</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/sshf -p </span><span class="si">{1}</span><span class="s2"> -- ssh  -oKexAlgorithms=+diffie-hellman-group1-sha1 &quot;</span>
+            <span class="s2">&quot;-oHostKeyAlgorithms=+ssh-dss -o UserKnownHostsFile=/dev/null -o &quot;</span>
+            <span class="s2">&quot;StrictHostKeyChecking=no -o ConnectTimeout=15 </span><span class="si">{2}</span><span class="s2">@</span><span class="si">{3}</span><span class="s2"> </span><span class="se">\&#39;</span><span class="si">{4}</span><span class="se">\&#39;</span><span class="s2">&quot;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">base_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">password</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">,</span> <span class="n">command_string</span>
+        <span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command_string</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Error occurred while executing remotely OpenVMS cmd </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">command_string</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error occurred while verifying the scan status </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">exception</span><span class="p">))</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

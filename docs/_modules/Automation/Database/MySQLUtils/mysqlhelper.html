@@ -1,0 +1,561 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.Database.MySQLUtils.mysqlhelper &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.Database.MySQLUtils.mysqlhelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for performing MYSQL operations</span>
+
+<span class="sd">MYSQLHelper is the only class defined in this file</span>
+
+<span class="sd">MYSQLHelper: Helper class to perform MYSQL operations</span>
+
+<span class="sd">MYSQLHelper:</span>
+<span class="sd">    __init__()                      --  initializes MYSQLHelper object</span>
+
+<span class="sd">    run_backup()                    --  initiates backup job for specified subclient and</span>
+<span class="sd">                                            waits for completion</span>
+
+<span class="sd">    get_mysql_db_password()         --  gets the MySQL Server Password</span>
+
+<span class="sd">    get_databases_size()            --  gets the size of the databases</span>
+
+<span class="sd">    get_database_and_table_sizes()  --  calls get_databases_size() and get_tables_list_for_db()</span>
+<span class="sd">                                            and returns</span>
+
+<span class="sd">    compare_db_and_table_sizes()    --  compare the database and table sizes after backup</span>
+<span class="sd">                                            and restore</span>
+
+<span class="sd">    drop_table()                    --  drops the table from MySQL Server</span>
+
+<span class="sd">    clean_up_tables()               --  takes a dictionary as input and calls drop_table()</span>
+
+<span class="sd">    basic_setup_on_mysql_server()   --  checks for basic setups on MySQL Server</span>
+
+<span class="sd">    get_tables_list_for_db()        --  gets the existig table list for a database</span>
+
+<span class="sd">    get_table_size()                --  gets the table size</span>
+
+<span class="sd">    log_bin_on_mysql_server()       --  checks whether binary logging is enabled in MySQL Server</span>
+<span class="sd">                                            or not</span>
+
+<span class="sd">    create_data()                   --  creates the data in tables created by automation</span>
+
+<span class="sd">    create_table_with_text_db()     --  create tables in a database</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">cvhelper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">database_helper</span>
+
+
+<div class="viewcode-block" id="MYSQLHelper"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper">[docs]</a><span class="k">class</span> <span class="nc">MYSQLHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to perform mysql operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell</span><span class="p">,</span> <span class="n">subclient</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">hostname</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes mysqlhelper object&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">CommServDatabase</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span> <span class="o">=</span> <span class="n">subclient</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mysql_instance</span> <span class="o">=</span> <span class="n">instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span> <span class="o">=</span> <span class="n">hostname</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">usr</span> <span class="o">=</span> <span class="n">user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pwd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_mysql_db_password</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="MYSQLHelper.run_backup"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.run_backup">[docs]</a>    <span class="k">def</span> <span class="nf">run_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initiates backup job and waits for completion&quot;&quot;&quot;</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot; Starting Subclient </span><span class="si">%s</span><span class="s2"> Backup &quot;</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started </span><span class="si">%s</span><span class="s2"> backup with Job ID: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run </span><span class="si">{0}</span><span class="s2"> backup job with error: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">backup_type</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished </span><span class="si">%s</span><span class="s2"> backup job&quot;</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">job</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.get_mysql_db_password"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.get_mysql_db_password">[docs]</a>    <span class="k">def</span> <span class="nf">get_mysql_db_password</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the password of the mysql instance</span>
+
+<span class="sd">                Raises:</span>
+<span class="sd">                    Exception:</span>
+<span class="sd">                        if failed to get the password of the instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;Select attrVal from app_instanceprop where componentNameId = </span><span class="si">{0}</span><span class="s2"> and </span><span class="se">\</span>
+<span class="s2">                attrName = &#39;MySQL SA Password&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mysql_instance</span><span class="o">.</span><span class="n">instance_id</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+            <span class="n">password</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+            <span class="n">password</span> <span class="o">=</span> <span class="n">password</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">mysql_db_password</span> <span class="o">=</span> <span class="n">cvhelper</span><span class="o">.</span><span class="n">format_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">mysql_db_password</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Could not get the mysql server password. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.get_databases_size"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.get_databases_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_databases_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; This function gets the database size&quot;&quot;&quot;</span>
+
+        <span class="n">db_name</span> <span class="o">=</span> <span class="n">database_name</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting the size for database: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">db_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">MySQL</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">usr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">db_name</span><span class="p">)</span>
+            <span class="c1"># This command gives the database Size in MB</span>
+            <span class="n">cmd_get_db_size</span> <span class="o">=</span> <span class="s2">&quot;SELECT CONCAT(sum(DATA_LENGTH + INDEX_LENGTH ) </span><span class="se">\</span>
+<span class="s2">                / 1024 / 1024) AS Size FROM  INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA </span><span class="se">\</span>
+<span class="s2">                like &#39;</span><span class="si">{0}</span><span class="s2">&#39;;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_name</span><span class="p">)</span>
+            <span class="n">db_size_in_mb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">cmd_get_db_size</span><span class="p">)</span>
+            <span class="n">db_size_in_mb</span> <span class="o">=</span> <span class="n">db_size_in_mb</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">db_size_in_mb</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Could not get the database size. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.get_database_and_table_sizes"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.get_database_and_table_sizes">[docs]</a>    <span class="k">def</span> <span class="nf">get_database_and_table_sizes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub_client_content_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This function calls get_databases_size() and get_tables_list_for_db() and returns&quot;&quot;&quot;</span>
+
+        <span class="n">sb_content_list</span> <span class="o">=</span> <span class="n">sub_client_content_list</span>
+        <span class="n">source_db_size</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">source_tables_size</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">table_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">each_db_in_strip</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">each_db</span> <span class="ow">in</span> <span class="n">sb_content_list</span><span class="p">:</span>
+                <span class="n">db_size_in_mb</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="k">if</span> <span class="n">each_db</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">):</span>
+                    <span class="n">each_db_in_strip</span> <span class="o">=</span> <span class="n">each_db</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">each_db_in_strip</span> <span class="o">=</span> <span class="n">each_db</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">each_db_in_strip</span> <span class="o">==</span> <span class="s1">&#39;mysql&#39;</span> <span class="ow">or</span> <span class="n">each_db_in_strip</span> <span class="o">==</span> <span class="s1">&#39;sys&#39;</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">db_size_in_mb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_databases_size</span><span class="p">(</span><span class="n">each_db_in_strip</span><span class="p">)</span>
+                    <span class="n">source_db_size</span><span class="p">[</span><span class="n">each_db_in_strip</span><span class="p">]</span> <span class="o">=</span> <span class="n">db_size_in_mb</span>
+
+                    <span class="n">table_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_tables_list_for_db</span><span class="p">(</span><span class="n">each_db_in_strip</span><span class="p">)</span>
+                    <span class="n">tables_size</span> <span class="o">=</span> <span class="p">{}</span>
+
+                    <span class="k">for</span> <span class="n">each_table</span> <span class="ow">in</span> <span class="n">table_list</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">each_table</span><span class="p">)</span>
+                        <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_table_size</span><span class="p">(</span><span class="n">each_db_in_strip</span><span class="p">,</span> <span class="n">each_table</span><span class="p">)</span>
+                        <span class="n">tables_size</span><span class="p">[</span><span class="n">each_table</span><span class="p">]</span> <span class="o">=</span> <span class="n">size</span>
+                        <span class="n">source_tables_size</span><span class="p">[</span><span class="n">each_db_in_strip</span><span class="p">]</span> <span class="o">=</span> <span class="n">tables_size</span>
+
+            <span class="k">return</span> <span class="p">(</span><span class="n">source_db_size</span><span class="p">,</span> <span class="n">source_tables_size</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Could not get database and table sizes. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.compare_db_and_table_sizes"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.compare_db_and_table_sizes">[docs]</a>    <span class="k">def</span> <span class="nf">compare_db_and_table_sizes</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">init_dbsize_dict</span><span class="p">,</span>
+            <span class="n">init_tablesize_dict</span><span class="p">,</span>
+            <span class="n">final_dbsize_dict</span><span class="p">,</span>
+            <span class="n">final_tablesize_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This function compare the database size and then compare tables sizes&quot;&quot;&quot;</span>
+
+        <span class="n">init_db_size</span> <span class="o">=</span> <span class="n">init_dbsize_dict</span>
+        <span class="n">init_table_size</span> <span class="o">=</span> <span class="n">init_tablesize_dict</span>
+        <span class="n">final_db_size</span> <span class="o">=</span> <span class="n">final_dbsize_dict</span>
+        <span class="n">final_table_size</span> <span class="o">=</span> <span class="n">final_tablesize_dict</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Comparing the DataBase Size&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">init_db_size</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">final_db_size</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;DataBase Count mismatch&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">each_db</span> <span class="ow">in</span> <span class="n">init_db_size</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">init_db_size</span><span class="p">[</span><span class="n">each_db</span><span class="p">]</span> <span class="o">!=</span> <span class="n">final_db_size</span><span class="p">[</span><span class="n">each_db</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;DataBase: </span><span class="si">%s</span><span class="s2"> size failed&quot;</span><span class="p">,</span> <span class="n">each_db</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">each_db</span> <span class="ow">in</span> <span class="n">init_table_size</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">each_table</span> <span class="ow">in</span> <span class="n">init_table_size</span><span class="p">[</span><span class="n">each_db</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">ini_total_rows</span><span class="p">,</span> <span class="n">ini_avg_length</span><span class="p">,</span> <span class="n">ini_data_length</span><span class="p">,</span> <span class="n">ini_table_size</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">init_table_size</span><span class="p">[</span><span class="n">each_db</span><span class="p">][</span><span class="n">each_table</span><span class="p">])</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;|&quot;</span><span class="p">)</span>
+                    <span class="n">fin_total_rows</span><span class="p">,</span> <span class="n">fin_avg_length</span><span class="p">,</span> <span class="n">fin_data_length</span><span class="p">,</span> <span class="n">fin_table_size</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">final_table_size</span><span class="p">[</span><span class="n">each_db</span><span class="p">][</span><span class="n">each_table</span><span class="p">])</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;|&quot;</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="p">(</span><span class="n">ini_total_rows</span> <span class="o">!=</span> <span class="n">fin_total_rows</span> <span class="ow">or</span>
+                            <span class="n">ini_avg_length</span> <span class="o">!=</span> <span class="n">fin_avg_length</span> <span class="ow">or</span>
+                            <span class="n">ini_data_length</span> <span class="o">!=</span> <span class="n">fin_data_length</span> <span class="ow">or</span>
+                            <span class="n">ini_table_size</span> <span class="o">!=</span> <span class="n">fin_table_size</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                            <span class="s2">&quot;Mismatch in TotalRows, AvgRowLength, DataLength, Size for table: </span><span class="si">%s</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                            in DataBase: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="n">each_table</span><span class="p">,</span>
+                            <span class="n">each_db</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                            <span class="s2">&quot;Initial TotalRows: </span><span class="si">%s</span><span class="s2">, AvgRowLenght: </span><span class="si">%s</span><span class="s2">, DataLength: </span><span class="si">%s</span><span class="s2">, Size: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="n">ini_total_rows</span><span class="p">,</span>
+                            <span class="n">ini_avg_length</span><span class="p">,</span>
+                            <span class="n">ini_data_length</span><span class="p">,</span>
+                            <span class="n">ini_table_size</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                            <span class="s2">&quot;Final TotalRows: </span><span class="si">%s</span><span class="s2">, AvgRowLenght: </span><span class="si">%s</span><span class="s2">, DataLength: </span><span class="si">%s</span><span class="s2">, Size: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="n">fin_total_rows</span><span class="p">,</span>
+                            <span class="n">fin_avg_length</span><span class="p">,</span>
+                            <span class="n">fin_data_length</span><span class="p">,</span>
+                            <span class="n">fin_table_size</span><span class="p">)</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Validation failure&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;********* Successful Compared database and tables properties *********&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception raised at compare_db_and_table_sizes&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.drop_table"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.drop_table">[docs]</a>    <span class="k">def</span> <span class="nf">drop_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">,</span> <span class="n">table_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; This Function drop the tables&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">database_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">):</span>
+            <span class="n">db_name</span> <span class="o">=</span> <span class="n">database_name</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">tb_name</span> <span class="o">=</span> <span class="n">table_name</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">db_name</span> <span class="o">=</span> <span class="n">database_name</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+            <span class="n">tb_name</span> <span class="o">=</span> <span class="n">table_name</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dropping the table:</span><span class="si">%s</span><span class="s2"> from dataBase:</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">tb_name</span><span class="p">,</span> <span class="n">db_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">MySQL</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">usr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">db_name</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;drop table IF EXISTS `</span><span class="si">{0}</span><span class="s2">`;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tb_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Could not drop the table. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.clean_up_tables"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.clean_up_tables">[docs]</a>    <span class="k">def</span> <span class="nf">clean_up_tables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tables_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; This Function takes a dictionary as input.</span>
+<span class="sd">            The dictionary has the database names as keys and table names list as values.</span>
+<span class="sd">            This function calls the drop_table()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tb_dict</span> <span class="o">=</span> <span class="n">tables_dict</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">each_db</span> <span class="ow">in</span> <span class="n">tb_dict</span><span class="p">:</span>
+                <span class="n">test_case_list</span> <span class="o">=</span> <span class="n">tb_dict</span><span class="p">[</span><span class="n">each_db</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">each_tb</span> <span class="ow">in</span> <span class="n">test_case_list</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">drop_table</span><span class="p">(</span><span class="n">each_db</span><span class="p">,</span> <span class="n">each_tb</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Could not drop the table. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.basic_setup_on_mysql_server"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.basic_setup_on_mysql_server">[docs]</a>    <span class="k">def</span> <span class="nf">basic_setup_on_mysql_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; This function checks for basic settings on MYSQL Server&quot;&quot;&quot;</span>
+        <span class="n">auto_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+        <span class="n">image_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">auto_path</span><span class="p">,</span> <span class="s2">&quot;MySQLUtils&quot;</span><span class="p">,</span> <span class="s2">&quot;SampleImage.wmf&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting the size of file: </span><span class="si">%s</span><span class="s2"> &quot;</span><span class="p">,</span> <span class="n">image_file</span><span class="p">)</span>
+            <span class="n">image_file_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">image_file</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking for max_allowed Packets for the Blob type data base&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">MySQL</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">usr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;show variables like &#39;max_allowed_packet&#39;;&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Excecuting the command: </span><span class="si">%s</span><span class="s2"> to get max_allowed Packets&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">max_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Output: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">max_size</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">max_size</span> <span class="o">&gt;</span> <span class="n">image_file_size</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;The Input Image size: </span><span class="si">%s</span><span class="s2"> is greater than </span><span class="se">\</span>
+<span class="s2">                    max_allowed_packet size: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">image_file_size</span><span class="p">,</span> <span class="n">max_size</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Exception raised at basic_setup_on_mysql_server. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.get_tables_list_for_db"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.get_tables_list_for_db">[docs]</a>    <span class="k">def</span> <span class="nf">get_tables_list_for_db</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; This function get list of tables for given DataBases&quot;&quot;&quot;</span>
+
+        <span class="n">tables_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">db_name</span> <span class="o">=</span> <span class="n">database_name</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Get List of tables in database:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">db_name</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">MySQL</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">usr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">db_name</span><span class="p">)</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;show tables&quot;</span>
+            <span class="n">list_tb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+            <span class="n">list_tb</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">list_tb</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">list_tb</span><span class="p">:</span>
+                <span class="n">tables_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">tables_list</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Could not get the content list. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.get_table_size"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.get_table_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_table_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">,</span> <span class="n">table_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; This Function get the Table Size for the given table and the output</span>
+<span class="sd">            is dispalyed in this format.</span>
+<span class="sd">            TableRows|AVG_ROW_LENGTH|DATA_LENGTH</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">db_name</span> <span class="o">=</span> <span class="n">database_name</span>
+        <span class="n">tb_name</span> <span class="o">=</span> <span class="n">table_name</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">avg_row_length</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Getting the Table Details : </span><span class="si">%s</span><span class="s2"> for the database: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">tb_name</span><span class="p">,</span> <span class="n">db_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">MySQL</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">usr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">db_name</span><span class="p">)</span>
+            <span class="n">query_engine</span> <span class="o">=</span> <span class="s2">&quot;SELECT ENGINE FROM information_schema.`TABLES` WHERE `TABLE_SCHEMA`= </span><span class="se">\</span>
+<span class="s2">                &#39;</span><span class="si">{0}</span><span class="s2">&#39; and `TABLE_NAME`=&#39;</span><span class="si">{1}</span><span class="s2">&#39;;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_name</span><span class="p">,</span> <span class="n">tb_name</span><span class="p">)</span>
+            <span class="n">engine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query_engine</span><span class="p">)</span>
+            <span class="n">engine</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="c1"># Fetching number of rows in table</span>
+            <span class="n">query_rows</span> <span class="o">=</span> <span class="s2">&quot;SELECT COUNT(*) FROM `</span><span class="si">{0}</span><span class="s2">`.`</span><span class="si">{1}</span><span class="s2">`;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_name</span><span class="p">,</span> <span class="n">tb_name</span><span class="p">)</span>
+            <span class="n">tb_rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query_rows</span><span class="p">)</span>
+            <span class="n">tb_rows</span> <span class="o">=</span> <span class="n">tb_rows</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># Fetching Average Row Length of Table</span>
+            <span class="n">query_avg_row_length</span> <span class="o">=</span> <span class="s2">&quot;SELECT AVG_ROW_LENGTH FROM information_schema.`TABLES` WHERE </span><span class="se">\</span>
+<span class="s2">                `TABLE_SCHEMA`= &#39;</span><span class="si">{0}</span><span class="s2">&#39; and `TABLE_NAME`=&#39;</span><span class="si">{1}</span><span class="s2">&#39;;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_name</span><span class="p">,</span> <span class="n">tb_name</span><span class="p">)</span>
+            <span class="n">avg_row_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query_avg_row_length</span><span class="p">)</span>
+            <span class="n">avg_row_length</span> <span class="o">=</span> <span class="n">avg_row_length</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># Fetching Data Length of Table</span>
+            <span class="n">query_data_length</span> <span class="o">=</span> <span class="s2">&quot;SELECT DATA_LENGTH FROM information_schema.`TABLES` WHERE </span><span class="se">\</span>
+<span class="s2">                `TABLE_SCHEMA`= &#39;</span><span class="si">{0}</span><span class="s2">&#39; and `TABLE_NAME`=&#39;</span><span class="si">{1}</span><span class="s2">&#39;;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_name</span><span class="p">,</span> <span class="n">tb_name</span><span class="p">)</span>
+            <span class="n">data_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query_data_length</span><span class="p">)</span>
+            <span class="n">data_length</span> <span class="o">=</span> <span class="n">data_length</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># Fetching Size Of Table (In MB)</span>
+            <span class="n">query_table_size</span> <span class="o">=</span> <span class="s2">&quot;SELECT ((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024) &#39;Size in MB&#39; </span><span class="se">\</span>
+<span class="s2">                FROM information_schema.`TABLES` WHERE `TABLE_SCHEMA`= &#39;</span><span class="si">{0}</span><span class="s2">&#39; and </span><span class="se">\</span>
+<span class="s2">                `TABLE_NAME`=&#39;</span><span class="si">{1}</span><span class="s2">&#39;;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_name</span><span class="p">,</span> <span class="n">tb_name</span><span class="p">)</span>
+            <span class="n">table_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query_table_size</span><span class="p">)</span>
+            <span class="n">table_size</span> <span class="o">=</span> <span class="n">table_size</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">table_details</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">|</span><span class="si">{1}</span><span class="s2">|</span><span class="si">{2}</span><span class="s2">|</span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">tb_rows</span><span class="p">,</span> <span class="n">avg_row_length</span><span class="p">,</span> <span class="n">data_length</span><span class="p">,</span> <span class="n">table_size</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">table_details</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Could not get the content list. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.log_bin_on_mysql_server"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.log_bin_on_mysql_server">[docs]</a>    <span class="k">def</span> <span class="nf">log_bin_on_mysql_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; This function checks whether LOG_BIN ON or OFF,</span>
+<span class="sd">            If its OFF then incremental(Log) backup cannot be run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking whether LOG_BIN has been Enable or Disable&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">MySQL</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">usr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;show variables like &#39;log_bin&#39;;&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Excecuting the command:</span><span class="si">%s</span><span class="s2"> to Check LOG_BIN Properties&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Output: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">status</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;log_bin&#39;</span><span class="p">,</span> <span class="s1">&#39;ON&#39;</span><span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="k">elif</span> <span class="n">status</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;log_bin&#39;</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Exception raised at check_log_bin_on_mysql_server. &quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
+                <span class="s2">&quot;Binary Logging disabled, Kindly enable binary logging to run incremental backup&quot;</span><span class="p">)</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.create_data"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.create_data">[docs]</a>    <span class="k">def</span> <span class="nf">create_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mysql_data_type</span><span class="o">=</span><span class="s2">&quot;Text&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This function create the data for the specified datatype&quot;&quot;&quot;</span>
+
+        <span class="n">image_file</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">data_type</span> <span class="o">=</span> <span class="n">mysql_data_type</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s2">&quot;Text&quot;</span><span class="p">:</span>
+                <span class="n">auto_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+                <span class="n">image_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">auto_path</span><span class="p">,</span> <span class="s2">&quot;MySQLUtils&quot;</span><span class="p">,</span> <span class="s2">&quot;SampleImage.wmf&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Reading the File </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">image_file</span><span class="p">)</span>
+                <span class="n">file_handle</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">image_file</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span>
+                <span class="n">blob_value</span> <span class="o">=</span> <span class="n">file_handle</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                <span class="n">blog_args</span> <span class="o">=</span> <span class="n">blob_value</span>
+                <span class="n">file_handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="n">var_string</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span>
+                <span class="k">return</span> <span class="p">(</span><span class="n">var_string</span><span class="p">,</span> <span class="n">blog_args</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s2">&quot;NUMBER&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">elif</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s2">&quot;DATETIME&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Exception raised at create_data. &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="MYSQLHelper.create_table_with_text_db"><a class="viewcode-back" href="../../../../Automation.Database.MySQLUtils.html#Automation.Database.MySQLUtils.mysqlhelper.MYSQLHelper.create_table_with_text_db">[docs]</a>    <span class="k">def</span> <span class="nf">create_table_with_text_db</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">database_name</span><span class="p">,</span>
+            <span class="n">table_name</span><span class="o">=</span><span class="s2">&quot;AutomTable&quot;</span><span class="p">,</span>
+            <span class="n">no_of_tables</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+            <span class="n">column_in_each_table</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+            <span class="n">drop_table_before_create</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This function created the table with the givenName and insert data&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">database_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">):</span>
+            <span class="n">database_name</span> <span class="o">=</span> <span class="n">database_name</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">database_name</span> <span class="o">=</span> <span class="n">database_name</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+
+        <span class="n">table_name</span> <span class="o">=</span> <span class="n">table_name</span>
+        <span class="n">tables_created</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">database_name</span> <span class="o">!=</span> <span class="s2">&quot;mysql&quot;</span> <span class="ow">and</span> <span class="n">database_name</span> <span class="o">!=</span> <span class="s2">&quot;sys&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">MySQL</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">host_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">usr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pwd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">database_name</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">each_table</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">no_of_tables</span><span class="p">):</span>
+                    <span class="n">each_table_name</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_</span><span class="si">{1}</span><span class="s2">_txtdt_</span><span class="si">{2}</span><span class="s2">&quot;</span> <span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">database_name</span><span class="p">,</span> <span class="n">table_name</span><span class="p">,</span> <span class="n">each_table</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="n">drop_table_before_create</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">drop_table</span><span class="p">(</span><span class="n">database_name</span><span class="p">,</span>
+                                        <span class="n">each_table_name</span><span class="p">)</span>
+
+                    <span class="n">sql_query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;CREATE TABLE IF NOT EXISTS `</span><span class="si">%s</span><span class="s2">`(id int unsigned primary key </span><span class="se">\</span>
+<span class="s2">                        AUTO_INCREMENT,column_var CHAR(254), column_string VARCHAR(254),column_tinytext </span><span class="se">\</span>
+<span class="s2">                        TINYTEXT NOT NULL, column_text TEXT NOT NULL, column_mediumtext MEDIUMTEXT NOT NULL, </span><span class="se">\</span>
+<span class="s2">                        column_longtext LONGTEXT NOT NULL)&quot;&quot;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">each_table_name</span><span class="p">)</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">sql_query</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_query</span><span class="p">)</span>
+                    <span class="c1">#**************** Insert the values into the database*********************</span>
+                    <span class="n">sample_data_for_text_data_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_data</span><span class="p">(</span><span class="s2">&quot;Text&quot;</span><span class="p">)</span>
+
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">column_in_each_table</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                            <span class="s2">&quot;insert into `</span><span class="si">%s</span><span class="s2">`(`id`,`column_var`, `column_string`, `column_tinytext`</span><span class="se">\</span>
+<span class="s2">                            , `column_text`, `column_mediumtext`, `column_longtext`) values </span><span class="se">\</span>
+<span class="s2">                            (NULL, &#39;</span><span class="si">%s</span><span class="s2">&#39;,&#39;</span><span class="si">%s</span><span class="s2">&#39;,&#39;</span><span class="si">%s</span><span class="s2">&#39;,&#39;</span><span class="si">%s</span><span class="s2">&#39;,&#39;</span><span class="si">%s</span><span class="s2">&#39;,&#39;</span><span class="si">%s</span><span class="s2">&#39;)&quot;</span> <span class="o">%</span>
+                            <span class="p">(</span><span class="n">each_table_name</span><span class="p">,</span>
+                             <span class="n">sample_data_for_text_data_type</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                             <span class="n">sample_data_for_text_data_type</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                             <span class="n">sample_data_for_text_data_type</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                             <span class="n">sample_data_for_text_data_type</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                             <span class="n">sample_data_for_text_data_type</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                             <span class="n">sample_data_for_text_data_type</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+
+                    <span class="n">tables_created</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">each_table_name</span><span class="p">)</span>
+
+                <span class="k">return</span> <span class="n">tables_created</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">tables_created</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Exception raised at create_table_with_text_db &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">db_connect</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

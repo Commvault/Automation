@@ -1,0 +1,321 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.Testcases.53298 &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.Testcases.53298</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;&quot;Main file for executing this test case</span>
+
+<span class="sd">TestCase is the only class definied in this file.</span>
+
+<span class="sd">TestCase: Class for executing this test case</span>
+
+<span class="sd">TestCase:</span>
+<span class="sd">    __init__()      --  Initializes test case class object</span>
+
+<span class="sd">    _run_restore()  --  Initiates the restore job for the specified subclient</span>
+
+<span class="sd">    run()           --  Main function for test case execution</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">constants</span><span class="p">,</span> <span class="n">machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">database_helper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="k">import</span> <span class="n">CVTestCase</span>
+<span class="kn">from</span> <span class="nn">Database.PostgreSQL.PostgresUtils</span> <span class="k">import</span> <span class="n">pgsqlhelper</span>
+<span class="kn">from</span> <span class="nn">Database.dbhelper</span> <span class="k">import</span> <span class="n">DbHelper</span>
+
+<div class="viewcode-block" id="TestCase"><a class="viewcode-back" href="../../../Automation.Testcases.html#Automation.Testcases.53298.TestCase">[docs]</a><span class="k">class</span> <span class="nc">TestCase</span><span class="p">(</span><span class="n">CVTestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for executing Basic acceptance test of PostgreSQL backup and Restore test case&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes test case class object&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TestCase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Compressed DumpBased backup/restore of PostgreSQL in Windows client&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">os_list</span><span class="o">.</span><span class="n">WINDOWS</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">product</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">products_list</span><span class="o">.</span><span class="n">POSTGRESQL</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feature</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">features_list</span><span class="o">.</span><span class="n">DATAPROTECTION</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">show_to_user</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;StagingLocation&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;TestDataSize&#39;</span><span class="p">:</span> <span class="kc">None</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">postgres_data_population_size</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_run_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initiates the restore job for the specified subclient</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            db_list     (str)    -- List of databases to restore</span>
+
+<span class="sd">        Returns:</span>
+
+<span class="sd">            job                  -- returns JOB object</span>
+
+<span class="sd">        Raises:</span>
+
+<span class="sd">            BaseException: if unable to start the backup job</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">restore_postgres_server</span><span class="p">(</span>
+            <span class="n">db_list</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">instance_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Started </span><span class="si">%s</span><span class="s2"> Restore with Job ID: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">backupset</span><span class="o">.</span><span class="n">backupset_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run restore job with error: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished </span><span class="si">%s</span><span class="s2"> restore job&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">backupset</span><span class="o">.</span><span class="n">backupset_name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">job</span>
+
+<div class="viewcode-block" id="TestCase.run"><a class="viewcode-back" href="../../../Automation.Testcases.html#Automation.Testcases.53298.TestCase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Main function for test case execution&quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started executing </span><span class="si">%s</span><span class="s2"> testcase&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">))</span>
+            <span class="n">pgsql_helper_object</span> <span class="o">=</span> <span class="n">pgsqlhelper</span><span class="o">.</span><span class="n">PostgresHelper</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+            <span class="n">dbhelper_object</span> <span class="o">=</span> <span class="n">DbHelper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="n">machine_object</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">postgres_data_population_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;TestDataSize&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Staging location Specified: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;StagingLocation&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Postgres maintenance database:</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">maintenance_database</span><span class="p">)</span>
+            <span class="n">ignoredb_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">maintenance_database</span><span class="p">,</span> <span class="s2">&quot;template0&quot;</span><span class="p">]</span>
+            <span class="n">pgsql_server_password</span> <span class="o">=</span> <span class="n">pgsql_helper_object</span><span class="o">.</span><span class="n">_postgres_db_password</span>
+            <span class="n">pgsql_db_object</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">PostgreSQL</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_port_number</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_user_name</span><span class="p">,</span>
+                <span class="n">pgsql_server_password</span><span class="p">,</span>
+                <span class="s2">&quot;postgres&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Postgres server Port: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_port_number</span><span class="p">)</span>
+
+            <span class="c1">################# Set ssPGCompDump registry key ########################</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting sPGCompDump registry Key&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">add_additional_setting</span><span class="p">(</span><span class="s2">&quot;PostGres&quot;</span><span class="p">,</span> <span class="s2">&quot;sPGCompDump&quot;</span><span class="p">,</span> <span class="s2">&quot;STRING&quot;</span><span class="p">,</span> <span class="s2">&quot;Y&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;sPGCompDump registry key is set Successfully&quot;</span><span class="p">)</span>
+
+            <span class="c1">################# Set sPGStagingDir registry key ########################</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting sPGStagingDir registry Key&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">add_additional_setting</span><span class="p">(</span>
+                <span class="s2">&quot;PostGres&quot;</span><span class="p">,</span> <span class="s2">&quot;sPGStagingDir&quot;</span><span class="p">,</span> <span class="s2">&quot;STRING&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;StagingLocation&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;sPGStagingDir registry key is set Successfully&quot;</span><span class="p">)</span>
+
+
+            <span class="c1">################# DumpBased Backup/Restore Operations ########################</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;#&quot;</span> <span class="o">*</span> <span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;  DumpBased Backup/Restore Operations  &quot;</span> <span class="o">+</span> <span class="s2">&quot;#&quot;</span> <span class="o">*</span> <span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating Test Data&quot;</span><span class="p">)</span>
+            <span class="n">pgsql_helper_object</span><span class="o">.</span><span class="n">generate_test_data</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">postgres_data_population_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">postgres_data_population_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">postgres_data_population_size</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_port_number</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_user_name</span><span class="p">,</span>
+                <span class="n">pgsql_server_password</span><span class="p">,</span>
+                <span class="kc">True</span><span class="p">,</span>
+                <span class="s2">&quot;auto_full_dmp&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Test Data Generated successfully&quot;</span><span class="p">)</span>
+
+            <span class="n">db_list_before_backup</span> <span class="o">=</span> <span class="n">pgsql_helper_object</span><span class="o">.</span><span class="n">get_database_list_to_backup</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="p">,</span>
+                <span class="n">pgsql_db_object</span><span class="o">.</span><span class="n">get_db_list</span><span class="p">())</span>
+
+            <span class="c1"># Get the subclient content Info before backup</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Collect information of the subclient content before backup&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">ignoredb_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">db_list_before_backup</span><span class="p">:</span>
+                    <span class="n">db_list_before_backup</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Database list to backup:</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">db_list_before_backup</span><span class="p">)</span>
+
+            <span class="c1"># Colecting Meta data</span>
+            <span class="n">before_full_backup_db_list</span> <span class="o">=</span> <span class="n">pgsql_helper_object</span><span class="o">.</span><span class="n">generate_db_info</span><span class="p">(</span>
+                <span class="n">db_list_before_backup</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_port_number</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_user_name</span><span class="p">,</span>
+                <span class="n">pgsql_server_password</span><span class="p">)</span>
+
+            <span class="c1">###################### Running Full Backup ##############################</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;#&quot;</span> <span class="o">*</span> <span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;  Running Dumpbased Full Backup  &quot;</span> <span class="o">+</span> <span class="s2">&quot;#&quot;</span> <span class="o">*</span> <span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="n">dbhelper_object</span><span class="o">.</span><span class="n">run_backup</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="p">,</span> <span class="s2">&quot;FULL&quot;</span><span class="p">)</span>
+
+            <span class="c1">############# validating Staging area and Compression dump backup ##########</span>
+            <span class="n">postgres_backup_log</span> <span class="o">=</span> <span class="n">pgsql_helper_object</span><span class="o">.</span><span class="n">postgres_log_directory</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">&quot;(Get-Content </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2"> | &quot;</span>
+                <span class="s2">&quot;Where-Object {$_ -match </span><span class="se">\&quot;</span><span class="si">%s</span><span class="s2">.*sPGStagingDir reg key value.*[</span><span class="si">%s</span><span class="s2">]</span><span class="se">\&quot;</span><span class="s2">} | &quot;</span>
+                <span class="s2">&quot;Foreach {$Matches[0]})&quot;</span><span class="p">)</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">postgres_backup_log</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;StagingLocation&#39;</span><span class="p">])</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="o">.</span><span class="n">formatted_output</span>
+
+            <span class="k">if</span> <span class="n">output</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Staging location specified was not effective&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Staging location specified was used for storing the dump&quot;</span><span class="p">)</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">&quot;(Get-Content </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2"> | &quot;</span>
+                <span class="s2">&quot;Where-Object {$_ -match </span><span class="se">\&quot;</span><span class="si">%s</span><span class="s2">.*Command to run.*pg_dump.*-Fc</span><span class="se">\&quot;</span><span class="s2">} | &quot;</span>
+                <span class="s2">&quot;Foreach {$Matches[0]})&quot;</span><span class="p">)</span> <span class="o">%</span> <span class="p">(</span><span class="n">postgres_backup_log</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="o">.</span><span class="n">formatted_output</span>
+
+            <span class="k">if</span> <span class="n">output</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Compression is not used for dumpbased backup. Please check the logs&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Data is backed-up using compression method.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;#######Validation of sPGStagingDir and sPGCompDump is PASSED..!!#######&quot;</span><span class="p">)</span>
+
+            <span class="c1"># appending &quot;/&quot; to dbnames for dumpbased restore</span>
+            <span class="n">db_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">ele</span> <span class="k">for</span> <span class="n">ele</span> <span class="ow">in</span> <span class="n">db_list_before_backup</span><span class="p">]</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sleeping for 10 seconds&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting Automation Created databases&quot;</span><span class="p">)</span>
+            <span class="n">pgsql_helper_object</span><span class="o">.</span><span class="n">cleanup_tc_db</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_port_number</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_user_name</span><span class="p">,</span>
+                <span class="n">pgsql_server_password</span><span class="p">,</span>
+                <span class="s2">&quot;auto&quot;</span><span class="p">)</span>
+
+
+            <span class="c1"># ###################### Running restore ###################################</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;##### Running Dumpbased Restore  #####&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_run_restore</span><span class="p">(</span><span class="n">db_list</span><span class="p">)</span>
+            <span class="n">after_backup_db_list</span> <span class="o">=</span> <span class="n">pgsql_helper_object</span><span class="o">.</span><span class="n">get_database_list_to_backup</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="p">,</span>
+                <span class="n">pgsql_db_object</span><span class="o">.</span><span class="n">get_db_list</span><span class="p">())</span>
+            <span class="k">if</span> <span class="n">after_backup_db_list</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s2">&quot;Unable to get the database list&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to get the database list&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Get subclient content info after restore</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Collect information of the subclient content after restore&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">ignoredb_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">after_backup_db_list</span><span class="p">:</span>
+                    <span class="n">after_backup_db_list</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="n">after_restore_db_info</span> <span class="o">=</span> <span class="n">pgsql_helper_object</span><span class="o">.</span><span class="n">generate_db_info</span><span class="p">(</span>
+                <span class="n">after_backup_db_list</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_port_number</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="o">.</span><span class="n">postgres_server_user_name</span><span class="p">,</span>
+                <span class="n">pgsql_server_password</span><span class="p">)</span>
+
+            <span class="c1">########validation########</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Validating the database information collected before Full Backup </span><span class="se">\</span>
+<span class="s2">                 and after Inplace Restore for DumpBasedBackupset&quot;</span><span class="p">)</span>
+            <span class="c1"># validate subclient content information collected before backup and after restore</span>
+            <span class="n">ret_code</span> <span class="o">=</span> <span class="n">pgsql_helper_object</span><span class="o">.</span><span class="n">validate_db_info</span><span class="p">(</span>
+                <span class="n">before_full_backup_db_list</span><span class="p">,</span> <span class="n">after_restore_db_info</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">ret_code</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s2">&quot;Database information validation failed&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Data validation failure&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Database information validation passed successfully&quot;</span><span class="p">)</span>
+
+            <span class="c1">############## Deleting sPGStagingDir registry ##################</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting sPGStagingDir registry Key&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">delete_additional_setting</span><span class="p">(</span><span class="s2">&quot;PostGres&quot;</span><span class="p">,</span> <span class="s2">&quot;sPGStagingDir&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;sPGStagingDir registry key is deleted Successfully&quot;</span><span class="p">)</span>
+
+            <span class="c1">############## Deleting sPGCompDump registry ####################</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting sPGCompDump registry Key&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">delete_additional_setting</span><span class="p">(</span><span class="s2">&quot;PostGres&quot;</span><span class="p">,</span> <span class="s2">&quot;sPGCompDump&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;sPGCompDump registry key is deleted Successfully&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Testcase execution Completed..!!&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed with error: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result_string</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

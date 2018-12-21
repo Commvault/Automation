@@ -1,0 +1,334 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Automation.Server.MultiCommcell.multicommcellhelper &#8212; Commvault Automation 11.14 documentation</title>
+    <link rel="stylesheet" href="../../../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for Automation.Server.MultiCommcell.multicommcellhelper</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright @2018 Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for performing multicommcell operations</span>
+
+<span class="sd">MultiCommcellHelper is the only class defined in this file</span>
+
+<span class="sd">MultiCommcellHelper</span>
+<span class="sd">===================</span>
+
+<span class="sd">    __init__                        --  initializes multicommcellhelper object</span>
+
+<span class="sd">    validate_client_listing         --  Validates the clients listed when</span>
+<span class="sd">    logged into commcell using username-password and when logged in using SAML token</span>
+
+<span class="sd">    validate_incorrect_authtoken    --  Validates whether exception is raised when</span>
+<span class="sd">    an incorrect authtoken is passed for operations</span>
+
+<span class="sd">    cleanup_certificates            -- deletes certificates created by test cases</span>
+
+<span class="sd">    saml_config                  -- performs initial configuration for multicommcell operations</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">database_helper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">options_selector</span>
+<span class="kn">from</span> <span class="nn">xml.etree</span> <span class="k">import</span> <span class="n">ElementTree</span> <span class="k">as</span> <span class="n">ET</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.commcell</span> <span class="k">import</span> <span class="n">Commcell</span>
+<span class="kn">from</span> <span class="nn">cvpysdk</span> <span class="k">import</span> <span class="n">identity_management</span>
+
+
+<div class="viewcode-block" id="MultiCommcellHelper"><a class="viewcode-back" href="../../../../Automation.Server.MultiCommcell.html#Automation.Server.MultiCommcell.multicommcellhelper.MultiCommcellHelper">[docs]</a><span class="k">class</span> <span class="nc">MultiCommcellHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to perform multicommcell operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes MultiCommcellHelper object and gets the commserv database</span>
+<span class="sd">           object if not specified</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                inputs    (dict)    --  inputs passed to initialise the object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sp_commcell</span> <span class="o">=</span> <span class="n">Commcell</span><span class="p">(</span>
+            <span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;SPCommserver&quot;</span><span class="p">],</span>
+            <span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;SPadminUser&quot;</span><span class="p">],</span>
+            <span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;SPadminUserPwd&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span> <span class="o">=</span> <span class="n">Commcell</span><span class="p">(</span>
+            <span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;IDPCommserver&quot;</span><span class="p">],</span>
+            <span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;IDPadminUser&quot;</span><span class="p">],</span>
+            <span class="n">inputs</span><span class="p">[</span><span class="s2">&quot;IDPadminUserPwd&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sp_cvpysdk_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sp_commcell</span><span class="o">.</span><span class="n">_cvpysdk_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">idp_cvpysdk_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="o">.</span><span class="n">_cvpysdk_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sp_csdb</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">CommServDatabase</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sp_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_idp_csdb</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">CommServDatabase</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_idp_options_selector</span> <span class="o">=</span> <span class="n">options_selector</span><span class="o">.</span><span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">identity_app</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">service_app</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="MultiCommcellHelper.validate_client_listing"><a class="viewcode-back" href="../../../../Automation.Server.MultiCommcell.html#Automation.Server.MultiCommcell.multicommcellhelper.MultiCommcellHelper.validate_client_listing">[docs]</a>    <span class="k">def</span> <span class="nf">validate_client_listing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">regular_commcell</span><span class="p">,</span> <span class="n">saml_commcell</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates the clients listed when logged into commcell using</span>
+<span class="sd">           username-password and when logged in using SAML token</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                regular_commcell    (obj)   -   Commcell object wehn logged in</span>
+<span class="sd">                                                using username &amp; password</span>
+
+<span class="sd">                saml_commcell       (obj)   -   Commcell object wehn logged in</span>
+<span class="sd">                                                using authtoken</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   True if validated. False otherwise</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">regular_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">all_clients</span> <span class="o">==</span> <span class="n">saml_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">all_clients</span></div>
+
+<div class="viewcode-block" id="MultiCommcellHelper.validate_incorrect_authtoken"><a class="viewcode-back" href="../../../../Automation.Server.MultiCommcell.html#Automation.Server.MultiCommcell.multicommcellhelper.MultiCommcellHelper.validate_incorrect_authtoken">[docs]</a>    <span class="k">def</span> <span class="nf">validate_incorrect_authtoken</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_commcell</span><span class="p">,</span> <span class="n">idp_commcell</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates whether exception is raised when an incorrect authtoken</span>
+<span class="sd">           is passed for operations</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                sp_commcell         (obj)   -   Commcell object of service provider</span>
+
+<span class="sd">                idp_commcell        (obj)   -   Commcell object of ID provider</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool    -   True if validated. False otherwise</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">idp_token</span> <span class="o">=</span> <span class="n">idp_commcell</span><span class="o">.</span><span class="n">get_saml_token</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">idp_token</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">xyzabc&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idp_token</span><span class="p">)</span>
+            <span class="n">sp_user_commcell</span> <span class="o">=</span> <span class="n">Commcell</span><span class="p">(</span>
+                <span class="n">sp_commcell</span><span class="o">.</span><span class="n">commserv_hostname</span><span class="p">,</span>
+                <span class="n">authtoken</span><span class="o">=</span><span class="n">idp_token</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">sp_user_commcell</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Login with tampered authtoken successfully prevented - </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="MultiCommcellHelper.cleanup_certificates"><a class="viewcode-back" href="../../../../Automation.Server.MultiCommcell.html#Automation.Server.MultiCommcell.multicommcellhelper.MultiCommcellHelper.cleanup_certificates">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_certificates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Helper method to delete the certificates created by the TC</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool    -   True if deletion successful. False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sp_apps</span> <span class="o">=</span> <span class="n">identity_management</span><span class="o">.</span><span class="n">IdentityManagementApps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sp_commcell</span><span class="p">)</span>
+        <span class="n">idp_apps</span> <span class="o">=</span> <span class="n">identity_management</span><span class="o">.</span><span class="n">IdentityManagementApps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">service_app</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">service_app</span> <span class="o">=</span> <span class="n">sp_apps</span><span class="o">.</span><span class="n">get_commcell_identity_apps</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">identity_app</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">identity_app</span> <span class="o">=</span> <span class="n">idp_apps</span><span class="o">.</span><span class="n">get_local_identity_app</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">service_app</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">app</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">service_app</span><span class="p">:</span>
+                    <span class="n">sp_apps</span><span class="o">.</span><span class="n">delete_identity_app</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sp_apps</span><span class="o">.</span><span class="n">delete_identity_app</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">service_app</span><span class="p">)</span>
+
+            <span class="n">idp_apps</span><span class="o">.</span><span class="n">delete_identity_app</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identity_app</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Cleanup failed due to - </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="MultiCommcellHelper.saml_config"><a class="viewcode-back" href="../../../../Automation.Server.MultiCommcell.html#Automation.Server.MultiCommcell.multicommcellhelper.MultiCommcellHelper.saml_config">[docs]</a>    <span class="k">def</span> <span class="nf">saml_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initDict</span><span class="p">,</span> <span class="n">user_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method performs the initial configuration on SP and IDP commcells,</span>
+<span class="sd">           checks for multicommcell login</span>
+<span class="sd">            Args:</span>
+<span class="sd">                initDict    (dict)  -   Dictionary containing the details for initialization</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                tuple   -   Tuple containing service provider&#39;s commcell</span>
+<span class="sd">                            object and ID provider&#39;s commcell object</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">idp_username</span> <span class="o">=</span> <span class="n">user_dict</span><span class="p">[</span><span class="s1">&#39;IDPUser&#39;</span><span class="p">][</span><span class="s1">&#39;userName&#39;</span><span class="p">]</span>
+        <span class="n">sp_username</span> <span class="o">=</span> <span class="n">user_dict</span><span class="p">[</span><span class="s1">&#39;SPUser&#39;</span><span class="p">][</span><span class="s1">&#39;userName&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">has_user</span><span class="p">(</span><span class="n">idp_username</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">Attempting to create IDP user on </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">initDict</span><span class="p">[</span><span class="s2">&quot;IDPCommserver&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">IDPuser_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                <span class="n">idp_username</span><span class="p">,</span>
+                <span class="s2">&quot;IDP User&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;test@commvault.com&quot;</span><span class="p">,</span>
+                <span class="n">password</span><span class="o">=</span><span class="n">user_dict</span><span class="p">[</span><span class="s1">&#39;IDPUser&#39;</span><span class="p">][</span><span class="s1">&#39;password&#39;</span><span class="p">],</span>
+                <span class="n">local_usergroups</span><span class="o">=</span><span class="s1">&#39;master&#39;</span>
+            <span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">IDPuser_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">idp_username</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">sp_commcell</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">has_user</span><span class="p">(</span><span class="n">sp_username</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">Attempting to create SP user on </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">initDict</span><span class="p">[</span><span class="s2">&quot;SPCommserver&quot;</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">SPuser_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sp_commcell</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                <span class="n">sp_username</span><span class="p">,</span>
+                <span class="s2">&quot;SP User&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;test@commvault.com&quot;</span><span class="p">,</span>
+                <span class="n">password</span><span class="o">=</span><span class="n">user_dict</span><span class="p">[</span><span class="s1">&#39;IDPUser&#39;</span><span class="p">][</span><span class="s1">&#39;password&#39;</span><span class="p">],</span>
+                <span class="n">local_usergroups</span><span class="o">=</span><span class="s1">&#39;master&#39;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">SPuser_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sp_commcell</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sp_username</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\t</span><span class="s2">UNREGISTERING THE APPLICATION AT IDP IF IT WAS ALREADY REGISTERED&quot;</span><span class="p">)</span>
+        <span class="n">IDP_apps_object</span> <span class="o">=</span> <span class="n">identity_management</span><span class="o">.</span><span class="n">IdentityManagementApps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="p">)</span>
+        <span class="n">idp_app</span> <span class="o">=</span> <span class="n">IDP_apps_object</span><span class="o">.</span><span class="n">get_local_identity_app</span>
+        <span class="k">if</span> <span class="n">idp_app</span><span class="p">:</span>
+            <span class="n">IDP_apps_object</span><span class="o">.</span><span class="n">delete_identity_app</span><span class="p">(</span><span class="n">idp_app</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\t</span><span class="s2">CREATING CERTIFICATE AT IDP&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">identity_app</span> <span class="o">=</span> <span class="n">IDP_apps_object</span><span class="o">.</span><span class="n">configure_local_identity_app</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">IDPuser_obj</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">identity_app</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;IDP Certificate created successfully&quot;</span><span class="p">)</span>
+            <span class="n">local_identity_props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_app_props</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">identity_app</span><span class="o">.</span><span class="n">app_key</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\t</span><span class="s2">UNREGISTERING THE APPLICATION AT SP IF IT WAS ALREADY REGISTERED&quot;</span><span class="p">)</span>
+        <span class="n">SP_apps_object</span> <span class="o">=</span> <span class="n">identity_management</span><span class="o">.</span><span class="n">IdentityManagementApps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sp_commcell</span><span class="p">)</span>
+        <span class="n">commcell_app_list</span> <span class="o">=</span> <span class="n">SP_apps_object</span><span class="o">.</span><span class="n">get_commcell_identity_apps</span>
+        <span class="k">if</span> <span class="n">commcell_app_list</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">app</span> <span class="ow">in</span> <span class="n">commcell_app_list</span><span class="p">:</span>
+                <span class="n">SP_apps_object</span><span class="o">.</span><span class="n">delete_identity_app</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\t</span><span class="s2">REGISTER APPLICATION AT SP&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">service_app</span> <span class="o">=</span> <span class="n">SP_apps_object</span><span class="o">.</span><span class="n">configure_commcell_app</span><span class="p">(</span>
+            <span class="n">local_identity_props</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="o">.</span><span class="n">commserv_guid</span><span class="p">,</span>
+            <span class="p">[</span><span class="n">SPuser_obj</span><span class="p">],</span>
+            <span class="p">{</span>
+                <span class="n">IDPuser_obj</span><span class="o">.</span><span class="n">user_name</span><span class="p">:</span> <span class="n">SPuser_obj</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">service_app</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;SP app created successfully&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\t</span><span class="s2">MULTICOMMCELL LOGIN TO SP&quot;</span><span class="p">)</span>
+        <span class="n">idp_user_commcell</span> <span class="o">=</span> <span class="n">Commcell</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">idp_commcell</span><span class="o">.</span><span class="n">commserv_hostname</span><span class="p">,</span>
+            <span class="n">IDPuser_obj</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span>
+            <span class="n">user_dict</span><span class="p">[</span><span class="s1">&#39;IDPUser&#39;</span><span class="p">][</span><span class="s1">&#39;password&#39;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">idp_user_commcell</span><span class="p">:</span>
+            <span class="n">saml_token</span> <span class="o">=</span> <span class="n">idp_user_commcell</span><span class="o">.</span><span class="n">get_saml_token</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">saml_token</span><span class="p">:</span>
+            <span class="n">sp_user_commcell</span> <span class="o">=</span> <span class="n">Commcell</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">sp_commcell</span><span class="o">.</span><span class="n">commserv_hostname</span><span class="p">,</span>
+                <span class="n">authtoken</span><span class="o">=</span><span class="n">saml_token</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">idp_user_commcell</span><span class="p">,</span> <span class="n">sp_user_commcell</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MultiCommcellHelper.get_app_props"><a class="viewcode-back" href="../../../../Automation.Server.MultiCommcell.html#Automation.Server.MultiCommcell.multicommcellhelper.MultiCommcellHelper.get_app_props">[docs]</a>    <span class="k">def</span> <span class="nf">get_app_props</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_key</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a dict containing the properties of a third party app.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                app_key    (str)    -   Key of the app whose details must be retrieved</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dict    -   Properties of the third party app</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_query</span> <span class="o">=</span> <span class="s2">&quot;select props from App_ThirdPartyApp where appKey=&#39;</span><span class="si">{0}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">app_key</span><span class="p">)</span>
+        <span class="n">props_xml</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_idp_options_selector</span><span class="o">.</span><span class="n">exec_commserv_query</span><span class="p">(</span><span class="n">_query</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">props_xml</span><span class="p">)</span>
+        <span class="n">namevalues</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">props</span><span class="p">:</span>
+            <span class="n">namevalues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prop</span><span class="o">.</span><span class="n">attrib</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">namevalues</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Commvault Systems Inc..
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
