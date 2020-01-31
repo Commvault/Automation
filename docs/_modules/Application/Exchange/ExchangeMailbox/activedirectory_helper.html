@@ -1,0 +1,1501 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Application.Exchange.ExchangeMailbox.activedirectory_helper &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Application.Exchange.ExchangeMailbox.activedirectory_helper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Application.Exchange.ExchangeMailbox.activedirectory_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main Module for invoking active directory APIs.</span>
+
+<span class="sd">MailboxInfo, ADGroup, ActiveDirectory are the classes defined in this file.</span>
+
+<span class="sd">MailboxInfo: Class for all MailboxInfo Info.</span>
+
+<span class="sd">ADGroup: Class for all Adgroups Info.</span>
+
+<span class="sd">ActiveDirectory: Class for performing all ActiveDirectory</span>
+<span class="sd">                related operations like getting all users and groups.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="k">as</span> <span class="nn">ET</span>
+<span class="kn">import</span> <span class="nn">pythoncom</span>
+<span class="kn">from</span> <span class="nn">azure.graphrbac</span> <span class="k">import</span> <span class="n">GraphRbacManagementClient</span>
+<span class="kn">from</span> <span class="nn">azure.common.credentials</span> <span class="k">import</span> <span class="n">UserPassCredentials</span>
+<span class="kn">from</span> <span class="nn">active_directory</span> <span class="k">import</span> <span class="n">AD_object</span><span class="p">,</span> <span class="n">search</span><span class="p">,</span> <span class="n">root</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">machine</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">GET_ONLINE_USERS</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">GET_ONLINE_AD_USERS</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">GET_ONLINE_AD_GROUPS</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">GET_MEMBERS_OF_GROUP</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">constants</span> <span class="k">as</span> <span class="n">CONSTANT</span>
+
+
+<div class="viewcode-block" id="MailboxInfo"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.MailboxInfo">[docs]</a><span class="k">class</span> <span class="nc">MailboxInfo</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Class for Mailbox Detail Info&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the MailboxInfo object.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">alias_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smtp_address</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_guid</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">legacy_dn</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ldap_homeserver</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ldap_home_mbdb</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">memberof</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distinguished_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_version</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object_guid</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">object_type</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">primary_group_id</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="ADGroup"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.ADGroup">[docs]</a><span class="k">class</span> <span class="nc">ADGroup</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Class for AdGroup Detail Info&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the ADGroup object.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">samaccount_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alias_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">distinguish_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">group_mail</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent_groups</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">users</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">primary_token</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="DiscoveryOptions"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions">[docs]</a><span class="k">class</span> <span class="nc">DiscoveryOptions</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Class for performing active directory operation for Exchange account.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Decides which instance object needs to be created&quot;&quot;&quot;</span>
+        <span class="n">ex_type</span> <span class="o">=</span> <span class="n">CONSTANT</span><span class="o">.</span><span class="n">environment_types</span>
+        <span class="n">exchange_type</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">exchange_type</span>
+        <span class="k">if</span> <span class="n">exchange_type</span> <span class="o">==</span> <span class="n">ex_type</span><span class="o">.</span><span class="n">EXCHANGE_ONLINE</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">AzureActiveDirectory</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="n">ActiveDirectory</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the DiscoveryOptions object.</span>
+
+<span class="sd">               Args:</span>
+<span class="sd">                    ex_object  (Object)  --  instance of ExchangeMailbox module</span>
+
+
+<span class="sd">                Returns:</span>
+<span class="sd">                    object  --  instance of Active Directory class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_users</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_groups</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_databases</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_journal_users</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc_object</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">tc_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exch_object</span> <span class="o">=</span> <span class="n">ex_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_object</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">subclient</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ex_type</span> <span class="o">=</span> <span class="n">CONSTANT</span><span class="o">.</span><span class="n">environment_types</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_type</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">exchange_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span>
+            <span class="n">ex_object</span><span class="o">.</span><span class="n">server_name</span><span class="p">,</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the users for Exchange&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_users</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">groups</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the groups in the domain&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_groups</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">databases</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the databases from Exchange&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_databases</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">journal_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the journal user from Exchange&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_journal_users</span>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_user_discovery"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_user_discovery">[docs]</a>    <span class="k">def</span> <span class="nf">validate_user_discovery</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates user discovery&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validating User discovery&quot;</span><span class="p">)</span>
+            <span class="n">discover_users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">discover_users</span>
+
+            <span class="n">discover_users_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">discover_users</span><span class="p">:</span>
+                <span class="n">discover_users_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">user</span><span class="p">[</span><span class="s1">&#39;aliasName&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Discover Users: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">discover_users_list</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;AD Users: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">discover_users_list</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s1">&#39;AD Users: &quot;</span><span class="si">{0}</span><span class="s1">&quot; not found in discover. &#39;</span>
+                        <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;User discovery Validation failed&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully Validated User discovery&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while validating user discovery&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_journal_discovery"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_journal_discovery">[docs]</a>    <span class="k">def</span> <span class="nf">validate_journal_discovery</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates user discovery&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validating Journal Mailbox discovery&quot;</span><span class="p">)</span>
+            <span class="n">discover_journal_users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">discover_journal_users</span>
+
+            <span class="n">discover_users_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">discover_journal_users</span><span class="p">:</span>
+                <span class="n">discover_users_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">user</span><span class="p">[</span><span class="s1">&#39;aliasName&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Discover Users: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">discover_users_list</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;AD Journal Users: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">journal_users</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">journal_users</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">discover_users_list</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s1">&#39;AD Journal Users: &quot;</span><span class="si">{0}</span><span class="s1">&quot; not found in discover. &#39;</span>
+                        <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Journal discovery validation failed&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully Validated Journal Mailbox discovery&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while validating user discovery&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_ad_discovery"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_ad_discovery">[docs]</a>    <span class="k">def</span> <span class="nf">validate_ad_discovery</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates Ad group discovery&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validating AD discovery&quot;</span><span class="p">)</span>
+            <span class="n">discover_group</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">discover_adgroups</span>
+            <span class="n">discover_group_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">discover_group</span><span class="p">:</span>
+                <span class="n">discover_group_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">[</span><span class="s1">&#39;adGroupName&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Discover group: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">discover_group_list</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;AD groups: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">groups</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">discover_group_list</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s1">&#39;AD Group: &quot;</span><span class="si">{0}</span><span class="s1">&quot; not found in discover. &#39;</span>
+                        <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Ad discovery validation failed&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully Validated AD discovery&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An Aerror occurred while validating AD discovery&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_db_discovery"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_db_discovery">[docs]</a>    <span class="k">def</span> <span class="nf">validate_db_discovery</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates Database discovery&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validating Database discovery&quot;</span><span class="p">)</span>
+            <span class="n">discover_databases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">discover_databases</span>
+            <span class="n">discover_databases_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="n">discover_databases</span><span class="p">:</span>
+                <span class="n">discover_databases_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">database</span><span class="p">[</span><span class="s1">&#39;databaseName&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Discover group: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">discover_databases_list</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Databases: &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">databases</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">databases</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">discover_databases_list</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s1">&#39;Database: &quot;</span><span class="si">{0}</span><span class="s1">&quot; not found in discover. &#39;</span>
+                        <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;DB discovery validation failed&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully Validated DB discovery&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while validating DB discovery&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_allusers_assocaition"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_allusers_assocaition">[docs]</a>    <span class="k">def</span> <span class="nf">validate_allusers_assocaition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates all users assocaitions</span>
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_content   (dict)  --  dict of policies which needs to</span>
+<span class="sd">                                                be assocaited to association</span>
+
+<span class="sd">                    subclient_content = {</span>
+
+<span class="sd">                        &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                        &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                        &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validate user association&quot;</span><span class="p">)</span>
+
+            <span class="n">users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">users</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Users associated for subclient: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">users</span><span class="p">))</span>
+            <span class="n">mailboxes_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">user</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">users</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">users</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mailboxes_list</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Discovery and automation user list does not match&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;AllUser assocaition failed&#39;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;alias_name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">mailboxes_list</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">user</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;True&#39;</span> <span class="ow">and</span>
+                            <span class="n">user</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                            <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span> <span class="ow">and</span>
+                            <span class="n">user</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                            <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span>
+                            <span class="ow">and</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                            <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span><span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                            <span class="s1">&#39;Policies details for user &quot;</span><span class="si">{0}</span><span class="s1">&quot; is &#39;</span>
+                            <span class="s1">&#39;not set properly. PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">user</span><span class="p">[</span><span class="s1">&#39;alias_name&#39;</span><span class="p">]))</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;AllUser assocaition failed&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s1">&#39;User is not given in input but assocaited: &quot;</span><span class="si">{0}</span><span class="s1">&quot;  &#39;</span>
+                        <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">user</span><span class="p">[</span><span class="s1">&#39;alias_name&#39;</span><span class="p">]))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;AllUser assocaition failed&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully validated user associations&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while validating user assocaitions&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.set_user_assocaitions"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.set_user_assocaitions">[docs]</a>    <span class="k">def</span> <span class="nf">set_user_assocaitions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method sets user assocaitions</span>
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                                subclient</span>
+
+<span class="sd">                    subclient_content = {</span>
+
+<span class="sd">                        &#39;mailboxNames&#39; : [&quot;AutoCi2&quot;],</span>
+
+<span class="sd">                        &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                        &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                        &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Create user association&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;User Content: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">set_user_assocaition</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully created user associations&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while set user assocaitions&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.set_pst_associations"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.set_pst_associations">[docs]</a>    <span class="k">def</span> <span class="nf">set_pst_associations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method sets pst associations</span>
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_content   (dict)  --  dict of the pst to add to the subclient</span>
+
+<span class="sd">                        subclient_content = {</span>
+
+<span class="sd">                            &#39;pstTaskName&#39; : &quot;Task Name for PST&quot;,</span>
+
+<span class="sd">                            &#39;folders&#39; : [&#39;list of folders&#39;],</span>
+
+<span class="sd">                            &#39;pstOwnerManagement&#39; : {</span>
+
+<span class="sd">                                &#39;defaultOwner&#39;: &quot;default owner if no owner is determined&quot;,</span>
+
+<span class="sd">                                &#39;pstDestFolder&#39;: &quot;ingest psts under this folder&quot;,</span>
+
+<span class="sd">                                &#39;usePSTNameToCreateChild&#39;: Boolean</span>
+<span class="sd">                            }</span>
+<span class="sd">                    }</span>
+<span class="sd">					</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Create PST association&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;PST Content: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">set_pst_association</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully created PST associations&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while setting pst associations&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.delete_user_assocaitions"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.delete_user_assocaitions">[docs]</a>    <span class="k">def</span> <span class="nf">delete_user_assocaitions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method deletes user assocaitions</span>
+<span class="sd">                        Args:</span>
+<span class="sd">            subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                            subclient</span>
+
+<span class="sd">                subclient_content = {</span>
+
+<span class="sd">                    &#39;mailboxNames&#39; : [&quot;AutoCi2&quot;],</span>
+
+<span class="sd">                    &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                    &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                    &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting user association&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;User Content: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">delete_user_assocaition</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully deletd user associations&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while deleting user assocaitions&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_user_assocaition"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_user_assocaition">[docs]</a>    <span class="k">def</span> <span class="nf">validate_user_assocaition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates user assocaitions</span>
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                                subclient</span>
+
+<span class="sd">                    subclient_content = {</span>
+
+<span class="sd">                        &#39;mailboxNames&#39; : [&quot;AutoCi2&quot;],</span>
+
+<span class="sd">                        &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                        &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                        &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validate user association&quot;</span><span class="p">)</span>
+
+            <span class="n">users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">users</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Users associated for subclient: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">users</span><span class="p">))</span>
+            <span class="n">mailboxes_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">mailbox</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">mailbox</span> <span class="ow">in</span> <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;mailboxNames&#39;</span><span class="p">]]</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;alias_name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">mailboxes_list</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">user</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;False&#39;</span> <span class="ow">and</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                            <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span> <span class="ow">and</span>
+                            <span class="n">user</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                            <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span>
+                            <span class="ow">and</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                            <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span><span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                            <span class="s1">&#39;Policies details for user &quot;</span><span class="si">{0}</span><span class="s1">&quot; is &#39;</span>
+                            <span class="s1">&#39;not set properly. PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">user</span><span class="p">[</span><span class="s1">&#39;alias_name&#39;</span><span class="p">]))</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Exception occurred failed to validate user associations&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s1">&#39;User is not given in input but assocaited: &quot;</span><span class="si">{0}</span><span class="s1">&quot;  &#39;</span>
+                        <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">user</span><span class="p">[</span><span class="s1">&#39;alias_name&#39;</span><span class="p">]))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Exception occurred failed to validate user associations&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully validated user associations&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while validating user assocaitions&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.set_database_associations"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.set_database_associations">[docs]</a>    <span class="k">def</span> <span class="nf">set_database_associations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method sets Database assocaitions</span>
+<span class="sd">        Args:</span>
+<span class="sd">            subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                                subclient</span>
+
+<span class="sd">                subclient_content = {</span>
+
+<span class="sd">                    &#39;databaseNames&#39; : [&quot;SGDB-1&quot;],</span>
+
+<span class="sd">                    &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                    &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                    &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Create DB association&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;DB Content: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">set_database_assocaition</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully created database associations&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while set database assocaitions&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_database_assocaition"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_database_assocaition">[docs]</a>    <span class="k">def</span> <span class="nf">validate_database_assocaition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates Database assocaitions</span>
+<span class="sd">        Args:</span>
+<span class="sd">            subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                                subclient</span>
+
+<span class="sd">                subclient_content = {</span>
+
+<span class="sd">                    &#39;databaseNames&#39; : [&quot;SGDB-1&quot;],</span>
+
+<span class="sd">                    &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                    &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                    &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validate database association&quot;</span><span class="p">)</span>
+            <span class="n">databases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">databases</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Databases associated for subclient: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">databases</span><span class="p">))</span>
+            <span class="n">databases_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">group</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;databaseNames&#39;</span><span class="p">]]</span>
+            <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="n">databases</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">database</span><span class="p">[</span><span class="s1">&#39;database_name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">databases_list</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">database</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">])</span> <span class="o">==</span>
+                                <span class="nb">str</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">])</span>
+                                <span class="ow">and</span> <span class="n">database</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                                <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span>
+                                <span class="ow">and</span> <span class="n">database</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                                <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span>
+                                <span class="ow">and</span> <span class="n">database</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                                <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span><span class="p">):</span>
+                            <span class="k">continue</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                                <span class="s1">&#39;Policies details for Database &quot;</span><span class="si">{0}</span><span class="s1">&quot; is not set properly.PLease &#39;</span>
+                                <span class="s1">&#39;check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">database</span><span class="p">[</span><span class="s1">&#39;database_name&#39;</span><span class="p">]))</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Exception occurred failed to validate &#39;</span>
+                                            <span class="s1">&#39;Database associations&#39;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Database is not given in input but assocaited: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span>
+                                       <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span>
+                                       <span class="nb">format</span><span class="p">(</span><span class="n">database</span><span class="p">[</span><span class="s1">&#39;database_name&#39;</span><span class="p">]))</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Exception occurred failed to validate&#39;</span>
+                                        <span class="s1">&#39;Database associations&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully validated Database associations&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while validating Database Assocaitions&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.set_adgroup_associations"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.set_adgroup_associations">[docs]</a>    <span class="k">def</span> <span class="nf">set_adgroup_associations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method sets adgroup assocaitions</span>
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                                subclient</span>
+
+<span class="sd">                    subclient_content = {</span>
+
+<span class="sd">                        &#39;adGroupNames&#39; : [&quot;_Man5_Man5_&quot;],</span>
+
+<span class="sd">                        &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                        &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                        &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Create AD association&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;AD Content: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">set_adgroup_associations</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully created ad group associations&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while set adgroup assocaitions&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_adgroup_assocaition"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_adgroup_assocaition">[docs]</a>    <span class="k">def</span> <span class="nf">validate_adgroup_assocaition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates adgroup assocaitions</span>
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                                subclient</span>
+
+<span class="sd">                    subclient_content = {</span>
+
+<span class="sd">                        &#39;adGroupNames&#39; : [&quot;_Man5_Man5_&quot;],</span>
+
+<span class="sd">                        &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                        &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                        &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validate AD association&quot;</span><span class="p">)</span>
+            <span class="n">adgroups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">adgroups</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;ADGroups associated for subclient: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">adgroups</span><span class="p">))</span>
+            <span class="n">adgroup_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">group</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;adGroupNames&#39;</span><span class="p">]]</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">adgroups</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;adgroup_name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">adgroup_list</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">user</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">])</span> <span class="o">==</span>
+                                <span class="nb">str</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">])</span>
+                                <span class="ow">and</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                                <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span>
+                                <span class="ow">and</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                                <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span>
+                                <span class="ow">and</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                                <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span><span class="p">):</span>
+                            <span class="k">continue</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                                <span class="s1">&#39;Policies details for Group &quot;</span><span class="si">{0}</span><span class="s1">&quot; is not set properly.&#39;</span>
+                                <span class="s1">&#39; PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                    <span class="n">user</span><span class="p">[</span><span class="s1">&#39;adgroup_name&#39;</span><span class="p">]))</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                                <span class="s1">&#39;Exception occurred failed to validate Ad group associations&#39;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Group is not given in input but assocaited: &quot;</span><span class="si">{0}</span><span class="s1">&quot;  &#39;</span>
+                                       <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                           <span class="n">user</span><span class="p">[</span><span class="s1">&#39;adgroup_name&#39;</span><span class="p">]))</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                            <span class="s1">&#39;Exception occurred failed to validate Ad Group associations&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully validated ad group associations&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while validating AD discovery&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_users_in_group"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_users_in_group">[docs]</a>    <span class="k">def</span> <span class="nf">validate_users_in_group</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates all users from groups are associated</span>
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                                subclient</span>
+
+<span class="sd">                    subclient_content = {</span>
+
+<span class="sd">                        &#39;adGroupNames&#39; : [&quot;_Man5_Man5_&quot;],</span>
+
+<span class="sd">                        &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                        &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                        &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validate users are associated properly by AD association&quot;</span><span class="p">)</span>
+
+            <span class="n">adgroup_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">group</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;adGroupNames&#39;</span><span class="p">]]</span>
+            <span class="n">users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">users</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Associated users from subclient: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">users</span><span class="p">))</span>
+
+            <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">adgroup_list</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Input ADGroup associated for subclient: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">group</span><span class="p">))</span>
+                <span class="n">group_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">groups</span><span class="p">[</span><span class="n">group</span><span class="p">]</span>
+                <span class="n">users_in_group</span> <span class="o">=</span> <span class="n">group_object</span><span class="o">.</span><span class="n">users</span>
+
+                <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users_in_group</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">display_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">user</span><span class="o">.</span><span class="n">exchange_server_name</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                        <span class="k">break</span>
+                    <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">ldap_homeserver</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">server</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">ldap_homeserver</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;cn&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">server</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">:</span>
+                            <span class="k">break</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s1">&#39;Input ADGroup users associated for subclient: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">user</span><span class="o">.</span><span class="n">display_name</span><span class="p">))</span>
+                    <span class="n">display_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                    <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">display_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">adgroup_list</span><span class="p">:</span>
+                        <span class="n">display_name</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">display_name</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="s1">&#39;display_name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">display_name</span> <span class="k">for</span> <span class="nb">dict</span> <span class="ow">in</span> <span class="n">users</span><span class="p">):</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;User is not assocaited to subclient : &quot;</span><span class="si">{0}</span><span class="s1">&quot;  &#39;</span>
+                                           <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                               <span class="n">display_name</span><span class="p">))</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Exception occurred failed to validate adgroup &#39;</span>
+                                            <span class="s1">&#39;users from adgroup association&#39;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">subclient_user</span> <span class="ow">in</span> <span class="n">users</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">display_name</span> <span class="ow">in</span> <span class="n">subclient_user</span><span class="p">[</span><span class="s1">&#39;display_name&#39;</span><span class="p">]:</span>
+                            <span class="k">if</span> <span class="p">(</span><span class="n">subclient_user</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span>
+                                    <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">])</span> <span class="ow">and</span>
+                                    <span class="n">subclient_user</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                                    <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;archive_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span>
+                                    <span class="ow">and</span> <span class="n">subclient_user</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                                    <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;cleanup_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span>
+                                    <span class="ow">and</span> <span class="n">subclient_user</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">subclient_content</span><span class="p">[</span>
+                                        <span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span><span class="p">):</span>
+                                <span class="k">continue</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                                    <span class="s1">&#39;Policies details for user &quot;</span><span class="si">{0}</span><span class="s1">&quot; is not set properly.&#39;</span>
+                                    <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                        <span class="n">subclient_user</span><span class="p">[</span><span class="s1">&#39;display_name&#39;</span><span class="p">]))</span>
+                                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Exception occurred failed to validate adgroup &#39;</span>
+                                                <span class="s1">&#39;users from adgroup association&#39;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully validated users are associated properly by AD association&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while validating users in group&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.set_journal_assocaition"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.set_journal_assocaition">[docs]</a>    <span class="k">def</span> <span class="nf">set_journal_assocaition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method sets journal mailbox assocaitions</span>
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                                subclient</span>
+
+<span class="sd">                    subclient_content = {</span>
+
+<span class="sd">                        &#39;mailboxNames&#39; : [&quot;AutoCi2&quot;],,</span>
+
+<span class="sd">                        &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                        &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                        &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Create Journal mailbox association&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Journal mailbox Content: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">set_journal_user_assocaition</span><span class="p">(</span><span class="n">subclient_content</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully created journal mailbox associations&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while set journal assocaitions&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="DiscoveryOptions.validate_journal_assocaition"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.DiscoveryOptions.validate_journal_assocaition">[docs]</a>    <span class="k">def</span> <span class="nf">validate_journal_assocaition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_content</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method validates user assocaitions</span>
+<span class="sd">            Args:</span>
+<span class="sd">                subclient_content   (dict)  --  dict of the Users to add to the</span>
+<span class="sd">                                                subclient</span>
+
+<span class="sd">                    subclient_content = {</span>
+
+<span class="sd">                        &#39;mailboxNames&#39; : [&quot;AutoCi2&quot;],,</span>
+
+<span class="sd">                        &#39;archive_policy&#39; : &quot;CIPLAN Archiving policy&quot;,</span>
+
+<span class="sd">                        &#39;cleanup_policy&#39; : &#39;CIPLAN Clean-up policy&#39;,</span>
+
+<span class="sd">                        &#39;retention_policy&#39;: &#39;CIPLAN Retention policy&#39;</span>
+<span class="sd">                }</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validate journal association&quot;</span><span class="p">)</span>
+
+            <span class="n">users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">journal_users</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Journal users&#39;</span>
+                          <span class="s1">&#39; associated for subclient: &quot;</span><span class="si">{0}</span><span class="s1">&quot; &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">users</span><span class="p">))</span>
+            <span class="n">mailboxes_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">mailbox</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">mailbox</span> <span class="ow">in</span> <span class="n">subclient_content</span><span class="p">[</span>
+                <span class="s1">&#39;mailboxNames&#39;</span><span class="p">]]</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">user</span><span class="p">[</span><span class="s1">&#39;alias_name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">mailboxes_list</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">user</span><span class="p">[</span><span class="s1">&#39;is_auto_discover_user&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;False&#39;</span> <span class="ow">and</span>
+                            <span class="n">user</span><span class="p">[</span><span class="s1">&#39;journal_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                            <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;journal_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span> <span class="ow">and</span>
+                            <span class="n">user</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span> <span class="o">==</span>
+                            <span class="n">subclient_content</span><span class="p">[</span><span class="s1">&#39;retention_policy&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">configuration_policy_name</span><span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                            <span class="s1">&#39;Policies details for user &quot;</span><span class="si">{0}</span><span class="s1">&quot; is &#39;</span>
+                            <span class="s1">&#39;not set properly. PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">user</span><span class="p">[</span><span class="s1">&#39;alias_name&#39;</span><span class="p">]))</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                            <span class="s1">&#39;Exception occurred failed to validate Journal associations&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s1">&#39;User is not given in input but assocaited: &quot;</span><span class="si">{0}</span><span class="s1">&quot;  &#39;</span>
+                        <span class="s1">&#39;PLease check discover logs&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">user</span><span class="p">[</span><span class="s1">&#39;alias_name&#39;</span><span class="p">]))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Exception occurred failed to validate Journal associations&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully validated Journal associations&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while validating user assocaitions&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div></div>
+
+
+<div class="viewcode-block" id="AzureActiveDirectory"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.AzureActiveDirectory">[docs]</a><span class="k">class</span> <span class="nc">AzureActiveDirectory</span><span class="p">(</span><span class="n">DiscoveryOptions</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for performing azure active directory  operation for</span>
+<span class="sd">    Exchange online account.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the AzureActiveDirectory object.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                ex_object (Object)  --  instance of ExchangeMailbox module</span>
+
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  --  instance of AzureActiveDirectory class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">AzureActiveDirectory</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">ex_object</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;-------Azure Active Directory constructor--------&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tenant_name</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;azureTenantName&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_online_user</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">exchange_online_user</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_online_password</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">exchange_online_password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">referesh</span><span class="p">()</span>
+
+<div class="viewcode-block" id="AzureActiveDirectory.get_azure_ad_users"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.AzureActiveDirectory.get_azure_ad_users">[docs]</a>    <span class="k">def</span> <span class="nf">get_azure_ad_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the users by calling azure API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as users alias name and value as</span>
+<span class="sd">                                MailboxInfo object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Getting azure users &#39;</span><span class="p">)</span>
+
+            <span class="n">credentials</span> <span class="o">=</span> <span class="n">UserPassCredentials</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exchange_online_user</span><span class="p">,</span>  <span class="c1"># Your user</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exchange_online_password</span><span class="p">,</span>  <span class="c1"># Your password</span>
+                <span class="n">resource</span><span class="o">=</span><span class="s2">&quot;https://graph.windows.net&quot;</span>
+            <span class="p">)</span>
+
+            <span class="n">tenant_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tenant_name</span>
+
+            <span class="n">graphrbac_client</span> <span class="o">=</span> <span class="n">GraphRbacManagementClient</span><span class="p">(</span>
+                <span class="n">credentials</span><span class="p">,</span>
+                <span class="n">tenant_id</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Tenant Name &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tenant_id</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Getting azure users from powershell. Powershell Path  &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">GET_ONLINE_USERS</span><span class="p">))</span>
+            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_online_user</span><span class="p">,</span>
+                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_online_password</span>
+            <span class="p">}</span>
+
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">_execute_script</span><span class="p">(</span><span class="n">GET_ONLINE_USERS</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="n">content</span> <span class="o">=</span> <span class="p">((</span><span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;Alias :&quot;</span><span class="p">))[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="p">[(</span><span class="n">mb</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">mb</span> <span class="ow">in</span> <span class="n">content</span><span class="p">]</span>
+
+            <span class="n">user_info</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">graphrbac_client</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">list</span><span class="p">():</span>
+                <span class="n">mailbox_info</span> <span class="o">=</span> <span class="n">MailboxInfo</span><span class="p">()</span>
+                <span class="n">mailbox_info</span><span class="o">.</span><span class="n">alias_name</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">mail_nickname</span>
+                <span class="n">mailbox_name</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">mail_nickname</span>
+                <span class="n">mailbox_info</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">display_name</span>
+                <span class="n">mailbox_info</span><span class="o">.</span><span class="n">smtp_address</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">user_principal_name</span>
+                <span class="n">mailbox_info</span><span class="o">.</span><span class="n">object_guid</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">object_id</span>
+                <span class="n">mailbox_info</span><span class="o">.</span><span class="n">object_type</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">object_type</span>
+
+                <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;HealthMailbox&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">pattern</span><span class="o">.</span><span class="n">match</span><span class="p">(</span>
+                        <span class="n">mailbox_name</span><span class="p">)</span> <span class="ow">and</span> <span class="n">user</span><span class="o">.</span><span class="n">mail</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">user</span><span class="o">.</span><span class="n">mail_nickname</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+                    <span class="c1"># and user.mail_nickname in mbs: add this when nikhil fixes</span>
+                    <span class="n">user_info</span><span class="p">[</span><span class="n">mailbox_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="n">mailbox_info</span>
+                    <span class="c1"># log.debug(&quot;mailboxname : &quot; + str(mailbox_name))</span>
+                <span class="c1"># user_info[mailbox_name] = mailbox_info</span>
+            <span class="k">return</span> <span class="n">user_info</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while getting Azure users&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="AzureActiveDirectory.get_azure_groups"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.AzureActiveDirectory.get_azure_groups">[docs]</a>    <span class="k">def</span> <span class="nf">get_azure_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the adgroups by calling azure API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as adgroup alias name and value as</span>
+<span class="sd">                                        ADGroup object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Getting azure Groups &#39;</span><span class="p">)</span>
+            <span class="n">credentials</span> <span class="o">=</span> <span class="n">UserPassCredentials</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exchange_online_user</span><span class="p">,</span>  <span class="c1"># Your user</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">exchange_online_password</span><span class="p">,</span>  <span class="c1"># Your password</span>
+                <span class="n">resource</span><span class="o">=</span><span class="s2">&quot;https://graph.windows.net&quot;</span>
+            <span class="p">)</span>
+
+            <span class="n">tenant_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tenant_name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Tenant Name &quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tenant_id</span><span class="p">))</span>
+            <span class="n">graphrbac_client</span> <span class="o">=</span> <span class="n">GraphRbacManagementClient</span><span class="p">(</span>
+                <span class="n">credentials</span><span class="p">,</span>
+                <span class="n">tenant_id</span>
+            <span class="p">)</span>
+            <span class="n">adgroups_map</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">graphrbac_client</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">list</span><span class="p">():</span>
+                <span class="c1">#filter=&quot;groupTypes eq &#39;Unified&#39; &quot;</span>
+
+                <span class="n">adgroup_info</span> <span class="o">=</span> <span class="n">ADGroup</span><span class="p">()</span>
+                <span class="n">adgroup_info</span><span class="o">.</span><span class="n">samaccount_name</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">display_name</span>
+                <span class="n">adgroup_info</span><span class="o">.</span><span class="n">group_mail</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">mail</span>
+                <span class="n">adgroup_info</span><span class="o">.</span><span class="n">alias_name</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">additional_properties</span><span class="p">[</span><span class="s1">&#39;mailNickname&#39;</span><span class="p">]</span>
+                <span class="n">memebers</span> <span class="o">=</span> <span class="n">graphrbac_client</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">get_group_members</span><span class="p">(</span>
+                    <span class="n">group</span><span class="o">.</span><span class="n">object_id</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">memeber</span> <span class="ow">in</span> <span class="n">memebers</span><span class="p">:</span>
+                    <span class="n">mailbox_info</span> <span class="o">=</span> <span class="n">MailboxInfo</span><span class="p">()</span>
+                    <span class="c1"># mailboxInfo.alias_name = memeber.mail_nickname</span>
+                    <span class="c1"># mailbox_name = memeber.display_name</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="n">memeber</span><span class="o">.</span><span class="n">display_name</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">smtp_address</span> <span class="o">=</span> <span class="n">memeber</span><span class="o">.</span><span class="n">user_principal_name</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">object_guid</span> <span class="o">=</span> <span class="n">memeber</span><span class="o">.</span><span class="n">object_id</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">object_type</span> <span class="o">=</span> <span class="n">memeber</span><span class="o">.</span><span class="n">object_type</span>
+
+                    <span class="k">if</span> <span class="n">memeber</span><span class="o">.</span><span class="n">mail</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">alias_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                        <span class="k">if</span> <span class="n">memeber</span><span class="o">.</span><span class="n">user_principal_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">alias_name</span> <span class="o">=</span> <span class="n">memeber</span><span class="o">.</span><span class="n">user_principal_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;@&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">alias_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">users</span><span class="p">:</span>
+                            <span class="n">adgroup_info</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mailbox_info</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">group</span><span class="o">.</span><span class="n">mail</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">adgroups_map</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">group</span><span class="o">.</span><span class="n">additional_properties</span><span class="p">[</span>
+                        <span class="s1">&#39;mailNickname&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="n">adgroup_info</span>
+            <span class="k">return</span> <span class="n">adgroups_map</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while getting azure groups&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="AzureActiveDirectory.referesh"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.AzureActiveDirectory.referesh">[docs]</a>    <span class="k">def</span> <span class="nf">referesh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Refresh the Azure Active Directory.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_azure_ad_users</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_azure_groups</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="ActiveDirectory"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.ActiveDirectory">[docs]</a><span class="k">class</span> <span class="nc">ActiveDirectory</span><span class="p">(</span><span class="n">DiscoveryOptions</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for performing Active directory related operations.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the Restore object.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                exchange_server  (str)  -- Exchange Server name</span>
+
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object  --  instance of ActiveDirectory class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ActiveDirectory</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">ex_object</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;--------Active Directory constructor---------&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ex_object</span> <span class="o">=</span> <span class="n">ex_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mb_type</span> <span class="o">=</span> <span class="n">CONSTANT</span><span class="o">.</span><span class="n">mailbox_type</span>
+        <span class="n">pythoncom</span><span class="o">.</span><span class="n">CoInitialize</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_database_level_journal_mailbox</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rule_based_journal_mailbox</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domain_name</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">domain_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ad_object</span> <span class="o">=</span> <span class="n">AD_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">domain_controller</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="n">pythoncom</span><span class="o">.</span><span class="n">CoUninitialize</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">domain_controller</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the domain controller name&quot;&quot;&quot;</span>
+        <span class="n">domain_controller</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">root</span><span class="p">()</span><span class="o">.</span><span class="n">distinguishedName</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">&quot;LDAP://CN=Configuration,&quot;</span> <span class="o">+</span> <span class="n">domain_controller</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">exchange_dn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the exchange distinguish name&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_servers</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_servers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the verison of exchange server&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_servers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">databases</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the databases in exchange server&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_databases</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ad_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns all the ad users in the exchange server&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_ad_users</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns only user mailbox from exchange server&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_users</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">groups</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns all group from AD&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_groups</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">journal_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns all journal users&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_journal_users</span>
+
+    <span class="k">def</span> <span class="nf">_get_exchange_servers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the exchange servers in the domain</span>
+<span class="sd">         by calling active_directory API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as users alias name and value as</span>
+<span class="sd">                                MailboxInfo object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">exchange_servers</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">server</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ad_object</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">objectCategory</span><span class="o">=</span><span class="s1">&#39;msExchExchangeServer&#39;</span><span class="p">):</span>
+            <span class="n">version</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">server</span><span class="o">.</span><span class="n">serialNumber</span><span class="p">)</span>
+            <span class="n">version</span> <span class="o">=</span> <span class="p">(</span><span class="n">version</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">exchange_servers</span><span class="p">[(</span><span class="n">server</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="p">[</span><span class="n">server</span><span class="o">.</span><span class="n">distinguishedName</span><span class="p">,</span> <span class="n">version</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">exchange_servers</span>
+
+    <span class="k">def</span> <span class="nf">_get_databases</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the databases for given exchange server in subclient</span>
+<span class="sd">         by calling active_directory API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as users alias name and value as</span>
+<span class="sd">                                MailboxInfo object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">databases</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ad_object</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+                    <span class="n">objectClass</span><span class="o">=</span><span class="s1">&#39;msExchPrivateMDB&#39;</span><span class="p">,</span>
+                    <span class="n">msExchOwningServer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange_dn</span><span class="p">):</span>  <span class="c1"># will get all db in exchange</span>
+                <span class="n">databases</span><span class="p">[</span><span class="n">database</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">database</span><span class="o">.</span><span class="n">distinguishedName</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">return</span> <span class="n">databases</span>
+
+    <span class="k">def</span> <span class="nf">_get_ad_users</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the ad users including journal users</span>
+<span class="sd">         by calling active_directory API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as users alias name and value as</span>
+<span class="sd">                                MailboxInfo object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">user_info</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">ex_type</span><span class="o">.</span><span class="n">EXCHANGE_ONLINE_AD</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">online_user_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">install_directory</span><span class="p">,</span>
+                    <span class="s2">&quot;online_users.txt&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Getting online users &#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Getting Online users from powershell. Powershell Path </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                              <span class="n">GET_ONLINE_AD_USERS</span><span class="p">)</span>
+                <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_object</span><span class="o">.</span><span class="n">exchange_online_user</span><span class="p">,</span>
+                    <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_object</span><span class="o">.</span><span class="n">exchange_online_password</span><span class="p">,</span>
+                    <span class="s2">&quot;filepath&quot;</span><span class="p">:</span> <span class="n">online_user_file</span>
+                <span class="p">}</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">_execute_script</span><span class="p">(</span><span class="n">GET_ONLINE_AD_USERS</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Getting Online users from powershell failed&#39;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to get online user </span><span class="si">%s</span><span class="s2"> &quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+
+                <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">online_user_file</span><span class="p">)</span>
+                <span class="n">users_list</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">user_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users_list</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">user</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                        <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="k">continue</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">list_users</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+                            <span class="n">user_dict</span><span class="p">[</span><span class="n">list_users</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">list_users</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">list_users</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;ArchiveWarningQuota&#39;</span><span class="p">:</span>
+                            <span class="n">mailbox_info</span> <span class="o">=</span> <span class="n">MailboxInfo</span><span class="p">()</span>
+                            <span class="n">mailbox_name</span> <span class="o">=</span> <span class="n">user_dict</span><span class="p">[</span><span class="s1">&#39;Alias&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                            <span class="n">mailbox_info</span><span class="o">.</span><span class="n">alias_name</span> <span class="o">=</span> <span class="n">mailbox_name</span>
+                            <span class="n">mailbox_info</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="n">user_dict</span><span class="p">[</span><span class="s2">&quot;DisplayName&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                            <span class="n">mailbox_info</span><span class="o">.</span><span class="n">smtp_address</span> <span class="o">=</span> <span class="n">user_dict</span><span class="p">[</span><span class="s1">&#39;PrimarySmtpAddress&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                            <span class="n">user_info</span><span class="p">[</span><span class="n">mailbox_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="n">mailbox_info</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while getting online users&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">excp</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">databases</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+
+                <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">search</span><span class="p">(</span><span class="n">objectCategory</span><span class="o">=</span><span class="s1">&#39;User&#39;</span><span class="p">,</span> <span class="n">homeMDB</span><span class="o">=</span><span class="n">database</span><span class="p">):</span>
+                    <span class="n">mailbox_info</span> <span class="o">=</span> <span class="n">MailboxInfo</span><span class="p">()</span>
+
+                    <span class="n">mailbox_name</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">mailNickName</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">alias_name</span> <span class="o">=</span> <span class="n">mailbox_name</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">displayName</span>
+                    <span class="n">database_dn</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">homeMDB</span>
+                    <span class="n">database</span> <span class="o">=</span> <span class="p">(</span><span class="n">database_dn</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">)</span>
+
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">database_name</span> <span class="o">=</span> <span class="n">database</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">exchange_server_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_server</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">smtp_address</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">mail</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">ldap_home_mbdb</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">homeMDB</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">ldap_homeserver</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">msExchHomeServerName</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">legacy_dn</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">legacyExchangeDN</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">distinguished_name</span> <span class="o">=</span> <span class="n">user</span><span class="o">.</span><span class="n">distinguishedName</span>
+                    <span class="c1"># mailbox_info.primary_group_id = user.primaryGroupID</span>
+                    <span class="n">mailbox_info</span><span class="o">.</span><span class="n">exch_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">user</span><span class="o">.</span><span class="n">memberOf</span><span class="p">:</span>
+                            <span class="p">(</span><span class="n">mailbox_info</span><span class="o">.</span><span class="n">memberof</span><span class="p">)</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="o">.</span><span class="n">distinguishedName</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                        <span class="c1"># when user does not have memberof field, active directory</span>
+                        <span class="c1"># package throws attribute excpetion. We want to pass in that case</span>
+                        <span class="k">pass</span>
+
+                    <span class="c1"># put mailboxinfo in Map</span>
+                    <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;HealthMailbox&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">pattern</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">mailbox_name</span><span class="p">):</span>
+                        <span class="n">user_info</span><span class="p">[</span><span class="n">mailbox_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="n">mailbox_info</span>
+
+        <span class="k">return</span> <span class="n">user_info</span>
+
+    <span class="k">def</span> <span class="nf">_get_datbaselevel_journalmailbox</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the database level journal mailbox</span>
+<span class="sd">         by calling active_directory API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as users alias name and value as</span>
+<span class="sd">                                MailboxInfo object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">journal_users</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ad_object</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+                <span class="n">objectClass</span><span class="o">=</span><span class="s1">&#39;msExchPrivateMDB&#39;</span><span class="p">,</span> <span class="n">msExchOwningServer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange_dn</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">msExchMessageJournalRecipient</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="c1"># when database does not journal recipient</span>
+                <span class="c1"># package throws attribute excpetion. We want to continue in that case</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">result</span> <span class="o">!=</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+                <span class="n">result_mb</span> <span class="o">=</span> <span class="p">(((</span><span class="n">result</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">))[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">result_mb</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">journal_users</span><span class="p">:</span>
+                    <span class="n">journal_users</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result_mb</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">journal_users</span>
+
+    <span class="k">def</span> <span class="nf">_get_rulebased_journalmailbox</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the rule bases journal mailboxes</span>
+<span class="sd">         by calling active_directory API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as users alias name and value as</span>
+<span class="sd">                                MailboxInfo object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">journal_users</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ad_object</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">objectCategory</span><span class="o">=</span><span class="s1">&#39;msExchTransportRule&#39;</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">_xml</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">msExchTransportRuleXml</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="c1"># when mailbox does not transport rule</span>
+                <span class="c1"># package throws attribute excpetion. We want to continue in that case</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">_xml</span> <span class="o">!=</span> <span class="s1">&#39;None&#39;</span><span class="p">:</span>
+                <span class="n">xml</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">_xml</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">mailbox</span> <span class="ow">in</span> <span class="n">xml</span><span class="o">.</span><span class="n">iter</span><span class="p">(</span><span class="s1">&#39;argument&#39;</span><span class="p">):</span>
+                    <span class="n">journal_users</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">mailbox</span><span class="o">.</span><span class="n">attrib</span><span class="p">)[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">journal_users</span>
+
+    <span class="k">def</span> <span class="nf">_get_user_mailboxes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the users mailbox</span>
+<span class="sd">         by calling active_directory API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as users alias name and value as</span>
+<span class="sd">                                MailboxInfo object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ad_users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ad_users</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># for mailbox in ADUsers.values():</span>
+        <span class="c1">#     display_names[mailbox.display_name] = mailbox.alias_name</span>
+        <span class="c1"># for item in Db_JM:</span>
+        <span class="c1">#</span>
+        <span class="c1">#     if item in display_names:</span>
+        <span class="c1">#         del ADUsers[display_names[item]]</span>
+
+        <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">ad_users</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+
+            <span class="k">if</span> <span class="n">ad_users</span><span class="p">[</span><span class="n">val</span><span class="p">]</span><span class="o">.</span><span class="n">display_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="nb">map</span><span class="p">(</span>
+                    <span class="nb">str</span><span class="o">.</span><span class="n">lower</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_database_level_journal_mailbox</span><span class="p">):</span>
+                <span class="k">del</span> <span class="n">ad_users</span><span class="p">[</span><span class="n">val</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">ad_users</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">ad_users</span><span class="p">[</span><span class="n">val</span><span class="p">]</span><span class="o">.</span><span class="n">smtp_address</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="nb">map</span><span class="p">(</span>
+                    <span class="nb">str</span><span class="o">.</span><span class="n">lower</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rule_based_journal_mailbox</span><span class="p">):</span>
+                <span class="k">del</span> <span class="n">ad_users</span><span class="p">[</span><span class="n">val</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">ad_users</span>
+
+    <span class="k">def</span> <span class="nf">_get_journal_mailboxes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the journal mailboxes</span>
+<span class="sd">         by calling active_directory API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as users alias name and value as</span>
+<span class="sd">                                MailboxInfo object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">journal_users</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">ad_users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ad_users</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_database_level_journal_mailbox</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">ad_users</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">journal_users</span><span class="p">[</span><span class="n">item</span><span class="p">]</span> <span class="o">=</span> <span class="n">ad_users</span><span class="p">[</span><span class="n">item</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">ad_users</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">ad_users</span><span class="p">[</span><span class="n">val</span><span class="p">]</span><span class="o">.</span><span class="n">smtp_address</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="nb">map</span><span class="p">(</span>
+                    <span class="nb">str</span><span class="o">.</span><span class="n">lower</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rule_based_journal_mailbox</span><span class="p">):</span>
+                <span class="n">journal_users</span><span class="p">[</span><span class="n">val</span><span class="p">]</span> <span class="o">=</span> <span class="n">ad_users</span><span class="p">[</span><span class="n">val</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">journal_users</span>
+
+    <span class="k">def</span> <span class="nf">_get_ad_groups</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets all the adgroups by calling active directory API.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict    --  A dict with key as adgroup alias name and value as</span>
+<span class="sd">                                        ADGroup object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">adgroups_map</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">search</span><span class="p">(</span><span class="n">objectClass</span><span class="o">=</span><span class="s1">&#39;group&#39;</span><span class="p">):</span>
+            <span class="n">adgroup_info</span> <span class="o">=</span> <span class="n">ADGroup</span><span class="p">()</span>
+            <span class="c1"># we will use this later</span>
+            <span class="c1"># object_sid = str(group.objectSid)</span>
+            <span class="c1"># primary_token = object_sid.split(&#39;-&#39;)[-1]</span>
+            <span class="c1"># adgroup_info.primary_token = primary_token</span>
+            <span class="n">adgroup_info</span><span class="o">.</span><span class="n">samaccount_name</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">sAMAccountName</span>
+            <span class="n">adgroup_info</span><span class="o">.</span><span class="n">distinguish_name</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">distinguishedName</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">group_member</span> <span class="ow">in</span> <span class="n">group</span><span class="o">.</span><span class="n">memberOf</span><span class="p">:</span>
+                    <span class="n">adgroup_info</span><span class="o">.</span><span class="n">parent_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group_member</span><span class="o">.</span><span class="n">sAMAccountName</span><span class="p">)</span>
+
+                    <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">group</span><span class="o">.</span><span class="n">member</span><span class="p">:</span>
+                        <span class="n">mailbox_info</span> <span class="o">=</span> <span class="n">MailboxInfo</span><span class="p">()</span>
+
+                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">alias_name</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">mailNickName</span>
+                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">displayName</span>
+                        <span class="n">database_dn</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">homeMDB</span>
+                        <span class="k">if</span> <span class="n">database_dn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">database</span> <span class="o">=</span> <span class="p">(</span><span class="n">database_dn</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">)</span>
+
+                            <span class="n">mailbox_info</span><span class="o">.</span><span class="n">database_name</span> <span class="o">=</span> <span class="n">database</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">smtp_address</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">mail</span>
+                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">ldap_home_mbdb</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">homeMDB</span>
+                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">ldap_homeserver</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">msExchHomeServerName</span>
+                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">legacy_dn</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">legacyExchangeDN</span>
+                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">distinguished_name</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">distinguishedName</span>
+                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">primary_group_id</span> <span class="o">=</span> <span class="n">member</span><span class="o">.</span><span class="n">primaryGroupID</span>
+                        <span class="n">adgroup_info</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mailbox_info</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="c1"># when group does not have any member, active directory</span>
+                <span class="c1"># package throws attribute excpetion. We want to pass in that case</span>
+                <span class="k">pass</span>
+
+            <span class="n">adgroups_map</span><span class="p">[(</span><span class="n">group</span><span class="o">.</span><span class="n">sAMAccountName</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="n">adgroup_info</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exchange_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">ex_type</span><span class="o">.</span><span class="n">EXCHANGE_ONLINE_AD</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Getting online groups&#39;</span><span class="p">)</span>
+                <span class="n">online_groups_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">install_directory</span><span class="p">,</span>
+                    <span class="s2">&quot;online_groups.txt&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Getting Online groups from powershell. &#39;</span>
+                              <span class="s1">&#39;Powershell Path  </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">GET_ONLINE_AD_GROUPS</span><span class="p">)</span>
+                <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_object</span><span class="o">.</span><span class="n">exchange_online_user</span><span class="p">,</span>
+                    <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_object</span><span class="o">.</span><span class="n">exchange_online_password</span><span class="p">,</span>
+                    <span class="s2">&quot;filepath&quot;</span><span class="p">:</span> <span class="n">online_groups_file</span>
+                <span class="p">}</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">_execute_script</span><span class="p">(</span><span class="n">GET_ONLINE_AD_GROUPS</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Getting Online groups from powershell failed&#39;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error message: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+
+                <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">online_groups_file</span><span class="p">)</span>
+                <span class="n">users_list</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="n">group_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users_list</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">user</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                        <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="k">continue</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="nb">list</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+                            <span class="n">group_dict</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="nb">list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;SamAccountName&#39;</span><span class="p">:</span>
+                            <span class="n">adgroup_info</span> <span class="o">=</span> <span class="n">ADGroup</span><span class="p">()</span>
+                            <span class="n">adgroup_info</span><span class="o">.</span><span class="n">distinguish_name</span> <span class="o">=</span> <span class="n">group_dict</span><span class="p">[</span><span class="s1">&#39;DistinguishedName&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                            <span class="n">adgroup_info</span><span class="o">.</span><span class="n">samaccount_name</span> <span class="o">=</span> <span class="n">group_dict</span><span class="p">[</span><span class="s1">&#39;SamAccountName&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                            <span class="n">adgroup_info</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="n">group_dict</span><span class="p">[</span><span class="s1">&#39;Alias&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Getting Online group members for group &#39;</span>
+                                          <span class="s1">&#39;&quot;</span><span class="si">{0}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">group_dict</span><span class="p">[</span><span class="s1">&#39;Alias&#39;</span><span class="p">]))</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                                <span class="s1">&#39;Getting Online group members from powershell.&#39;</span>
+                                <span class="s1">&#39; Powershell Path </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">GET_MEMBERS_OF_GROUP</span><span class="p">)</span>
+                            <span class="n">group_members_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">install_directory</span><span class="p">,</span>
+                                <span class="s2">&quot;group_members.txt&quot;</span><span class="p">)</span>
+                            <span class="n">prop_dict</span> <span class="o">=</span> <span class="p">{</span>
+                                <span class="s2">&quot;LoginUser&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_object</span><span class="o">.</span><span class="n">exchange_online_user</span><span class="p">,</span>
+                                <span class="s2">&quot;LoginPassword&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_object</span><span class="o">.</span><span class="n">exchange_online_password</span><span class="p">,</span>
+                                <span class="s2">&quot;ExchangeServerDomain&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">domain_name</span><span class="p">,</span>
+                                <span class="s2">&quot;filepath&quot;</span><span class="p">:</span> <span class="n">group_members_file</span><span class="p">,</span>
+                                <span class="s2">&quot;groupname&quot;</span><span class="p">:</span> <span class="n">group_dict</span><span class="p">[</span><span class="s1">&#39;Alias&#39;</span><span class="p">]</span>
+                            <span class="p">}</span>
+                            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">_execute_script</span><span class="p">(</span>
+                                <span class="n">GET_MEMBERS_OF_GROUP</span><span class="p">,</span> <span class="n">prop_dict</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Getting group Members from powershell failed&#39;</span><span class="p">)</span>
+                                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error message: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+
+                            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">host_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">group_members_file</span><span class="p">)</span>
+                            <span class="n">users_list</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="p">)</span>
+                            <span class="n">user_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                            <span class="k">for</span> <span class="n">group_user</span> <span class="ow">in</span> <span class="n">users_list</span><span class="p">:</span>
+                                <span class="k">for</span> <span class="n">group_item</span> <span class="ow">in</span> <span class="n">group_user</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                                    <span class="n">group_item</span> <span class="o">=</span> <span class="n">group_item</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                                    <span class="k">if</span> <span class="n">group_item</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                                        <span class="k">continue</span>
+                                    <span class="k">else</span><span class="p">:</span>
+                                        <span class="n">list_members</span> <span class="o">=</span> <span class="n">group_item</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)</span>
+                                        <span class="n">user_dict</span><span class="p">[</span><span class="n">list_members</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">list_members</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                                    <span class="k">if</span> <span class="n">list_members</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;PrimarySmtpAddress&#39;</span><span class="p">:</span>
+                                        <span class="n">mailbox_info</span> <span class="o">=</span> <span class="n">MailboxInfo</span><span class="p">()</span>
+                                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="p">(</span><span class="n">user_dict</span><span class="p">[</span>
+                                            <span class="s2">&quot;DisplayName&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                                        <span class="n">mailbox_info</span><span class="o">.</span><span class="n">smtp_address</span> <span class="o">=</span> <span class="p">(</span><span class="n">user_dict</span><span class="p">[</span>
+                                            <span class="s1">&#39;PrimarySmtpAddress&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                                        <span class="n">adgroup_info</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mailbox_info</span><span class="p">)</span>
+                            <span class="n">adgroups_map</span><span class="p">[</span><span class="n">adgroup_info</span><span class="o">.</span><span class="n">display_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="n">adgroup_info</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while getting groups&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">excp</span>
+
+        <span class="k">return</span> <span class="n">adgroups_map</span>
+
+<div class="viewcode-block" id="ActiveDirectory.refresh"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.activedirectory_helper.ActiveDirectory.refresh">[docs]</a>    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Refresh the Active Directory.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_servers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_exchange_servers</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_databases</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_databases</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_ad_users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ad_users</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ad_groups</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exchange_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">ex_type</span><span class="o">.</span><span class="n">EXCHANGE_ONPREMISE</span><span class="o">.</span><span class="n">value</span> <span class="ow">or</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ex_object</span><span class="o">.</span><span class="n">subclient_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">mb_type</span><span class="o">.</span><span class="n">JOURNAL</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_database_level_journal_mailbox</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_datbaselevel_journalmailbox</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rule_based_journal_mailbox</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_rulebased_journalmailbox</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_journal_users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_journal_mailboxes</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_user_mailboxes</span><span class="p">()</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,879 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Indexing.database.ctree &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Indexing.database.ctree</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Indexing.database.ctree</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main module which contains the CTree DB class, which is used to perform operation</span>
+<span class="sd">and retrieve information for the Index DB. Please refer CTreeDB class for more information&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">xmltodict</span>
+
+<span class="kn">from</span> <span class="nn">cvpysdk.exception</span> <span class="k">import</span> <span class="n">SDKException</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="k">import</span> <span class="n">get_csdb</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">commonutils</span>
+
+<span class="kn">from</span> <span class="nn">Indexing.helpers</span> <span class="k">import</span> <span class="n">IndexingHelpers</span>
+
+
+<div class="viewcode-block" id="CTreeDB"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB">[docs]</a><span class="k">class</span> <span class="nc">CTreeDB</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This is a helper class for CTree engine type index DB/logs in the index cache.</span>
+<span class="sd">    It is to manipulate the index db and logs by performing operations like checkpointing,</span>
+<span class="sd">    compaction, reconstruction etc.</span>
+
+<span class="sd">    Note: Please create an object for this class using the index_db.get()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell</span><span class="p">,</span> <span class="n">index_server</span><span class="p">,</span> <span class="n">backupset_guid</span><span class="p">,</span> <span class="n">db_guid</span><span class="p">,</span> <span class="n">entity_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the CTreeDB class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                commcell     (obj)   --      The CvPySDK commcell object</span>
+
+<span class="sd">                index_server (obj)   --      The CvPySDK client object of the DB&#39;s index server MA</span>
+
+<span class="sd">                backupset_guid (str) --      The backupset GUID of the DB</span>
+
+<span class="sd">                db_guid       (str)  --      The DB GUID if the DB</span>
+
+<span class="sd">                entity_obj    (obj)  --      The backupset/subclient CvPySDK object for which DB</span>
+<span class="sd">                is created</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (obj)       -       The CTreeDB object</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span> <span class="o">=</span> <span class="n">get_csdb</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_idx_helper</span> <span class="o">=</span> <span class="n">IndexingHelpers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_entity_obj</span> <span class="o">=</span> <span class="n">entity_obj</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">backupset_guid</span> <span class="o">=</span> <span class="n">backupset_guid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_guid</span> <span class="o">=</span> <span class="n">db_guid</span>
+
+        <span class="c1"># DB properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_cache</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backupset_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logs_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_info_file</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_index_server</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ib_clients</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ib_jobs_passed</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Index server properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">isc_delim</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_server</span> <span class="o">=</span> <span class="n">index_server</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">index_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the Index Server CvPySDK client object of the DB&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_server</span>
+
+    <span class="nd">@index_server</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">index_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the Index Server client CvPySDK object for the DB</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                obj     (obj)   --      The CvPySDK object of the Index server client</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_index_server</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">db_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the .dbInfo file of the DB in a dictionary structure&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Reading dbInfo file [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_info_file</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">check_file_exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_info_file</span><span class="p">):</span>
+            <span class="n">contents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_info_file</span><span class="p">)</span>
+            <span class="n">dbinfo_dict</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">dbinfo_dict</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Db info file [</span><span class="si">{0}</span><span class="s1">] does not exist&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_info_file</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="nd">@db_info</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">db_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Saves the .dbInfo file contents to the DB</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                value     (dict)   --      The dictionary structure of the dbInfo file</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">dbinfo_xml</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">unparse</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Saving dbInfo file with content [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">dbinfo_xml</span>
+        <span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_info_file</span><span class="p">,</span> <span class="n">dbinfo_xml</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">db_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the DB state properties from the CS DB&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                select * from IdxDbState where dbid = (</span>
+<span class="sd">                    select id from App_IndexDBInfo</span>
+<span class="sd">                    where backupsetguid = &#39;{0}&#39;</span>
+<span class="sd">                    and dbname = &#39;{1}&#39;</span>
+<span class="sd">                )</span>
+<span class="sd">            &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backupset_guid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_guid</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cs_db</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">db_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checks if the DB folder exists in the Index cache.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                True, If the DB folder exists in the index cache.</span>
+
+<span class="sd">                False, Otherwise</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_path</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">index_backup_clients</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the index backup clients for the DB in dictionary structure</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                {</span>
+<span class="sd">                    &#39;client_name&#39;: {</span>
+<span class="sd">                        &#39;client&#39;: &lt;cvpysdk_client_obj&gt;,</span>
+<span class="sd">                        &#39;subclient&#39;: &lt;cvpysdk_subclient_obj&gt;</span>
+<span class="sd">                    }</span>
+<span class="sd">                }</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">client_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_idx_helper</span><span class="o">.</span><span class="n">get_index_backup_clients</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_entity_obj</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">client_names</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ib_clients</span><span class="p">:</span>
+                <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">agent_obj</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">agents</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Big Data Apps&#39;</span><span class="p">)</span>
+                <span class="n">bkset_obj</span> <span class="o">=</span> <span class="n">agent_obj</span><span class="o">.</span><span class="n">backupsets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;defaultBackupSet&#39;</span><span class="p">)</span>
+                <span class="n">sc_obj</span> <span class="o">=</span> <span class="n">bkset_obj</span><span class="o">.</span><span class="n">subclients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;default&#39;</span><span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">_ib_clients</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s1">&#39;client&#39;</span><span class="p">:</span> <span class="n">client_obj</span><span class="p">,</span>
+                    <span class="s1">&#39;subclient&#39;</span><span class="p">:</span> <span class="n">sc_obj</span>
+                <span class="p">}</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ib_clients</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_upto_date</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Does browse operation on the DB and checks whether it is up to date or not</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                True, If complete browse results are returned without errors by browse.</span>
+
+<span class="sd">                False, Otherwise</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">attempts</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">while</span> <span class="n">attempts</span> <span class="o">&lt;=</span> <span class="mi">5</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Checking upto date status. Attempt [</span><span class="si">{0}</span><span class="s1">/5]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">attempts</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">dummy_var</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_entity_obj</span><span class="o">.</span><span class="n">browse</span><span class="p">({</span>
+                    <span class="s1">&#39;_raw_response&#39;</span><span class="p">:</span> <span class="kc">True</span>
+                <span class="p">})</span>
+                <span class="k">break</span>
+            <span class="k">except</span> <span class="n">SDKException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Browse request timed out. Error [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="n">attempts</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">response</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Browse response timed out multiple times&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">got_full_results</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">browse_responses</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;browseResponses&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Browse response </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">browse_responses</span><span class="p">)))</span>
+
+        <span class="k">for</span> <span class="n">browse_response</span> <span class="ow">in</span> <span class="n">browse_responses</span><span class="p">:</span>
+            <span class="n">resp_type</span> <span class="o">=</span> <span class="n">browse_response</span><span class="p">[</span><span class="s1">&#39;respType&#39;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">resp_type</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">got_full_results</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">if</span> <span class="s1">&#39;messages&#39;</span> <span class="ow">in</span> <span class="n">browse_response</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Got partial results: [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="nb">str</span><span class="p">(</span><span class="n">browse_response</span><span class="p">[</span><span class="s1">&#39;messages&#39;</span><span class="p">])))</span>
+
+            <span class="k">if</span> <span class="n">resp_type</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">got_full_results</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">if</span> <span class="s1">&#39;messages&#39;</span> <span class="ow">in</span> <span class="n">browse_response</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Got error message: [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="nb">str</span><span class="p">(</span><span class="n">browse_response</span><span class="p">[</span><span class="s1">&#39;messages&#39;</span><span class="p">])))</span>
+
+            <span class="k">if</span> <span class="n">resp_type</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">got_full_results</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Browse gave full results. DB is upto date&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">got_full_results</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;DB is upto date&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;DB is not yet upto date&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">_parallel_checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sc_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initiates index backup jobs in parallel for the DB&quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="n">job_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_idx_helper</span><span class="o">.</span><span class="n">run_index_backup</span><span class="p">(</span><span class="n">sc_obj</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Index backup job [</span><span class="si">{0}</span><span class="s1">] completed for index backup client [</span><span class="si">{1}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">job_obj</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">sc_obj</span><span class="o">.</span><span class="n">_client_object</span><span class="o">.</span><span class="n">client_name</span>
+                <span class="p">))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_idx_helper</span><span class="o">.</span><span class="n">verify_checkpoint</span><span class="p">(</span><span class="n">job_obj</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_guid</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_ib_jobs_passed</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to start index backup job&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ib_jobs_passed</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">_set_registry_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reg_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets Indexing registry keys given in the dict on the index server machine&quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">reg_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting registry key [</span><span class="si">{0}</span><span class="s1">=</span><span class="si">{1}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">create_registry</span><span class="p">(</span><span class="s1">&#39;Indexing&#39;</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="s1">&#39;DWord&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_delete_registry_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reg_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deletes the indexing registry keys on the index server machine&quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">reg_dict</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Deleting registry key [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">remove_registry</span><span class="p">(</span><span class="s1">&#39;Indexing&#39;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CTreeDB.get_table_path"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.get_table_path">[docs]</a>    <span class="k">def</span> <span class="nf">get_table_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">component</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">,</span> <span class="n">table</span><span class="o">=</span><span class="s1">&#39;VersionTable.dat&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the table path for the given DB view and component</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                view        (str)   --      The view name of the DB</span>
+
+<span class="sd">                component   (str)   --      The component name under the view</span>
+
+<span class="sd">                table       (str)   --      The table name under the component</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (str)       -       The FS path of the required table</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">path_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">db_path</span><span class="p">,</span> <span class="n">view</span><span class="p">,</span> <span class="n">component</span><span class="p">,</span> <span class="n">table</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">view</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">path_list</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">path_list</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_delim</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path_list</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CTreeDB.get_db_info_prop"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.get_db_info_prop">[docs]</a>    <span class="k">def</span> <span class="nf">get_db_info_prop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets one property value from the .dbInfo file of the DB</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                property_name     (str)   --    The property of the DB for which value is required</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (str)       -       The value of the property</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">db_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_info</span>
+        <span class="n">attr_name</span> <span class="o">=</span> <span class="s1">&#39;@&#39;</span> <span class="o">+</span> <span class="n">property_name</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">db_info</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Invalid dbInfo file&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">attr_name</span> <span class="ow">in</span> <span class="n">db_info</span><span class="p">[</span><span class="s1">&#39;Indexing_DbProps&#39;</span><span class="p">]:</span>
+            <span class="n">prop_val</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">db_info</span><span class="p">[</span><span class="s1">&#39;Indexing_DbProps&#39;</span><span class="p">][</span><span class="n">attr_name</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;DBInfo </span><span class="si">{0}</span><span class="s1"> = </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">attr_name</span><span class="p">,</span> <span class="n">prop_val</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">prop_val</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> is not present in dbInfo file [</span><span class="si">{1}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">attr_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">db_info</span><span class="p">)</span>
+            <span class="p">))</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="CTreeDB.get_logs_in_cache"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.get_logs_in_cache">[docs]</a>    <span class="k">def</span> <span class="nf">get_logs_in_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of lg folder present in Index cache for the DB</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (list)      -       List of job log folders present in the index cache</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">all_dirs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">get_folders_in_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logs_path</span><span class="p">)</span>
+        <span class="n">job_logs</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">log_dir</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">all_dirs</span><span class="p">):</span>
+            <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;J[0-9_a-zA-Z]+&#39;</span><span class="p">,</span> <span class="n">log_dir</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">match</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">mid</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">mid</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">job_logs</span><span class="p">:</span>
+                    <span class="n">job_logs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mid</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">job_logs</span></div>
+
+<div class="viewcode-block" id="CTreeDB.refresh"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.refresh">[docs]</a>    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Refreshes this object by setting the index server client, index cache and</span>
+<span class="sd">        all other FS paths related to the DB&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Refreshing IndexServer and IndexCache paths for the DB&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_index_server</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">isc_delim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">os_sep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_idx_helper</span><span class="o">.</span><span class="n">get_index_cache</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_index_server</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">backupset_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_delim</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_cache</span><span class="p">,</span> <span class="s1">&#39;CvIdxDB&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">backupset_guid</span>
+        <span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_delim</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backupset_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_guid</span>
+        <span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logs_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_delim</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_cache</span><span class="p">,</span> <span class="s1">&#39;CvIdxLogs&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commcell_id</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">backupset_guid</span>
+        <span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_info_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_delim</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db_path</span><span class="p">,</span> <span class="s1">&#39;.dbInfo&#39;</span>
+        <span class="p">])</span></div>
+
+<div class="viewcode-block" id="CTreeDB.checkpoint_db"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.checkpoint_db">[docs]</a>    <span class="k">def</span> <span class="nf">checkpoint_db</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">by_all_index_backup_clients</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">registry_keys</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checkpoints the DB by running Index backup job.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                by_all_index_backup_clients     (bool)   --    Decides whether to run index backup</span>
+<span class="sd">                jobs for all the clients involved for the entity</span>
+
+<span class="sd">                registry_keys  (dict/bool)  --   If (bool) and false, no registry keys will be</span>
+<span class="sd">                                                set before running the operation</span>
+
+<span class="sd">                                            --   If (dict), the registry keys in the dictionary</span>
+<span class="sd">                                                 will be set</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (bool)      --      True, if checkpoint is launched and verified</span>
+
+<span class="sd">                                    False, if checkpoint job did not start or verification failed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">checkpoint_reg_keys</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;CHKPOINT_ITEMS_ADDED_MIN&#39;</span><span class="p">:</span> <span class="mi">100</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">registry_keys</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">commonutils</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">checkpoint_reg_keys</span><span class="p">,</span> <span class="n">registry_keys</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">registry_keys</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="n">registry_keys</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting registry keys to force checkpoint DB&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_set_registry_keys</span><span class="p">(</span><span class="n">checkpoint_reg_keys</span><span class="p">)</span>
+
+            <span class="n">all_ib_clients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_backup_clients</span>
+            <span class="n">ib_clients</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="k">if</span> <span class="n">by_all_index_backup_clients</span><span class="p">:</span>
+                <span class="n">ib_clients</span> <span class="o">=</span> <span class="n">all_ib_clients</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ib_client</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">all_ib_clients</span><span class="p">))</span>
+                <span class="n">ib_clients</span><span class="p">[</span><span class="n">ib_client</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_ib_clients</span><span class="p">[</span><span class="n">ib_client</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Selected Index backup clients are [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">str</span><span class="p">(</span><span class="n">ib_clients</span><span class="p">)</span>
+            <span class="p">))</span>
+
+            <span class="n">threads</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ib_jobs_passed</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">for</span> <span class="n">ib_client</span><span class="p">,</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">ib_clients</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">sc_obj</span> <span class="o">=</span> <span class="n">prop</span><span class="p">[</span><span class="s1">&#39;subclient&#39;</span><span class="p">]</span>
+                <span class="n">exe_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+                    <span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_parallel_checkpoint</span><span class="p">,</span>
+                    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">sc_obj</span><span class="p">,)</span>
+                <span class="p">)</span>
+                <span class="n">exe_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                <span class="n">threads</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exe_thread</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">exe_thread</span> <span class="ow">in</span> <span class="n">threads</span><span class="p">:</span>
+                <span class="n">exe_thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ib_jobs_passed</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Index backup jobs completed successfully&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;One or more index backup/verification failed&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_delete_registry_keys</span><span class="p">(</span><span class="n">checkpoint_reg_keys</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CTreeDB.compact_db"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.compact_db">[docs]</a>    <span class="k">def</span> <span class="nf">compact_db</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">registry_keys</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">total_attempts</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compact the DB by running Index backup job.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                registry_keys  (dict/bool)  --   If (bool) and false, no registry keys will be</span>
+<span class="sd">                                                set before running the operation</span>
+
+<span class="sd">                                            --   If (dict), the registry keys in the dictionary</span>
+<span class="sd">                                                 will be set</span>
+
+<span class="sd">                 total_attempts (int)       --   The number of attempts to take to check if</span>
+<span class="sd">                                                 compaction has happened</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (bool)      --      True, if index backup job is launched and compaction completed</span>
+
+<span class="sd">                                    False, if index backup job is not launched or compaction</span>
+<span class="sd">                                    did not start</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">compaction_reg_keys</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;CHKPOINT_AFILES_AGED_MIN&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;COMPACTION_ENFORCE_DAYS&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;FULL_COMPACTION_MIN_PERCENT_AFILE_AGED&#39;</span><span class="p">:</span> <span class="mi">0</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">registry_keys</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">commonutils</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">compaction_reg_keys</span><span class="p">,</span> <span class="n">registry_keys</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Running compaction for DB&#39;</span><span class="p">)</span>
+
+            <span class="n">last_compaction_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_db_info_prop</span><span class="p">(</span><span class="s1">&#39;lastCompactionTime&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">last_compaction_time</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to get last compaction time for DB&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Last compaction time for DB is [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">last_compaction_time</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">registry_keys</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="n">registry_keys</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting registry keys to force run compaction&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_set_registry_keys</span><span class="p">(</span><span class="n">compaction_reg_keys</span><span class="p">)</span>
+
+            <span class="n">ib_clients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index_backup_clients</span>
+            <span class="n">ib_client</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">ib_clients</span><span class="p">))</span>  <span class="c1"># Get one index backup client</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Picked index backup client [</span><span class="si">{0}</span><span class="s1">] to run Index backup job&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">ib_client</span>
+            <span class="p">))</span>
+
+            <span class="n">ib_subclient_obj</span> <span class="o">=</span> <span class="n">ib_clients</span><span class="p">[</span><span class="n">ib_client</span><span class="p">][</span><span class="s1">&#39;subclient&#39;</span><span class="p">]</span>
+            <span class="n">job_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_idx_helper</span><span class="o">.</span><span class="n">run_index_backup</span><span class="p">(</span><span class="n">ib_subclient_obj</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">job_id</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Cannot start index backup job for the DB&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Index backup job [</span><span class="si">{0}</span><span class="s1">] completed. Waiting for compaction to complete&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">job_obj</span><span class="o">.</span><span class="n">job_id</span>
+                <span class="p">))</span>
+
+            <span class="n">compaction_check_attempts</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">new_compaction_time</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">while</span> <span class="n">compaction_check_attempts</span> <span class="o">&lt;=</span> <span class="n">total_attempts</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s1">&#39;Waiting 60 secs for compaction to complete. Attempt [</span><span class="si">{0}</span><span class="s1">/</span><span class="si">{1}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">compaction_check_attempts</span><span class="p">,</span> <span class="n">total_attempts</span>
+                    <span class="p">))</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+
+                <span class="n">new_compaction_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_db_info_prop</span><span class="p">(</span><span class="s1">&#39;lastCompactionTime&#39;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">new_compaction_time</span> <span class="o">==</span> <span class="n">last_compaction_time</span><span class="p">:</span>
+
+                    <span class="k">if</span> <span class="n">compaction_check_attempts</span> <span class="o">==</span> <span class="n">total_attempts</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Attempts exhausted. Compaction did not run for the DB&#39;</span><span class="p">)</span>
+                        <span class="k">return</span> <span class="kc">False</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">compaction_check_attempts</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s1">&#39;New compaction time is same as old compaction time.&#39;</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">break</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Compaction completed for DB. New compaction time [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">new_compaction_time</span>
+            <span class="p">))</span>
+
+            <span class="k">return</span> <span class="n">job_obj</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_delete_registry_keys</span><span class="p">(</span><span class="n">compaction_reg_keys</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CTreeDB.delete_db"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.delete_db">[docs]</a>    <span class="k">def</span> <span class="nf">delete_db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deletes the index DB from index cache&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backupset_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="CTreeDB.rename_db"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.rename_db">[docs]</a>    <span class="k">def</span> <span class="nf">rename_db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Renames the index db in index cache</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (str)   --      The new path of the renamed DB</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">rename_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backupset_path</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">rename_file_or_folder</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">backupset_path</span><span class="p">,</span> <span class="n">rename_path</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">rename_path</span></div>
+
+<div class="viewcode-block" id="CTreeDB.reconstruct_db"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.reconstruct_db">[docs]</a>    <span class="k">def</span> <span class="nf">reconstruct_db</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rename</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">total_browse_attempts</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initiates reconstruction for the DB by renaming it and doing browse operation</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                rename      (bool)      --      Decides whether to rename/delete the DB</span>
+
+<span class="sd">                total_browse_attempts (int)  -- The total number of browse attempts to be made</span>
+<span class="sd">                to check if reconstruction is successful</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (bool)      --      True, if reconstruction was initiated and browse verified</span>
+<span class="sd">                                    that DB is upto date</span>
+
+<span class="sd">                                    False, if reconstruction was not initiated or DB is stuck</span>
+<span class="sd">                                    in not upto data state</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Reconstructing DB&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">rename</span><span class="p">:</span>
+            <span class="n">rename_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rename_db</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Renamed DB to [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rename_path</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Deleting DB [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_path</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">delete_db</span><span class="p">()</span>
+
+        <span class="n">browse_attempt</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">upto_date</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">while</span> <span class="n">browse_attempt</span> <span class="o">&lt;=</span> <span class="n">total_browse_attempts</span><span class="p">:</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Doing browse to trigger reconstruction for DB and &#39;</span>
+                <span class="s1">&#39;check browse status. Attempt [</span><span class="si">{0}</span><span class="s1">/</span><span class="si">{1}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">browse_attempt</span><span class="p">,</span> <span class="n">total_browse_attempts</span>
+                <span class="p">))</span>
+
+            <span class="n">upto_date</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_upto_date</span>
+
+            <span class="k">if</span> <span class="n">upto_date</span><span class="p">:</span>
+                <span class="k">break</span>
+
+            <span class="k">if</span> <span class="n">browse_attempt</span> <span class="o">==</span> <span class="n">total_browse_attempts</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s1">&#39;Attempts exhausted, browse still does not give full results&#39;</span><span class="p">)</span>
+                <span class="n">upto_date</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">browse_attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;DB is not upto date. Waiting for 60 secs and trying again&#39;</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">upto_date</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;DB is upto date. Reconstruction completed&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;DB is not upto date. Reconstruction failed&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="CTreeDB.corrupt_db"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.corrupt_db">[docs]</a>    <span class="k">def</span> <span class="nf">corrupt_db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Corrupts the ArchiveFile table of the DB</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (bool)      --      True, if DB was corrupted</span>
+
+<span class="sd">                                    False, if DB corruption failed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">afile_table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_table_path</span><span class="p">(</span><span class="n">table</span><span class="o">=</span><span class="s1">&#39;ArchiveFileTable.dat&#39;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Corrupting afile table [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">afile_table</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="n">afile_table</span><span class="p">,</span> <span class="s1">&#39;Corrupted afile table&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to corrupt afile table&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="CTreeDB.delete_logs"><a class="viewcode-back" href="../../../source/Indexing.database.html#Indexing.database.ctree.CTreeDB.delete_logs">[docs]</a>    <span class="k">def</span> <span class="nf">delete_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deletes the action logs of the DB from the index cache</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                action      (str)   --  If value is starts with J, it is considered a job id and</span>
+<span class="sd">                that job folder is deleted from index cache</span>
+
+<span class="sd">                                        If value is &quot;all&quot; all the logs of the DB will be deleted</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (bool)      --      True, if deletion is successful</span>
+
+<span class="sd">                                    False, if deletion failed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Deleting all logs for the DB from Index cache&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logs_path</span><span class="p">)</span>
+
+            <span class="k">elif</span> <span class="n">action</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;J&#39;</span><span class="p">):</span>
+                <span class="n">job_logs_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">isc_delim</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logs_path</span><span class="p">,</span> <span class="n">action</span>
+                <span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Deleting jobs logs directory [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_logs_path</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">isc_machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">job_logs_path</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unsupported action to delete logs [</span><span class="si">{0}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">action</span><span class="p">))</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to delete log from Index cache&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

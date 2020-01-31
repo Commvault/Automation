@@ -1,0 +1,556 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Server.Plans.planshelper &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Server.Plans.planshelper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Server.Plans.planshelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for REST API based Plans</span>
+
+<span class="sd">PlansHelper is the only class defined in this file</span>
+
+<span class="sd">PlansHelper</span>
+<span class="sd">===========</span>
+
+<span class="sd">    __init__()                --  initializes planshelper object</span>
+
+<span class="sd">    get_storage_pool()        --  Returns any random online storage pool</span>
+
+<span class="sd">    create_base_plan()        --  Creates and returns a Plan</span>
+
+<span class="sd">    validate_plan_props()     --  Validates the creation of a plan from SDK</span>
+
+<span class="sd">    delete_plan()             --  Deletes the passed plan</span>
+
+<span class="sd">    inherit_plan()            --  Creates and returns a derived Plan</span>
+
+<span class="sd">    plan_to_company()         --  Associates plan to company</span>
+
+<span class="sd">    modify_inheritance()      --  Modify override restrictions of a base plan</span>
+
+<span class="sd">    cleanup_plans()           --  Delete plans that were marked for deletion</span>
+<span class="sd">                                  during previous runs</span>
+
+<span class="sd">    validate_overriding()     --  Validates override restrictions of base plans</span>
+
+<span class="sd">    validate_inheritance()    --  Validates whether inheritance is</span>
+<span class="sd">                                  appropriately followed on derivation</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.commcell</span> <span class="k">import</span> <span class="n">Commcell</span>
+
+
+<div class="viewcode-block" id="PlansHelper"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper">[docs]</a><span class="k">class</span> <span class="nc">PlansHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to perform Plans REST API operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commserve</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">commcell_obj</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes plans object and gets the commserv database object if</span>
+<span class="sd">            not specified</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                commserve       (str)   --  hostname of the commcell</span>
+
+<span class="sd">                username        (str)   --  username of the user to perform</span>
+<span class="sd">                                            operations</span>
+
+<span class="sd">                password        (str)   --  password of the user</span>
+
+<span class="sd">                commcell_obj    (str)   --  commcell object for creating</span>
+<span class="sd">                                            PlansHelper</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">commcell_obj</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span> <span class="o">=</span> <span class="n">Commcell</span><span class="p">(</span><span class="n">commserve</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span> <span class="o">=</span> <span class="n">commcell_obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">plans</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_plan</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">derived_plans</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_pool</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="PlansHelper.get_storage_pool"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.get_storage_pool">[docs]</a>    <span class="k">def</span> <span class="nf">get_storage_pool</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns any random online storage pool</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            storage_pool    (str)    -- Storage pool name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">storage_pools_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">storage_pools</span><span class="o">.</span><span class="n">all_storage_pools</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_pool</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">storage_pools_obj</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_pool</span></div>
+
+<div class="viewcode-block" id="PlansHelper.create_base_plan"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.create_base_plan">[docs]</a>    <span class="k">def</span> <span class="nf">create_base_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plan_name</span><span class="p">,</span> <span class="n">subtype</span><span class="p">,</span> <span class="n">storage_pool</span><span class="p">,</span> <span class="n">sla_in_minutes</span><span class="o">=</span><span class="mi">240</span><span class="p">,</span> <span class="n">override_entities</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Create a plan on commcell</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                plan_name        (str)    : Plan name to create</span>
+
+<span class="sd">                subtype          (str)   --  Type of plan to add</span>
+
+<span class="sd">                                                &quot;Server&quot;    -   Server Plans</span>
+
+<span class="sd">                                                &quot;FSServer&quot;  -   File System Plans</span>
+
+<span class="sd">                                                &quot;Laptop&quot;    -   Laptop Plans</span>
+
+<span class="sd">                storage_pool_name (str)   : Storage pool to associate to the plan</span>
+
+<span class="sd">                sla_in_minutes    (str)   : SLA in minutes</span>
+
+<span class="sd">                override_entities   (dict)  --  Specify the entities with respective overriding.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">plan_name</span><span class="p">,</span> <span class="n">subtype</span><span class="p">,</span> <span class="n">storage_pool</span><span class="p">,</span> <span class="n">sla_in_minutes</span><span class="p">,</span> <span class="n">override_entities</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">has_plan</span><span class="p">(</span><span class="n">plan_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Plan [</span><span class="si">{0}</span><span class="s2">] already exists on commcell&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">plan_name</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">base_plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">plan_name</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Creating plan [</span><span class="si">{0}</span><span class="s2">], subtype [</span><span class="si">{1}</span><span class="s2">], storage_pool [</span><span class="si">{2}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">plan_name</span><span class="p">,</span> <span class="n">subtype</span><span class="p">,</span> <span class="n">storage_pool</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">base_plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_plan</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> plan creation failed - </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">plan_name</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="PlansHelper.validate_plan_props"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.validate_plan_props">[docs]</a>    <span class="k">def</span> <span class="nf">validate_plan_props</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plan_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates the creation of a plan from SDK</span>
+<span class="sd">        Args:</span>
+<span class="sd">            plan_obj        (obj)   -- object of plan to be validated</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool                    -- plan validation confirmation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">plan_obj</span><span class="o">.</span><span class="n">plan_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">all_plans</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Plan has not been successfully created in SDK&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Plan creation failure&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">storage_policies</span><span class="o">.</span><span class="n">has_policy</span><span class="p">(</span>
+                <span class="n">plan_obj</span><span class="o">.</span><span class="n">storage_policy</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Storage policy not successfully created&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Plan storage validation failure&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">schedule_policies</span><span class="o">.</span><span class="n">has_policy</span><span class="p">(</span>
+                <span class="n">plan_obj</span><span class="o">.</span><span class="n">schedule_policies</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Schedule policies not successfully created&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Plan schedule validation failure&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">plan_obj</span><span class="o">.</span><span class="n">subtype</span> <span class="o">==</span> <span class="mi">33554439</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">client_groups</span><span class="o">.</span><span class="n">has_clientgroup</span><span class="p">(</span>
+                    <span class="n">plan_obj</span><span class="o">.</span><span class="n">_client_group</span><span class="o">.</span><span class="n">clientgroup_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Client group was not successfully created&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Plan clientgroup validation failure&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">user_groups</span><span class="o">.</span><span class="n">has_user_group</span><span class="p">(</span>
+                    <span class="n">plan_obj</span><span class="o">.</span><span class="n">_user_group</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;User group was not successfully created&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Plan usergroup validation failure&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PlansHelper.delete_plan"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.delete_plan">[docs]</a>    <span class="k">def</span> <span class="nf">delete_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plan_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Deletes the passed plan</span>
+<span class="sd">        Args:</span>
+<span class="sd">            plan_name        (str)   -- object of plan to be validated</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool                     -- plan validation confirmation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">plan_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="PlansHelper.inherit_plan"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.inherit_plan">[docs]</a>    <span class="k">def</span> <span class="nf">inherit_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                     <span class="n">base_plan_name</span><span class="p">,</span>
+                     <span class="n">derived_plan_name</span><span class="p">,</span>
+                     <span class="n">storage_pool</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">sla_in_minutes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">override_entities</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates and returns a derived Plan</span>
+<span class="sd">        Args:</span>
+<span class="sd">            base_plan_name        (str)   -- name of plan to be inherited</span>
+
+<span class="sd">            derived_plan_name     (str)   -- name of the derived plan to be</span>
+<span class="sd">                                             created</span>
+
+<span class="sd">            storage_pool          (str)   -- storage pool name to be used</span>
+
+<span class="sd">            sla_in_minutes        (int)   -- SLA/RPO in minutes</span>
+
+<span class="sd">            override_entities     (int)   -- override restrictions for the plan</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            obj                           -- object of the derived plan</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">has_plan</span><span class="p">(</span><span class="n">base_plan_name</span><span class="p">):</span>
+                <span class="n">plan_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">base_plan_name</span><span class="p">)</span>
+                <span class="n">derived_plan</span> <span class="o">=</span> <span class="n">plan_obj</span><span class="o">.</span><span class="n">derive_and_add</span><span class="p">(</span>
+                    <span class="n">derived_plan_name</span><span class="p">,</span>
+                    <span class="n">storage_pool</span><span class="p">,</span>
+                    <span class="n">sla_in_minutes</span><span class="p">,</span>
+                    <span class="n">override_entities</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">derived_plans</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">derived_plan</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">derived_plan</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Passed plan object does not exist&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Base plan does not exist&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">exp</span></div>
+
+<div class="viewcode-block" id="PlansHelper.plan_to_company"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.plan_to_company">[docs]</a>    <span class="k">def</span> <span class="nf">plan_to_company</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">company_name</span><span class="p">,</span> <span class="n">plan_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Associates plan to company</span>
+<span class="sd">            Args:</span>
+<span class="sd">                company_name    (str)   --  name of the company</span>
+
+<span class="sd">                plan_name       (str)   --  name of the plan</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">company</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">organizations</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">company_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">has_plan</span><span class="p">(</span><span class="n">plan_name</span><span class="p">):</span>
+                <span class="n">company</span><span class="o">.</span><span class="n">plans</span> <span class="o">=</span> <span class="p">[</span><span class="n">plan_name</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Plan [</span><span class="si">{0}</span><span class="s2">] does not exist&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">plan_name</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Plan not found&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Plan </span><span class="si">{0}</span><span class="s2"> association to company failed </span><span class="si">{1}</span><span class="s2"> due to </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">plan_name</span><span class="p">,</span>
+                    <span class="n">company_name</span><span class="p">,</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PlansHelper.modify_inheritance"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.modify_inheritance">[docs]</a>    <span class="k">def</span> <span class="nf">modify_inheritance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plan_name</span><span class="p">,</span> <span class="n">override_entities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Modify override restrictions of a base plan</span>
+<span class="sd">            Args:</span>
+<span class="sd">                plan_name           (str)   --  name of the plan</span>
+
+<span class="sd">                override_entities   (dict)  --  override restrictions to be</span>
+<span class="sd">                                                added</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">has_plan</span><span class="p">(</span><span class="n">plan_name</span><span class="p">):</span>
+                <span class="n">base_plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">plan_name</span><span class="p">)</span>
+                <span class="n">base_plan</span><span class="o">.</span><span class="n">override_entities</span> <span class="o">=</span> <span class="n">override_entities</span>
+                <span class="k">return</span> <span class="n">base_plan</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Plan [</span><span class="si">{0}</span><span class="s2">] does not exist&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">plan_name</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Base plan not found&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to modify override restrictions due to - </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PlansHelper.cleanup_plans"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.cleanup_plans">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_plans</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">marker</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete plans that were marked for deletion during previous runs</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                marker      (str)   --  marker tagged to plans for deletion</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">plan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">all_plans</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">marker</span> <span class="ow">in</span> <span class="n">plan</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">plan</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleted plan - </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">plan</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s2">&quot;Unable to delete plan </span><span class="si">{0}</span><span class="s2"> due to </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">plan</span><span class="p">,</span>
+                            <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span></div>
+
+<div class="viewcode-block" id="PlansHelper.validate_overriding"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.validate_overriding">[docs]</a>    <span class="k">def</span> <span class="nf">validate_overriding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                            <span class="n">base_plan_name</span><span class="p">,</span>
+                            <span class="n">override_entities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates override restrictions of base plans</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                base_plan_name      (str)   --  base plan name</span>
+
+<span class="sd">                override_entities   (dict)  --  override restrictions to be</span>
+<span class="sd">                                                validated</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool                    -- inheriance validation case</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">has_plan</span><span class="p">(</span><span class="n">base_plan_name</span><span class="p">):</span>
+            <span class="n">base_plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">base_plan_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Base plan not found&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">entities</span> <span class="ow">in</span> <span class="n">override_entities</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">entities</span> <span class="ow">is</span> <span class="s1">&#39;privateEntities&#39;</span> <span class="ow">and</span>
+                    <span class="nb">sorted</span><span class="p">(</span><span class="n">override_entities</span><span class="p">[</span><span class="n">entities</span><span class="p">])</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span>
+                        <span class="n">base_plan</span><span class="o">.</span><span class="n">override_entities</span><span class="p">[</span>
+                            <span class="s1">&#39;privateEntities&#39;</span><span class="p">])):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Private entities restriction not matched&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="s2">&quot;Override restriction of private entities failed&quot;</span>
+                    <span class="p">)</span>
+            <span class="k">if</span> <span class="n">entities</span> <span class="ow">is</span> <span class="s1">&#39;enforcedEntities&#39;</span><span class="p">:</span>
+                <span class="n">enf_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+                    <span class="nb">filter</span><span class="p">(</span>
+                        <span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">4096</span><span class="p">],</span> <span class="n">base_plan</span><span class="o">.</span><span class="n">override_entities</span><span class="p">[</span>
+                            <span class="s1">&#39;enforcedEntities&#39;</span>
+                        <span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">override_entities</span><span class="p">[</span><span class="n">entities</span><span class="p">])</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">enf_list</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Enforced enitties restriction not matched&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="s2">&quot;Override restriction of enforced entities failed&quot;</span>
+                    <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Override restriction rules of </span><span class="si">{0}</span><span class="s2"> validated successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">base_plan_name</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="PlansHelper.validate_inheritance"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.planshelper.PlansHelper.validate_inheritance">[docs]</a>    <span class="k">def</span> <span class="nf">validate_inheritance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                             <span class="n">base_plan_name</span><span class="p">,</span>
+                             <span class="n">derived_plan_name</span><span class="p">,</span>
+                             <span class="n">override_entities</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates whether inheritance is appropriately followed on derivation</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                base_plan_name      (str)   --  base plan name</span>
+
+<span class="sd">                derived_plan_name   (str)   --  derived plan name</span>
+
+<span class="sd">                override_entities   (dict)  --  override entity details</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">has_plan</span><span class="p">(</span><span class="n">base_plan_name</span><span class="p">):</span>
+            <span class="n">base_plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">base_plan_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Base plan not found&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">has_plan</span><span class="p">(</span><span class="n">derived_plan_name</span><span class="p">):</span>
+            <span class="n">derived_plan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plans_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">derived_plan_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Derived plan not found&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">entities</span> <span class="ow">in</span> <span class="n">override_entities</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">override_entities</span><span class="p">[</span><span class="n">entities</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">entities</span> <span class="ow">is</span> <span class="s1">&#39;privateEntities&#39;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">entity</span> <span class="ow">is</span> <span class="mi">1</span> <span class="ow">and</span>
+                            <span class="n">base_plan</span><span class="o">.</span><span class="n">storage_policy</span> <span class="o">==</span> <span class="n">derived_plan</span><span class="o">.</span><span class="n">storage_policy</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failure in overriding storage&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">entity</span> <span class="ow">is</span> <span class="mi">4</span> <span class="ow">and</span>
+                            <span class="n">base_plan</span><span class="o">.</span><span class="n">schedule_policies</span> <span class="o">==</span> <span class="n">derived_plan</span><span class="o">.</span><span class="n">schedule_policies</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failure in overriding RPO/Schedules&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">entity</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">1024</span><span class="p">]</span> <span class="ow">and</span>
+                            <span class="n">base_plan</span><span class="o">.</span><span class="n">subclient_policy</span> <span class="o">==</span> <span class="n">derived_plan</span><span class="o">.</span><span class="n">subclient_policy</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failure in overriding backup content&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Private entities successfully overridden&quot;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">entities</span> <span class="ow">is</span> <span class="s1">&#39;enforcedEntities&#39;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">entity</span> <span class="ow">is</span> <span class="mi">1</span> <span class="ow">and</span>
+                            <span class="n">base_plan</span><span class="o">.</span><span class="n">storage_policy</span> <span class="o">!=</span> <span class="n">derived_plan</span><span class="o">.</span><span class="n">storage_policy</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failure in inheriting storage&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">entity</span> <span class="ow">is</span> <span class="mi">4</span> <span class="ow">and</span>
+                            <span class="n">base_plan</span><span class="o">.</span><span class="n">schedule_policies</span> <span class="o">!=</span> <span class="n">derived_plan</span><span class="o">.</span><span class="n">schedule_policies</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failure in inheriting RPO/Schedules&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">entity</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">1024</span><span class="p">]</span> <span class="ow">and</span>
+                            <span class="n">base_plan</span><span class="o">.</span><span class="n">subclient_policy</span> <span class="o">!=</span> <span class="n">derived_plan</span><span class="o">.</span><span class="n">subclient_policy</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failure in inheriting backup content&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Enforced entities successfully inherited&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Inheritance validated successfully&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

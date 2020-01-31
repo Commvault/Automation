@@ -1,0 +1,556 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>AutomationUtils.interruption &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>AutomationUtils.interruption</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for AutomationUtils.interruption</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># pylint: disable=W0221</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;File for performing Interrupt operations on a Job.</span>
+
+<span class="sd">This file consists of a class named: Interruption,</span>
+
+<span class="sd">which can perform various interrupt operation on a Job.</span>
+
+
+<span class="sd">Interruption:</span>
+<span class="sd">=============</span>
+
+<span class="sd">    __init__()                    --  initialize object of the class</span>
+
+<span class="sd">    restart_client_services()     --  Restarts the commvault services of the client</span>
+<span class="sd">    machine which is associated with the job</span>
+
+<span class="sd">    create_operation_window()     --  Creates/deletes a operation window for the client</span>
+
+<span class="sd">    ma_cvd_kill()                 --  Kills the CVD process in the MA associated with the job</span>
+
+<span class="sd">    suspend_resume_job()          --  Suspends and resumes the job</span>
+
+<span class="sd">    reboot_client()               --  reboots the client machine associated with the job</span>
+
+<span class="sd">    random_process_kill()         --  Picks a random process from client machine and kills it</span>
+
+<span class="sd">    wait_and_resume()             --  Waits for the job to get interrupted before resuming the job</span>
+
+<span class="sd">    wait_for_job_run()            --  waits for job to come to running state before</span>
+<span class="sd">    introducing interuption</span>
+
+<span class="sd">    kill_process()                --  terminates a running process on the client machine with either</span>
+<span class="sd">    the given process name or the process id</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">cvpysdk</span> <span class="k">import</span> <span class="n">operation_window</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">database_helper</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">machine</span><span class="p">,</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">.script_generator</span> <span class="k">import</span> <span class="n">ScriptGenerator</span>
+
+
+
+<div class="viewcode-block" id="Interruption"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption">[docs]</a><span class="k">class</span> <span class="nc">Interruption</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for performing Interruption operations on a Job.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">commcell</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes instance of the Interrupt class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                job_id        (int)       --  job id of a backup job</span>
+
+<span class="sd">                commcell      (object)    --  Comcell object relevant for the job</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                object - instance of this class</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span> <span class="o">=</span> <span class="n">job_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commserver_database</span> <span class="o">=</span> <span class="n">database_helper</span><span class="o">.</span><span class="n">get_csdb</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backup_set_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">backupset_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sub_client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">subclient_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">client_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instance_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">instance_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_app_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">agent_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client_name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_media_agent_name</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select MediaAgentName from JMBkpJobInfo where jobId=</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commserver_database</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">cur</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commserver_database</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_media_agent_name</span> <span class="o">=</span> <span class="n">cur</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Fetched MA Name: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_media_agent_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to get the MA name from database&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Interruption.restart_client_services"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.restart_client_services">[docs]</a>    <span class="k">def</span> <span class="nf">restart_client_services</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Restarts the commvault service of the client machine associated with the job</span>
+
+<span class="sd">        waits for the job to get interrupted and resumes the job once it is interrupted&quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_run</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;running&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trying to restart Client services&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">restart_services</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Client services are restarted, backup job will suspend and resume in a while&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_and_resume</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Interruption.operation_window"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.operation_window">[docs]</a>    <span class="k">def</span> <span class="nf">operation_window</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a operation window for the client associated with the job</span>
+
+<span class="sd">        waits for the job to get interrupted,</span>
+
+<span class="sd">        delete the operation window so that the job can resume&quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_run</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;running&quot;</span><span class="p">:</span>
+            <span class="n">op_window_object</span> <span class="o">=</span> <span class="n">operation_window</span><span class="o">.</span><span class="n">OperationWindow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">)</span>
+            <span class="n">op_window_rule_id</span> <span class="o">=</span> <span class="n">op_window_object</span><span class="o">.</span><span class="n">create_operation_window</span><span class="p">(</span><span class="s2">&quot;created_from_automation&quot;</span><span class="p">)</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;JobStatus is=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">status</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;suspended&quot;</span><span class="p">,</span> <span class="s2">&quot;queued&quot;</span><span class="p">,</span> <span class="s2">&quot;pending&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="s2">&quot;completed&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting operation window&quot;</span><span class="p">)</span>
+                    <span class="n">op_window_object</span><span class="o">.</span><span class="n">delete_operation_window</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">op_window_rule_id</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Operation window is deleted, backup job will now resume&quot;</span><span class="p">)</span>
+                    <span class="k">break</span>
+            <span class="c1"># try resuming the job only if the JOB is not already resumed</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">if</span><span class="p">(</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;running&quot;</span><span class="p">,</span> <span class="s2">&quot;waiting&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="s2">&quot;completed&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">status</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Interruption.ma_cvd_kill"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.ma_cvd_kill">[docs]</a>    <span class="k">def</span> <span class="nf">ma_cvd_kill</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Kills CVD of Media agent associated with the job</span>
+
+<span class="sd">        waits for the job to get interrupted, resumes the</span>
+
+<span class="sd">        job once it is interrupted&quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_run</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;running&quot;</span><span class="p">:</span>
+            <span class="c1"># check if MA and CS are the same</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_media_agent_name</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">in</span> \
+            <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span><span class="o">.</span><span class="n">commserv_name</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span>\
+            <span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span><span class="o">.</span><span class="n">commserv_hostname</span><span class="o">.</span><span class="n">strip</span><span class="p">()]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;MA and Comserver are the same machine, so skipping MA CVD process kill&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Killing MA CVD process to suspend the JOB&quot;</span><span class="p">)</span>
+                <span class="n">ma_client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_media_agent_name</span><span class="p">)</span>
+                <span class="n">cvd_proc_name</span> <span class="o">=</span> <span class="s2">&quot;cvd&quot;</span>
+                <span class="k">if</span> <span class="s2">&quot;windows&quot;</span> <span class="ow">in</span> <span class="n">ma_client_object</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                    <span class="n">cvd_proc_name</span> <span class="o">=</span> <span class="s2">&quot;cvd.exe&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kill_process</span><span class="p">(</span>
+                    <span class="n">process_name</span><span class="o">=</span><span class="n">cvd_proc_name</span><span class="p">,</span>
+                    <span class="n">client_object</span><span class="o">=</span><span class="n">ma_client_object</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVD of MA is now Killed, the job will now suspend..!&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">wait_and_resume</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Interruption.suspend_resume_job"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.suspend_resume_job">[docs]</a>    <span class="k">def</span> <span class="nf">suspend_resume_job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Suspends the job</span>
+
+<span class="sd">        waits for the job to get suspended, resumes the job once it is Suspended&quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_run</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;running&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Suspending the job now&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">pause</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for the job to suspend&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wait_and_resume</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Interruption.reboot_client"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.reboot_client">[docs]</a>    <span class="k">def</span> <span class="nf">reboot_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reboots the client machine associated with the job,</span>
+
+<span class="sd">        waits for the machine to come back online,</span>
+
+<span class="sd">        waits for the job to get interrupted,</span>
+
+<span class="sd">        resumes the job once it is interrupted&quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_run</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;running&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Shutting down the client&quot;</span><span class="p">)</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s1">&#39;shutdown /r /f&#39;</span>
+            <span class="k">if</span> <span class="s2">&quot;windows&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;reboot&quot;</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span>
+                <span class="n">command</span><span class="p">,</span>
+                <span class="n">wait_for_completion</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s1">&#39;Unable to reboot the machine.&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for client to reboot&quot;</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">90</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for the client to come back online&quot;</span><span class="p">)</span>
+
+            <span class="c1">##check if the client is back online</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">is_ready</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for client check readiness to pass&quot;</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">45</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Client services are back online.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_and_resume</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Interruption.random_process_kill"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.random_process_kill">[docs]</a>    <span class="k">def</span> <span class="nf">random_process_kill</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Picks a random process launched in client which is associated with the job</span>
+
+<span class="sd">        Kills the selected job from client machine,</span>
+
+<span class="sd">        waits for the job to get interrupted, resumes the job once it is interrupted&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_run</span><span class="p">()</span>
+        <span class="n">machine_object</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell_object</span><span class="p">)</span>
+        <span class="n">process_list_json</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_commvault_process_list</span><span class="p">(</span><span class="n">machine_object</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Process names and PIDs of the client:</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">process_list_json</span><span class="p">)</span>
+        <span class="n">process_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># Put all process names in the list</span>
+        <span class="k">for</span> <span class="n">proc</span> <span class="ow">in</span> <span class="n">process_list_json</span><span class="p">:</span>
+            <span class="n">process_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">proc</span><span class="p">)</span>
+        <span class="n">process_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">process_list</span><span class="p">)</span>
+        <span class="n">random_number</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">process_count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># get the random process and its ID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Killing a process randomly: Killing the process </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">process_list</span><span class="p">[</span><span class="n">random_number</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Killing a process randomly: Killing the process </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">process_list</span><span class="p">[</span><span class="n">random_number</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kill_process</span><span class="p">(</span><span class="n">process_id</span><span class="o">=</span><span class="n">process_list_json</span><span class="p">[</span><span class="n">process_list</span><span class="p">[</span><span class="n">random_number</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Random process in the client is killed, JOB will now get interrupted&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wait_and_resume</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Interruption.get_commvault_process_list"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.get_commvault_process_list">[docs]</a>    <span class="k">def</span> <span class="nf">get_commvault_process_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Returns the commvault process associted with the client</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                JSON  -   Process names and PID in JSON format</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">script_generator</span> <span class="o">=</span> <span class="n">ScriptGenerator</span><span class="p">()</span>
+        <span class="c1"># getting the instance name</span>
+        <span class="n">instance_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Instance Name fetched is:</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">instance_name</span><span class="p">)</span>
+        <span class="n">cvd_log_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s2">&quot;unix&quot;</span> <span class="ow">in</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="n">script_generator</span><span class="o">.</span><span class="n">script</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">UNIX_COMMVAULT_PROCESS_DETAILS</span>
+            <span class="n">cvd_log_path</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span>
+                <span class="s2">&quot;/usr/bin/commvault status -instance </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">instance_name</span><span class="p">))</span>
+            <span class="n">cvd_log_path</span> <span class="o">=</span> <span class="n">cvd_log_path</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">[</span><span class="mi">5</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span>  <span class="c1"># getting the cvd log path</span>
+            <span class="n">cvd_log_path</span> <span class="o">=</span> <span class="n">cvd_log_path</span> <span class="o">+</span> <span class="s2">&quot;/cvd.log&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVD log Path:</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cvd_log_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">install_directory</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">install_directory</span>
+            <span class="n">cvd_log_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">install_directory</span><span class="p">,</span>
+                                        <span class="s2">&quot;Log Files&quot;</span><span class="p">,</span>
+                                        <span class="s2">&quot;CVD.log&quot;</span><span class="p">)</span>
+            <span class="n">script_generator</span><span class="o">.</span><span class="n">script</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">WINDOWS_COMMVAULT_PROCESS_DETAILS</span>
+
+        <span class="n">data_input</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;INSTANCE_NAME&quot;</span><span class="p">:</span> <span class="n">instance_name</span><span class="p">,</span>
+            <span class="s2">&quot;JOB_ID&quot;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span><span class="p">,</span>
+            <span class="s2">&quot;CVD_PATH&quot;</span><span class="p">:</span><span class="n">cvd_log_path</span>
+            <span class="p">}</span>
+        <span class="n">execute_script</span> <span class="o">=</span> <span class="n">script_generator</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">data_input</span><span class="p">)</span>
+        <span class="n">process_list_str</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+            <span class="n">execute_script</span><span class="p">)</span><span class="o">.</span><span class="n">formatted_output</span>
+        <span class="n">process_list_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">process_list_str</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">process_list_json</span></div>
+
+
+
+<div class="viewcode-block" id="Interruption.wait_and_resume"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.wait_and_resume">[docs]</a>    <span class="k">def</span> <span class="nf">wait_and_resume</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Waits for the interrupted jobs to go to suspend/pending state,</span>
+
+<span class="sd">        interrupted jobs are then resumed&quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job Status:</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;suspended&quot;</span><span class="p">,</span> <span class="s2">&quot;pending&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="s2">&quot;completed&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job is now interrupted&quot;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Resuming the interrupted JOB&quot;</span><span class="p">)</span>
+        <span class="c1"># resume the job if the job is not in running or waiting state</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job is in </span><span class="si">%s</span><span class="s2"> state&quot;</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;completed&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job is already completed&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">if</span><span class="p">(</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;running&quot;</span><span class="p">,</span> <span class="s2">&quot;waiting&quot;</span><span class="p">]):</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">40</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking job status after 40 seconds&quot;</span><span class="p">)</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status is : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;running&quot;</span> <span class="ow">in</span> <span class="n">status</span> <span class="ow">or</span> <span class="s2">&quot;completed&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trying to resume job again&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;interrupted job is now resumed..!&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Interruption.wait_for_job_run"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.wait_for_job_run">[docs]</a>    <span class="k">def</span> <span class="nf">wait_for_job_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Waits for job to come to running state before introducing interuption</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                status  -   present status of the job</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="o">!=</span> <span class="s2">&quot;running&quot;</span> <span class="ow">and</span> <span class="s2">&quot;completed&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Waiting for job to come to Running state&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;pending&quot;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trying to resume the Job as job is in pending state.&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Wait for 30 secs before checking job status&quot;</span><span class="p">)</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+                    <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;pending&quot;</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Job is in pending state after resume. Check logs.&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;failed&quot;</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Job is FAILED. Check the logs.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="n">status</span></div>
+
+<div class="viewcode-block" id="Interruption.kill_process"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.interruption.Interruption.kill_process">[docs]</a>    <span class="k">def</span> <span class="nf">kill_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">process_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">process_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">client_object</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Terminates a running process on the client machine with either the given</span>
+<span class="sd">            process name or the process id.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            process_name    (str)   --  name of the process to be terminate</span>
+
+<span class="sd">            process_id      (str)   --  ID of the process ID to be terminated</span>
+
+<span class="sd">            client_object   (obj)   --  client object</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if neither the process name nor the process id is given</span>
+
+<span class="sd">                if failed to kill the process</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">client_object</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">process_name</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;taskkill /f /t /im </span><span class="si">{process_name}</span><span class="s2">&quot;</span>
+            <span class="k">if</span> <span class="s2">&quot;windows&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;pkill -f </span><span class="si">{process_name}</span><span class="s1">&#39;</span>
+        <span class="k">elif</span> <span class="n">process_id</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;taskkill /pid </span><span class="si">{process_id}</span><span class="s2"> /f&quot;</span>
+            <span class="k">if</span> <span class="s2">&quot;windows&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;kill -9 </span><span class="si">{process_id}</span><span class="s1">&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Please provide either the process Name or the process ID&#39;</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span>
+            <span class="n">command</span><span class="p">,</span>
+            <span class="n">wait_for_completion</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Unable to Kill the process&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

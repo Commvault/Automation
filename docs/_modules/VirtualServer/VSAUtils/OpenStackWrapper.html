@@ -1,0 +1,972 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>VirtualServer.VSAUtils.OpenStackWrapper &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>VirtualServer.VSAUtils.OpenStackWrapper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for VirtualServer.VSAUtils.OpenStackWrapper</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Wrapper methods for OpenStack</span>
+
+<span class="sd">Endpoints:  All required OpenStack endpoints.</span>
+
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">requests</span> <span class="k">import</span> <span class="n">Session</span><span class="p">,</span><span class="n">Request</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span><span class="o">,</span><span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">machine</span>
+
+
+<div class="viewcode-block" id="OpenStackSDKWrapper"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackSDKWrapper">[docs]</a><span class="k">class</span> <span class="nc">OpenStackSDKWrapper</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Initialization of OpenStackSDKWrapper</span>
+
+<span class="sd">            prepare_url()            - prepares the url with port and appropariate prefix</span>
+
+<span class="sd">            get_session()            - get the openstack session</span>
+
+<span class="sd">            get_creds()              - gets openstack credentials in json format.</span>
+
+<span class="sd">            login()                  - Performs openstack server login</span>
+
+<span class="sd">            get_ostack_tokens()      - This mehtod gets the openstack token</span>
+
+<span class="sd">            process_post_request()   - Processes the post request</span>
+
+<span class="sd">            process_post_request()   - Process the get request</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">serverName</span><span class="p">,</span><span class="n">userName</span><span class="p">,</span><span class="n">passwd</span><span class="p">,</span><span class="n">projectName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        serverName              (str) -- OpenstackServer Name</span>
+<span class="sd">        userName                (str) -- OpenStack server user name</span>
+<span class="sd">        passwd                  (str) -- OpenStack sever user password</span>
+<span class="sd">        projectName             (str) -- Openstack project name</span>
+<span class="sd">        port                    (str) -- OpenStack keystone port to connect</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverName</span>    <span class="o">=</span> <span class="n">serverName</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">userName</span>      <span class="o">=</span> <span class="n">userName</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">passwd</span>        <span class="o">=</span> <span class="n">passwd</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">projectName</span>   <span class="o">=</span> <span class="n">projectName</span>
+
+        <span class="k">if</span> <span class="n">port</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">KEYSTONE_DEFAULT_PORT</span>
+
+    <span class="c1">##Required OpenStack endpoints</span>
+    <span class="n">KEYSTONE_ENDPOINT_NAME</span>  <span class="o">=</span> <span class="s2">&quot;keystone&quot;</span>
+    <span class="n">NOVA_ENDPOINT_NAME</span>      <span class="o">=</span> <span class="s2">&quot;nova&quot;</span>
+    <span class="n">GLANCE_ENDPOINT_NAME</span>    <span class="o">=</span> <span class="s2">&quot;glance&quot;</span>
+    <span class="n">CINDER_ENDPOINT_NAME</span>    <span class="o">=</span> <span class="s2">&quot;cinder&quot;</span>
+    <span class="n">NEUTRON_ENDPOINT_NAME</span>   <span class="o">=</span> <span class="s2">&quot;neutron&quot;</span>
+
+    <span class="c1">#Project</span>
+    <span class="n">DEFAULT_PROJECT</span>         <span class="o">=</span> <span class="s2">&quot;admin&quot;</span>
+    <span class="c1">#URL</span>
+    <span class="n">AUTH_URL_PREFIX</span>         <span class="o">=</span>     <span class="s2">&quot;http://&quot;</span>
+    <span class="n">AUTH_URL_PREFIX_SECURE</span>  <span class="o">=</span> <span class="s2">&quot;https://&quot;</span>
+    <span class="n">AUTH_URL_SUFFIX_V2</span>      <span class="o">=</span>    <span class="s2">&quot;/v2&quot;</span>
+    <span class="n">AUTH_URL_SUFFIX_V20</span>      <span class="o">=</span>    <span class="s2">&quot;/v2.0&quot;</span>
+    <span class="n">AUTH_URL_SUFFIX_V21</span>     <span class="o">=</span>    <span class="s2">&quot;/v2.1&quot;</span>
+    <span class="n">AUTH_URL_SUFFIX_V3</span>      <span class="o">=</span>    <span class="s2">&quot;/v3&quot;</span>
+
+    <span class="c1">#KEYSTONE APIs</span>
+    <span class="n">KEYSTONE_DEFAULT_PORT</span>   <span class="o">=</span> <span class="mi">5000</span>
+    <span class="n">API_KEYSTONE_TENANTS</span>    <span class="o">=</span> <span class="s2">&quot;/tenants&quot;</span>
+    <span class="n">API_KEYSTONE_PROJECTS_V3</span><span class="o">=</span> <span class="s2">&quot;/projects&quot;</span>
+    <span class="c1">## POST APIs</span>
+    <span class="n">API_KEYSTONE_TOKENS</span>     <span class="o">=</span> <span class="s2">&quot;/tokens&quot;</span>
+    <span class="n">API_KEYSTONE_TOKENS_V3</span>  <span class="o">=</span> <span class="s2">&quot;/auth/tokens&quot;</span>
+
+    <span class="c1">#NOVA APIs</span>
+    <span class="n">NOVA_DEFAULT_PORT</span>       <span class="o">=</span> <span class="mi">8774</span>
+    <span class="n">API_NOVA_SERVER_LIST</span>    <span class="o">=</span> <span class="s2">&quot;/</span><span class="si">{tenantid}</span><span class="s2">/servers&quot;</span>  <span class="c1"># /{tenant_id}/servers</span>
+    <span class="n">API_NOVA_SERVER_DETAIL_LIST</span> <span class="o">=</span> <span class="s2">&quot;/</span><span class="si">{tenantid}</span><span class="s2">/servers/detail&quot;</span>  <span class="c1"># /{tenant_id}/servers/detail</span>
+    <span class="n">API_NOVA_SERVER_ACTION</span>  <span class="o">=</span> <span class="s2">&quot;/</span><span class="si">{tenantid}</span><span class="s2">/servers/</span><span class="si">{serverid}</span><span class="s2">/action&quot;</span>  <span class="c1">#</span>
+
+    <span class="n">API_NOVA_AVAILABILITY_ZONE</span>      <span class="o">=</span> <span class="s2">&quot;/os-availability-zone&quot;</span>  <span class="c1"># /{tenant_id}/os-availability-zone</span>
+
+    <span class="n">API_NOVA_ATTACHED_VOLUME_DETAIL</span> <span class="o">=</span> <span class="s2">&quot;/servers/</span><span class="si">%s</span><span class="s2">/os-volume_attachments/</span><span class="si">%s</span><span class="s2">&quot;</span>  <span class="c1"># /{tenant_id}/</span>
+    <span class="c1"># servers/{server_id}/os-volume_attachments/{attachment_id} */</span>
+
+    <span class="n">API_NOVA_ATTACHED_VOLUME_LIST</span>   <span class="o">=</span> <span class="s2">&quot;/</span><span class="si">{tenantid}</span><span class="s2">/servers/</span><span class="si">{serverid}</span><span class="s2">/os-volume_attachments&quot;</span>
+    <span class="c1"># /{tenant_id}/servers/{server_id}/os-volume_attachments */</span>
+
+    <span class="c1">#CINDER APIs</span>
+    <span class="n">CINDER_DEFAULT_PORT</span>     <span class="o">=</span> <span class="mi">8776</span>
+    <span class="n">API_CINDER_VOLUME_LIST</span>  <span class="o">=</span> <span class="s2">&quot;/volumes/detail&quot;</span>  <span class="c1"># /{tenant_id}/volumes/details</span>
+    <span class="n">API_CINDER_VOLUMETYPE</span>   <span class="o">=</span> <span class="s2">&quot;/types&quot;</span>  <span class="c1"># /{tenant_id}/types</span>
+    <span class="n">API_CINDER_SNAPSHOT_LIST</span><span class="o">=</span> <span class="s2">&quot;/snapshots&quot;</span>  <span class="c1"># /{tenant_id}/snapshots</span>
+    <span class="n">API_CINDER_SNAPSHOT_DETAIL_LIST</span> <span class="o">=</span> <span class="s2">&quot;/snapshots/detail&quot;</span>  <span class="c1"># /{tenant_id}/snapshots/details</span>
+    <span class="c1"># /v3/{project_id}/types</span>
+
+    <span class="c1">#Region API</span>
+    <span class="n">API_REGION_LIST</span>  <span class="o">=</span> <span class="s2">&quot;/regions&quot;</span>  <span class="c1">#http://172.24.20.228:5000/v3/regions</span>
+
+    <span class="c1">#NEUTRON APIS</span>
+    <span class="n">API_DEFAULT_NETWORK_PORT</span> <span class="o">=</span> <span class="mi">9696</span>
+    <span class="n">API_NEUTRON_LIST_IPS</span>     <span class="o">=</span>    <span class="s2">&quot;/</span><span class="si">{tenantid}</span><span class="s2">/servers/</span><span class="si">{serverid}</span><span class="s2">/ips&quot;</span>
+    <span class="n">API_LIST_FLOATING_IPS</span>    <span class="o">=</span>    <span class="s2">&quot;/floatingips&quot;</span>
+
+    <span class="n">HTTP_STATUS_CODES</span> <span class="o">=</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span><span class="mi">201</span><span class="p">,</span><span class="mi">202</span><span class="p">,</span><span class="mi">203</span><span class="p">,</span><span class="mi">204</span><span class="p">,</span><span class="mi">205</span><span class="p">,</span><span class="mi">206</span><span class="p">,</span><span class="mi">206</span><span class="p">,</span><span class="mi">207</span><span class="p">,</span><span class="mi">208</span><span class="p">]</span>
+
+    <span class="n">GUEST_OS</span>          <span class="o">=</span>  <span class="s2">&quot;Windows&quot;</span>  <span class="c1">#For now we only support windows platform, as Openstack doesnt have a way to query OS type.</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tokenObject</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get token Object</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span>
+
+    <span class="nd">@tokenObject</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">tokenObject</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the token object which we get as response from login</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span> <span class="o">=</span> <span class="n">obj</span>
+
+<div class="viewcode-block" id="OpenStackSDKWrapper.prepare_url"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackSDKWrapper.prepare_url">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">server</span><span class="p">,</span><span class="n">endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prepares URL with required prefix and keystone version</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                server   --  OpenStack server name</span>
+
+<span class="sd">                endpoint --  Endpoint to execute</span>
+
+<span class="sd">                version  --  OpenStack server version</span>
+
+<span class="sd">                port     --  Keystone server port if non default port configured</span>
+
+<span class="sd">                prefix   --  prefix (default http).</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str    -   returns fully formes url</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">prefix</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_PREFIX</span>
+            <span class="k">if</span> <span class="n">port</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">KEYSTONE_DEFAULT_PORT</span>
+            <span class="k">if</span> <span class="n">version</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span>
+
+            <span class="n">url</span> <span class="o">=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="n">server</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">port</span><span class="p">)</span> <span class="o">+</span> <span class="n">version</span> <span class="o">+</span> <span class="n">endpoint</span>
+            <span class="c1">#self.log(&quot;successfully computed and sending formatted URL {0}&quot;.format(url))</span>
+            <span class="k">return</span> <span class="n">url</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
+                <span class="s2">&quot;An Exception Occurred in preparing URL&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="OpenStackSDKWrapper.get_session"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackSDKWrapper.get_session">[docs]</a>    <span class="k">def</span> <span class="nf">get_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;get session object with args passed in.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                kwargs (example)   --  #dHeaders = {&quot;Authtoken&quot;:&quot;token&quot;,&quot;contentType&quot;:&quot;application/json&quot;}</span>
+
+<span class="sd">            return:</span>
+<span class="sd">                obj    -   returns Session object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">Session</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">kwargs</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/json; charset=utf-8&#39;</span><span class="p">})</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Header content </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">headers</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">s</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">get_creds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;get openstack property</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            return:</span>
+<span class="sd">                returns the openstack credential in json format</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>  <span class="p">{</span><span class="s2">&quot;auth&quot;</span><span class="p">:{</span><span class="s2">&quot;tenantName&quot;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">projectName</span><span class="p">,</span>
+                            <span class="s2">&quot;passwordCredentials&quot;</span><span class="p">:{</span><span class="s2">&quot;username&quot;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">userName</span><span class="p">,</span><span class="s2">&quot;password&quot;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">passwd</span><span class="p">}}}</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;auth&quot;</span><span class="p">:</span> <span class="p">{</span>
+                             <span class="s2">&quot;passwordCredentials&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">userName</span><span class="p">,</span> <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">passwd</span><span class="p">}}}</span>
+
+
+<div class="viewcode-block" id="OpenStackSDKWrapper.login"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackSDKWrapper.login">[docs]</a>    <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;perform openstack login</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            return:</span>
+<span class="sd">                returns the GET response of ostack login end point</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_dcreds</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_creds</span><span class="p">)</span>
+            <span class="n">_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">serverName</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">API_KEYSTONE_TOKENS</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V20</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_PREFIX</span><span class="p">)</span>
+
+            <span class="n">_session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_session</span><span class="p">()</span>
+            <span class="n">_response</span> <span class="o">=</span> <span class="n">_session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">_url</span><span class="p">,</span><span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">_dcreds</span><span class="p">))</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">_response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span><span class="n">_response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in openstack server login method &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OpenStackSDKWrapper.get_ostack_tokens"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackSDKWrapper.get_ostack_tokens">[docs]</a>    <span class="k">def</span> <span class="nf">get_ostack_tokens</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;get openstack token</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                None</span>
+<span class="sd">                None</span>
+
+<span class="sd">            return:</span>
+<span class="sd">                returns the tokens from openstack server login request</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">status</span><span class="p">,</span><span class="n">data</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                <span class="n">_parsed_response</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span>    <span class="o">=</span> <span class="n">_parsed_response</span><span class="p">[</span><span class="s2">&quot;access&quot;</span><span class="p">][</span><span class="s2">&quot;token&quot;</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">_parsed_response</span><span class="p">[</span><span class="s2">&quot;access&quot;</span><span class="p">][</span><span class="s2">&quot;token&quot;</span><span class="p">]</span> <span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Login failure..&quot;</span><span class="p">)</span>
+                <span class="c1">#self.log(&quot;Login request did not succeed got the status code {0}&quot;.format(status))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in get_openstack_tokens method &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackSDKWrapper.process_post_request"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackSDKWrapper.process_post_request">[docs]</a>    <span class="k">def</span> <span class="nf">process_post_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;get process post request</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                endpoint    --  Endpoint to be used</span>
+<span class="sd">                version     --  keystone server version</span>
+<span class="sd">                port        --  If non default port being used to access openstack server</span>
+<span class="sd">                headers     --  request headers</span>
+<span class="sd">                data        --  request payload in json</span>
+
+<span class="sd">            return:</span>
+<span class="sd">                returns the post request response</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">serverName</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_PREFIX</span><span class="p">)</span>
+            <span class="n">_session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_session</span><span class="p">(</span><span class="o">**</span><span class="n">headers</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_response</span> <span class="o">=</span> <span class="n">_session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">_url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_response</span> <span class="o">=</span> <span class="n">_session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">_url</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="p">(</span><span class="n">_response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">_response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in the process_post_request method &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackSDKWrapper.process_get_request"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackSDKWrapper.process_get_request">[docs]</a>    <span class="k">def</span> <span class="nf">process_get_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;get process get request</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                endpoint    --  Endpoint to be used</span>
+<span class="sd">                version     --  keystone server version</span>
+<span class="sd">                port        --  If non default port being used to access openstack server</span>
+<span class="sd">                headers     --  request headers</span>
+<span class="sd">                data        --  request payload in json</span>
+
+<span class="sd">            return:</span>
+<span class="sd">                returns the get request response</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_url</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">serverName</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_PREFIX</span><span class="p">)</span>
+            <span class="n">_session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_session</span><span class="p">(</span><span class="o">**</span><span class="n">headers</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">data</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_response</span> <span class="o">=</span> <span class="n">_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">_url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_response</span> <span class="o">=</span> <span class="n">_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">_url</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="p">(</span><span class="n">_response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">_response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in process get request method&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div></div>
+
+
+
+<div class="viewcode-block" id="OpenStackVMops"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops">[docs]</a><span class="k">class</span> <span class="nc">OpenStackVMops</span><span class="p">(</span><span class="n">OpenStackSDKWrapper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Initialization of OpenStackVMops</span>
+
+<span class="sd">            prepare_url()            - prepares the url with port and appropariate prefix</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">server</span><span class="p">,</span><span class="n">userName</span><span class="p">,</span><span class="n">passwd</span><span class="p">,</span><span class="n">projectName</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        serverName              (str) -- OpenstackServer Name</span>
+<span class="sd">        userName                (str) -- OpenStack server user name</span>
+<span class="sd">        passwd                  (str) -- OpenStack sever user password</span>
+<span class="sd">        projectName             (str) -- Openstack project name</span>
+<span class="sd">        port                    (str) -- OpenStack keystone port to connect</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">OpenStackSDKWrapper</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">server</span><span class="p">,</span><span class="n">userName</span><span class="p">,</span><span class="n">passwd</span><span class="p">,</span><span class="n">projectName</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DEFAULT_PROJECT</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">KEYSTONE_DEFAULT_PORT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">token</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">get_ostack_tokens</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_instance_list"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_instance_list">[docs]</a>    <span class="k">def</span> <span class="nf">get_instance_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets all instances in OpenStack server</span>
+<span class="sd">        Args:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_instancelist</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">dHeaders</span>    <span class="o">=</span><span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+
+            <span class="c1">#Prepare URL</span>
+            <span class="n">_endpoint</span>    <span class="o">=</span>  <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\{.*\}&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">API_NOVA_SERVER_LIST</span><span class="p">)</span>
+            <span class="c1">#Execute the request</span>
+            <span class="p">(</span><span class="n">status</span><span class="p">,</span><span class="n">data</span><span class="p">)</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span> <span class="n">_endpoint</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                      <span class="bp">self</span><span class="o">.</span><span class="n">NOVA_DEFAULT_PORT</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                <span class="n">parsed_response</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">parsed_response</span><span class="p">[</span><span class="s2">&quot;servers&quot;</span><span class="p">]:</span>
+                    <span class="n">_instancelist</span><span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;ERROR - Failed to get Instancelist&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">_instancelist</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured at getInstance method &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_uuid"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_uuid">[docs]</a>    <span class="k">def</span> <span class="nf">get_uuid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">instanceName</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param instanceName: Instance name in OpenStack</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_listof_instances</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">get_instance_list</span><span class="p">()</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">_listof_instances</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="n">instance_id</span> <span class="o">=</span> <span class="n">_listof_instances</span><span class="p">[</span><span class="n">instanceName</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1">#self.log.error(&quot;No instances found in OpenStack server&quot;)</span>
+                <span class="n">instance_id</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="k">return</span> <span class="n">instance_id</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in getUUID method&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_instance_details"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_instance_details">[docs]</a>    <span class="k">def</span> <span class="nf">get_instance_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_uuid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param _uuid: UUID of the instance</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">_uuid</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                 <span class="c1">#Prepare URL</span>
+                <span class="n">_endpoint</span>       <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">API_NOVA_SERVER_DETAIL_LIST</span>
+                <span class="n">_endpoint</span>       <span class="o">=</span> <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{tenantid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+                <span class="n">_endpoint</span>       <span class="o">=</span>   <span class="n">_endpoint</span> <span class="o">+</span> <span class="s1">&#39;?uuid=&#39;</span> <span class="o">+</span> <span class="n">_uuid</span> <span class="c1">#append instance UUID to the url</span>
+                <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                             <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">NOVA_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Details of the instance </span><span class="si">{0}</span><span class="s2"> fetched successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_uuid</span><span class="p">))</span>
+                    <span class="n">parsed_response</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_data</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">parsed_response</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to start the instance &quot;</span><span class="p">,</span> <span class="n">_status</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Processing all VMs&quot;</span><span class="p">)</span>
+                <span class="n">vmprops</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">_instancelist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_instance_list</span><span class="p">()</span>
+                <span class="k">if</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">_instancelist</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">_uuid</span> <span class="ow">in</span> <span class="n">_instancelist</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                          <span class="c1">#Prepare URL</span>
+
+                        <span class="n">_endpoint</span>       <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">API_NOVA_SERVER_DETAIL_LIST</span>
+                        <span class="n">_endpoint</span>       <span class="o">=</span> <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{tenantid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+                        <span class="n">_endpoint</span>       <span class="o">=</span>   <span class="n">_endpoint</span> <span class="o">+</span> <span class="s1">&#39;?uuid=&#39;</span> <span class="o">+</span> <span class="n">_uuid</span> <span class="c1">#append instance UUID to the url</span>
+                        <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                                     <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">NOVA_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+
+                        <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Details of the instance </span><span class="si">{0}</span><span class="s2"> fetched successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_uuid</span><span class="p">))</span>
+                            <span class="n">parsed_response</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_data</span><span class="p">)</span>
+                            <span class="n">vmprops</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parsed_response</span><span class="p">[</span><span class="s1">&#39;servers&#39;</span><span class="p">])</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to the additional details for the instance &quot;</span><span class="p">,</span> <span class="n">_uuid</span><span class="p">)</span>
+
+                    <span class="k">return</span> <span class="n">vmprops</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in getInstanceDetails method&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+    <span class="c1">###Gets the drivelist</span>
+<div class="viewcode-block" id="OpenStackVMops.get_drive_details"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_drive_details">[docs]</a>    <span class="k">def</span> <span class="nf">get_drive_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vmObj</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span><span class="p">(</span><span class="n">vmObj</span><span class="o">.</span><span class="n">GuestOS</span> <span class="o">==</span> <span class="s2">&quot;Windows&quot;</span><span class="p">):</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="o">=</span><span class="n">vmObj</span><span class="o">.</span><span class="n">ip</span><span class="p">,</span><span class="n">username</span><span class="o">=</span><span class="n">vmObj</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span><span class="n">password</span><span class="o">=</span><span class="n">vmObj</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="s1">&#39;Get-PSDrive -PSProvider FileSystem | ?{$_.Used}&#39;</span><span class="p">)</span>
+                <span class="n">_drivelist</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">_item</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_item</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">_drivelist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_item</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">_drivelist</span>
+
+
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in get_driver_details() </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">_drivelist</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.copy_remote"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.copy_remote">[docs]</a>    <span class="k">def</span> <span class="nf">copy_remote</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">srcpath</span><span class="p">,</span><span class="n">destpath</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">pwd</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_rcmd</span> <span class="o">=</span> <span class="s2">&quot;Copy-Item -Recurse -path &quot;</span><span class="o">+</span><span class="s2">&quot;&#39;&quot;</span><span class="o">+</span><span class="n">srcpath</span><span class="o">+</span><span class="s2">&quot;&#39;&quot;</span><span class="o">+</span><span class="s2">&quot; -destination &quot;</span><span class="o">+</span><span class="s2">&quot;&#39;&quot;</span><span class="o">+</span><span class="n">destpath</span><span class="o">+</span><span class="s2">&quot;&#39;&quot;</span><span class="o">+</span> <span class="s2">&quot; -Force&quot;</span>
+
+            <span class="n">m</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">()</span>
+            <span class="n">_status</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">_rcmd</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in mount_path </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OpenStackVMops.poweron_instance"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.poweron_instance">[docs]</a>    <span class="k">def</span> <span class="nf">poweron_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_uuid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        PowerOn the instance</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">_uuid</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">API_NOVA_SERVER_ACTION</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{tenantid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span> <span class="c1">#update tenantId to url</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{serverid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">_uuid</span><span class="p">)</span> <span class="c1">#updating instance uuid to the url</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span> <span class="n">_endpoint</span> <span class="o">+</span> <span class="s1">&#39;?uuid=&#39;</span> <span class="o">+</span> <span class="n">_uuid</span> <span class="c1">#append instance UUID to the url</span>
+                <span class="n">_body</span>       <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;os-start&quot;</span><span class="p">:</span><span class="s2">&quot;null&quot;</span><span class="p">}</span>
+                <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_post_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                          <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">NOVA_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">,</span><span class="n">data</span><span class="o">=</span><span class="n">_body</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                    <span class="c1">#self.log.info(&quot;Started the instance {0} successfully&quot;.format(_uuid))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started&quot;</span><span class="p">)</span>
+                    <span class="n">flag</span> <span class="o">=</span>  <span class="kc">True</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1">#self.log(&quot;ERROR: Failed to start the instance &quot;.format(_status))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Failed with error </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_status</span><span class="p">))</span>
+                    <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1">#self.log(&quot;ERROR: Couldn&#39;t find the server\instance &quot;,_uuid)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Server not found&quot;</span><span class="p">)</span>
+                <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="n">flag</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in powerOninstance method&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="OpenStackVMops.poweroff_instance"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.poweroff_instance">[docs]</a>    <span class="k">def</span> <span class="nf">poweroff_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_uuid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Poweroff the instance</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">_uuid</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">API_NOVA_SERVER_ACTION</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{tenantid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span> <span class="c1">#update tenantId to url</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{serverid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">_uuid</span><span class="p">)</span> <span class="c1">#updating instance uuid to the url</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span> <span class="n">_endpoint</span> <span class="o">+</span> <span class="s1">&#39;?uuid=&#39;</span> <span class="o">+</span> <span class="n">_uuid</span> <span class="c1">#append instance UUID to the url</span>
+                <span class="n">_body</span>       <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;os-start&quot;</span><span class="p">:</span><span class="s2">&quot;null&quot;</span><span class="p">}</span>
+                <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_post_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                          <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">NOVA_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">,</span><span class="n">data</span><span class="o">=</span><span class="n">_body</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                    <span class="c1">#self.log(&quot;Started the instance {0} successfully&quot;.format(_uuid))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Stopped&quot;</span><span class="p">)</span>
+                    <span class="n">flag</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1">#self.log(&quot;ERROR: Failed to stop the instance &quot;, _status)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Error&quot;</span><span class="p">)</span>
+                    <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1">#self.log(&quot;ERROR: Couldn&#39;t find the server\instance &quot;, _uuid)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No Server&quot;</span><span class="p">)</span>
+                <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="n">flag</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in poweroffInstance &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">flag</span></div>
+
+<div class="viewcode-block" id="OpenStackVMops.get_volume_attachments"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_volume_attachments">[docs]</a>    <span class="k">def</span> <span class="nf">get_volume_attachments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_uuid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the list of volumes attached to the server or instance</span>
+<span class="sd">        param _uuid: uuid of the openstack instance</span>
+<span class="sd">        return: list of dictionary of volume attachments</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">_uuid</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">API_NOVA_ATTACHED_VOLUME_LIST</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{tenantid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span> <span class="c1">#update tenantId to url</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{serverid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">_uuid</span><span class="p">)</span> <span class="c1">#updating instance uuid to the url</span>
+
+                <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                             <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">NOVA_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+                <span class="n">_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_data</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;volumeAttachments&quot;</span><span class="p">]</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to get the volume attachments &quot;</span><span class="p">,</span> <span class="n">_status</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ERROR: Couldn&#39;t find the server\instance &quot;</span><span class="p">,</span> <span class="n">_uuid</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in getVolumeattachments() &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_all_ips"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_all_ips">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_ips</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">_uuid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the list of ip networks for the given instance</span>
+
+<span class="sd">        param _uuid</span>
+<span class="sd">        return: list of dicitonary of IP addresses</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">_uuid</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">API_NEUTRON_LIST_IPS</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{tenantid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span> <span class="c1">#update tenantId to url</span>
+                <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{serverid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">_uuid</span><span class="p">)</span> <span class="c1">#updating instance uuid to the url</span>
+
+                <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                             <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">NOVA_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+                <span class="n">_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_data</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;addresses&quot;</span><span class="p">]</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to get the volume attachments &quot;</span><span class="p">,</span> <span class="n">_status</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;ERROR: Couldn&#39;t find the server\instance &quot;</span><span class="p">,</span> <span class="n">_uuid</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in getAllIps() &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.deleteInstance"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.deleteInstance">[docs]</a>    <span class="k">def</span> <span class="nf">deleteInstance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_volume_types"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_volume_types">[docs]</a>    <span class="k">def</span> <span class="nf">get_volume_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the list of all volume types in openstack server</span>
+
+<span class="sd">        param None:</span>
+<span class="sd">        return: list of dicitonary of volume types</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+
+            <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">API_CINDER_VOLUMETYPE</span>
+            <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="s2">&quot;/&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">+</span> <span class="n">_endpoint</span> <span class="c1">#Format {tenantId}/Types</span>
+
+            <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                             <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">CINDER_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+            <span class="n">_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_data</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;volume_types&quot;</span><span class="p">]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to get the volume types &quot;</span><span class="p">,</span> <span class="n">_status</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in getVolumeTypes() &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_volume_detail"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_volume_detail">[docs]</a>    <span class="k">def</span> <span class="nf">get_volume_detail</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the list of all volume types in openstack server</span>
+
+<span class="sd">        param None:</span>
+<span class="sd">        return: list of dicitonary of volume types</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+
+            <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">API_CINDER_VOLUME_LIST</span>
+            <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="s2">&quot;/&quot;</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="o">+</span> <span class="n">_endpoint</span> <span class="c1">#Format {tenantId}/Types</span>
+
+            <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                             <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">CINDER_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+            <span class="n">_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_data</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;volumes&quot;</span><span class="p">]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to get the getVolumedetail &quot;</span><span class="p">,</span> <span class="n">_status</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in getVolumedetail() &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_volume_typefromAZ"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_volume_typefromAZ">[docs]</a>    <span class="k">def</span> <span class="nf">get_volume_typefromAZ</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">AZ</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the volume from Availabilityzone</span>
+
+<span class="sd">        param None: AZ (availablity zone instring)</span>
+<span class="sd">        return: list of volumeTypes matching AZ</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_vollist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_volume_detail</span><span class="p">()</span>
+            <span class="n">_volType</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_vollist</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">_vol</span> <span class="ow">in</span> <span class="n">_vollist</span><span class="p">:</span>
+                    <span class="k">if</span><span class="p">(</span><span class="n">_vol</span><span class="p">[</span><span class="s2">&quot;availability_zone&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">AZ</span><span class="p">):</span>
+                        <span class="n">_volType</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">_vol</span><span class="p">[</span><span class="s2">&quot;volume_type&quot;</span><span class="p">])</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to get the volume type &quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">_volType</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in getVolumeTypefromAZ() &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_volume_typefrom_volid"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_volume_typefrom_volid">[docs]</a>    <span class="k">def</span> <span class="nf">get_volume_typefrom_volid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">VolId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the volume type info from volume ID(GUID)</span>
+
+<span class="sd">        param : Volume ID of each attached volume to openstack instance(server).</span>
+<span class="sd">        return: volType in str format</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_vollist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_volume_detail</span><span class="p">()</span>
+            <span class="n">_volType</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_vollist</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">_vol</span> <span class="ow">in</span> <span class="n">_vollist</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">_vol_attachment_detail</span> <span class="ow">in</span> <span class="n">_vol</span><span class="p">[</span><span class="s2">&quot;attachments&quot;</span><span class="p">]:</span>
+                        <span class="k">if</span><span class="p">(</span><span class="n">_vol_attachment_detail</span><span class="p">[</span><span class="s2">&quot;volume_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">VolId</span><span class="p">):</span>
+                            <span class="n">_volType</span> <span class="o">=</span>  <span class="n">_vol</span><span class="p">[</span><span class="s2">&quot;volume_type&quot;</span><span class="p">]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to get the volume type &quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">_volType</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in get_volume_typefrom_volid() &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_os_type"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_os_type">[docs]</a>    <span class="k">def</span> <span class="nf">get_os_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">_uuid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the OS type of the instance</span>
+
+<span class="sd">        param : UUID of the instance.</span>
+<span class="sd">        return: string OS type</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">osType</span> <span class="o">=</span> <span class="s2">&quot;linux&quot;</span>
+
+            <span class="k">return</span> <span class="n">osType</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in getOSType() &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OpenStackVMops.get_region"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_region">[docs]</a>    <span class="k">def</span> <span class="nf">get_region</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the OS type of the instance</span>
+
+<span class="sd">        param : UUID of the instance.</span>
+<span class="sd">        return: string OS type</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+
+            <span class="n">_endpoint</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">API_REGION_LIST</span>
+            <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V3</span><span class="p">,</span>
+                                                             <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">KEYSTONE_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+            <span class="n">_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_data</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;regions&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to get the getVolumedetail &quot;</span><span class="p">,</span> <span class="n">_status</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occured in get_region() &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_cpu"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_cpu">[docs]</a>    <span class="k">def</span> <span class="nf">get_cpu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_uuid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param _uuid: UUID of the instance</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">_uuid</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+                 <span class="c1">#Prepare URL</span>
+                <span class="n">_endpoint</span>       <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">API_NOVA_SERVER_LIST</span>
+                <span class="n">_endpoint</span>       <span class="o">=</span> <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{tenantid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+                <span class="n">_endpoint</span>       <span class="o">=</span>   <span class="n">_endpoint</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">_uuid</span> <span class="c1">#append instance UUID to the url</span>
+                <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V2</span><span class="p">,</span>
+                                                             <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">NOVA_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Details of the get cpu </span><span class="si">{0}</span><span class="s2"> fetched successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_uuid</span><span class="p">))</span>
+                    <span class="n">parsed_response</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_data</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">parsed_response</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to list floating ips &quot;</span><span class="p">,</span> <span class="n">_status</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occcured in floating_ips() </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.get_floating_ips"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_floating_ips">[docs]</a>    <span class="k">def</span> <span class="nf">get_floating_ips</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+             <span class="c1">#Prepare URL</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+            <span class="n">_endpoint</span>       <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">API_LIST_FLOATING_IPS</span>
+            <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">process_get_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V20</span><span class="p">,</span>
+                                                             <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">API_DEFAULT_NETWORK_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Details of the floaingips&quot;</span><span class="p">)</span>
+                <span class="n">parsed_response</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_data</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">parsed_response</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to floatin ips list &quot;</span><span class="p">,</span> <span class="n">_status</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in get_float_ips() </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="OpenStackVMops.associate_floating_ips"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.associate_floating_ips">[docs]</a>    <span class="k">def</span> <span class="nf">associate_floating_ips</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">,</span> <span class="n">floating_ip</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_ip</span> <span class="o">=</span> <span class="n">floating_ip</span><span class="p">[</span><span class="s2">&quot;floating_ip_address&quot;</span><span class="p">]</span>
+            <span class="n">body</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;addFloatingIp&quot;</span> <span class="p">:</span> <span class="p">{</span>
+                             <span class="s2">&quot;address&quot;</span><span class="p">:</span><span class="n">_ip</span>
+                            <span class="p">}</span>
+            <span class="p">}</span>
+             <span class="c1"># API_NOVA_SERVER_ACTION  = &quot;/{tenantid}/servers/{serverid}/action&quot;</span>
+            <span class="n">dHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X-Auth-Token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">}</span>
+            <span class="n">_endpoint</span>       <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">API_NOVA_SERVER_ACTION</span>
+            <span class="n">_endpoint</span>       <span class="o">=</span> <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{tenantid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+            <span class="n">_endpoint</span>       <span class="o">=</span>   <span class="n">_endpoint</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{serverid}</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">uuid</span><span class="p">)</span>
+            <span class="p">(</span><span class="n">_status</span><span class="p">,</span><span class="n">_data</span><span class="p">)</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">process_post_request</span><span class="p">(</span><span class="n">_endpoint</span><span class="p">,</span><span class="n">version</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">AUTH_URL_SUFFIX_V21</span><span class="p">,</span>
+                                                             <span class="n">port</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">NOVA_DEFAULT_PORT</span><span class="p">,</span><span class="n">headers</span><span class="o">=</span><span class="n">dHeaders</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span> <span class="n">body</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_status</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">HTTP_STATUS_CODES</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Details of the floaingips&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">_ip</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ERROR: Failed to floatin ips list &quot;</span><span class="p">,</span> <span class="n">_status</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in associate_floating_ips() </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="OpenStackVMops.get_tenant"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.OpenStackWrapper.OpenStackVMops.get_tenant">[docs]</a>    <span class="k">def</span> <span class="nf">get_tenant</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenObj</span><span class="p">[</span><span class="s2">&quot;tenant&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in get_tenant </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

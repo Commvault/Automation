@@ -1,0 +1,697 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>AutomationUtils.mail_box &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>AutomationUtils.mail_box</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for AutomationUtils.mail_box</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">File to connect to mail server and download emails.</span>
+
+<span class="sd">MailBox</span>
+<span class="sd">=======</span>
+
+<span class="sd">Connect()        -- Connect to the Mail server</span>
+
+<span class="sd">Disconnect()     -- Disconnect to the Mail server</span>
+
+<span class="sd">download_mails() -- download the e-mails</span>
+
+<span class="sd">EmailSearchFilter</span>
+<span class="sd">=================</span>
+<span class="sd">__init__()        --  initializes search filter with mail subject</span>
+
+<span class="sd">use corresponding setter methods to add more filters to search emails</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">imaplib</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">email</span> <span class="k">import</span> <span class="n">message_from_string</span>
+<span class="kn">from</span> <span class="nn">email.utils</span> <span class="k">import</span> <span class="n">parseaddr</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">import</span> <span class="nn">mimetypes</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">random</span> <span class="k">import</span> <span class="n">randint</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">logger</span><span class="p">,</span>
+    <span class="n">config</span>
+<span class="p">)</span>
+
+<span class="n">_CONF</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+<span class="n">_EMAIL_CONSTANTS</span> <span class="o">=</span> <span class="n">_CONF</span><span class="o">.</span><span class="n">email</span>
+
+
+<div class="viewcode-block" id="MailBox"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.MailBox">[docs]</a><span class="k">class</span> <span class="nc">MailBox</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Module to connect to mail server to download e-mails.</span>
+<span class="sd">    default values of mail server credentials and smtp server name are taken from config json.</span>
+<span class="sd">    for defining search filter refer to EmailSearchFilter class</span>
+
+<span class="sd">    &gt; Example Usage:</span>
+
+<span class="sd">        from AutomationUtils.mail_box import MailBox,EmailSearchFilter</span>
+<span class="sd">        mail_box = MailBox()</span>
+<span class="sd">        mail_box.connect()</span>
+<span class="sd">        search_query = EmailSearchFilter(&#39;test_mail_subject&#39;)</span>
+<span class="sd">        mail_box.download_mails(search_query, download_dir=&#39;c:\\downloads&#39;)</span>
+<span class="sd">        mail_box.disconnect()</span>
+
+<span class="sd">    &gt; for setting download directory from testcase use the below method to create a testcase</span>
+<span class="sd">    directory inside temp directory of automation</span>
+
+<span class="sd">        from Reports.utils import TestCaseUtils</span>
+<span class="sd">        self.utils = TestCaseUtils(self)</span>
+<span class="sd">        self.utils.reset_temp_dir()</span>
+<span class="sd">        download_directory = self.utils.get_temp_dir()</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mail_server</span><span class="o">=</span><span class="n">_EMAIL_CONSTANTS</span><span class="o">.</span><span class="n">server</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="n">_EMAIL_CONSTANTS</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
+                 <span class="n">password</span><span class="o">=</span><span class="n">_EMAIL_CONSTANTS</span><span class="o">.</span><span class="n">password</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            mail_server (str): name of the mail server</span>
+
+<span class="sd">            username    (str): username of the mailbox</span>
+
+<span class="sd">            password    (str): password of the mailbox</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mail_server</span> <span class="o">=</span> <span class="n">mail_server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="n">username</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_folder</span> <span class="o">=</span> <span class="s1">&#39;INBOX&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_dir_mail_download</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_mark_mail_as_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mail the mail as read</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            uid (int): unique id of the mail</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">uid</span><span class="p">,</span> <span class="s1">&#39;+FLAGS&#39;</span><span class="p">,</span> <span class="s1">&#39;\Seen&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excep</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Failed to mark mail as read&#39;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">excep</span>
+
+    <span class="k">def</span> <span class="nf">_get_mail_uid_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">search_filter</span><span class="p">,</span> <span class="n">mail_folder</span><span class="o">=</span><span class="s1">&#39;INBOX&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Returns a list of Unique IDs for the mails on the mailbox.</span>
+<span class="sd">            If a search_query is passed, the mails are filtered using the IMAP Search Command.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_folder</span><span class="p">(</span><span class="n">mail_folder</span><span class="p">)</span>
+        <span class="n">search_filter</span> <span class="o">=</span> <span class="n">search_filter</span><span class="o">.</span><span class="n">return_search_query_string</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;Searching for mails with the following search query: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">search_filter</span>
+        <span class="p">)</span>
+        <span class="n">result</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">search_filter</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="o">!=</span> <span class="s1">&#39;OK&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Searching for emails failed, Mailbox returned [</span><span class="si">%s</span><span class="s1">] for the search query: [</span><span class="si">%s</span><span class="s1">].&#39;</span>
+                <span class="o">%</span> <span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">search_filter</span><span class="p">))</span>
+            <span class="p">)</span>
+        <span class="n">unique_ids</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Search returned [</span><span class="si">%s</span><span class="s1">] mails&#39;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_ids</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">unique_ids</span>
+
+    <span class="k">def</span> <span class="nf">_parse_mails</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mail_uid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the mail and extract the data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            mail_uid (int) : unique id of the mail</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># self.log.info(&#39;Processing mail with UID: &#39; + mail_uid)</span>
+        <span class="n">result</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">mail_uid</span><span class="p">,</span> <span class="s1">&#39;(RFC822)&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="o">!=</span> <span class="s1">&#39;OK&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Failed to fetch Mail with reason: [</span><span class="si">%s</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+        <span class="c1"># The Body is in [0][1]</span>
+        <span class="n">email_message</span> <span class="o">=</span> <span class="n">message_from_string</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+        <span class="n">mail</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">email_message</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">from_addresses_raw</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">to_addresses_raw</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># process individual addresses for the &#39;From&#39; mail header field</span>
+        <span class="k">if</span> <span class="n">email_message</span><span class="p">[</span><span class="s1">&#39;From&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">from_addresses_raw</span> <span class="o">=</span> <span class="n">email_message</span><span class="p">[</span><span class="s1">&#39;From&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">from_address</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">email_address</span> <span class="ow">in</span> <span class="n">from_addresses_raw</span><span class="p">:</span>
+            <span class="n">parsed_email</span> <span class="o">=</span> <span class="n">parseaddr</span><span class="p">(</span><span class="n">email_address</span><span class="p">)</span>
+            <span class="n">from_address</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;From&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">from_address</span>
+
+        <span class="k">if</span> <span class="n">email_message</span><span class="p">[</span><span class="s1">&#39;To&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">to_addresses_raw</span> <span class="o">=</span> <span class="n">email_message</span><span class="p">[</span><span class="s1">&#39;To&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">to_address</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">email_address</span> <span class="ow">in</span> <span class="n">to_addresses_raw</span><span class="p">:</span>
+            <span class="n">parsed_email</span> <span class="o">=</span> <span class="n">parseaddr</span><span class="p">(</span><span class="n">email_address</span><span class="p">)</span>
+            <span class="n">to_address</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parsed_email</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;To&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">to_address</span>
+        <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Body&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_text_blocks</span><span class="p">(</span><span class="n">email_message</span><span class="p">)</span>
+        <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Attachments&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_attachments</span><span class="p">(</span><span class="n">email_message</span><span class="p">)</span>
+        <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;uid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mail_uid</span>
+        <span class="c1"># self.log.info(&#39;Processed mail with UID: &#39; + mail_uid)</span>
+        <span class="k">return</span> <span class="n">mail</span>
+
+<div class="viewcode-block" id="MailBox.check_if_mail_body_contains"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.MailBox.check_if_mail_body_contains">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_mail_body_contains</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mail_uid</span><span class="p">,</span> <span class="n">pattern_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parses through the body of the mail with given uid and checks the existence</span>
+<span class="sd">            of the values in the mail body</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                mail_uid    (int)  -  UID of the fetched mail</span>
+<span class="sd">                pattern_list (list) - List of values to be matched in the mail body</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool - True if pattern matches else False</span>
+
+<span class="sd">            NOTE : It is on the tester on what all values he wants to check for in the Mail Body. The function</span>
+<span class="sd">            performs a hard match</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mail</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_mails</span><span class="p">(</span><span class="n">mail_uid</span><span class="o">=</span><span class="n">mail_uid</span><span class="p">)</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="n">mail</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Body&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+
+        <span class="n">pattern_match</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">for</span> <span class="n">match_criteria</span> <span class="ow">in</span> <span class="n">pattern_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">match_criteria</span><span class="p">,</span> <span class="n">body</span><span class="p">)):</span>
+                <span class="n">pattern_match</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">break</span>
+
+        <span class="k">return</span> <span class="n">pattern_match</span></div>
+
+<div class="viewcode-block" id="MailBox.format_filename"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.MailBox.format_filename">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">format_filename</span><span class="p">(</span><span class="n">file_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        formats the file name with only allowed characters</span>
+<span class="sd">        Args:</span>
+<span class="sd">            file_name (str): file name</span>
+
+<span class="sd">        Returns: valid filename for the given string</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">valid_chars</span> <span class="o">=</span> <span class="s2">&quot;-_.() </span><span class="si">%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span><span class="p">,</span> <span class="n">string</span><span class="o">.</span><span class="n">digits</span><span class="p">)</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">file_name</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">valid_chars</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">filename</span></div>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_get_text_blocks</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">email_message_instance</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Get a list of the text blocks in the mail.</span>
+<span class="sd">            Currently includes the attachments which are of type text/html and text/plain</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">email_message_instance</span><span class="o">.</span><span class="n">is_multipart</span><span class="p">():</span>
+            <span class="n">text_blocks</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">email_message_instance</span><span class="o">.</span><span class="n">walk</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">part</span><span class="o">.</span><span class="n">get_content_maintype</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;text&#39;</span> <span class="ow">and</span> <span class="n">part</span><span class="o">.</span><span class="n">get_filename</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                    <span class="n">content</span> <span class="o">=</span> <span class="n">part</span><span class="o">.</span><span class="n">get_payload</span><span class="p">(</span><span class="n">decode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">content</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">text_blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">text_blocks</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="n">email_message_instance</span><span class="o">.</span><span class="n">get_payload</span><span class="p">(</span><span class="n">decode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">content</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">[</span><span class="n">content</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_get_attachments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">email_message_instance</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Get a list of the text blocks in the mail.</span>
+<span class="sd">            Currently includes the attachments which are of type text/html and text/plain</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">attachments</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">email_message_instance</span><span class="o">.</span><span class="n">is_multipart</span><span class="p">():</span>
+
+            <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">email_message_instance</span><span class="o">.</span><span class="n">walk</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">part</span><span class="o">.</span><span class="n">get_filename</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Attachment MIME type:&#39;</span> <span class="o">+</span> <span class="n">mimetypes</span><span class="o">.</span><span class="n">guess_extension</span><span class="p">(</span>
+                        <span class="n">part</span><span class="o">.</span><span class="n">get_content_type</span><span class="p">()))</span>
+                    <span class="n">content</span> <span class="o">=</span> <span class="n">part</span><span class="o">.</span><span class="n">get_payload</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">content</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">attachments</span><span class="p">[</span><span class="n">part</span><span class="o">.</span><span class="n">get_filename</span><span class="p">()]</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">attachments</span>
+
+    <span class="k">def</span> <span class="nf">_write_mail_to_disk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mail</span><span class="p">,</span> <span class="n">save_attachments</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write the mails to the local directory which can be configured during class initialization.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_dir_mail_download</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Creating the directory for downloading the mails.&#39;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_dir_mail_download</span><span class="p">)</span>
+
+        <span class="c1"># Find type of mail(ex: text/plain) and save it to a filename appropriate for the type</span>
+        <span class="c1"># Default to HTML. (Mails come with mixed mode which would work best saved as HTML)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;Content-Type&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mail</span><span class="p">:</span>
+            <span class="n">mail_type</span> <span class="o">=</span> <span class="s1">&#39;html&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mail_type</span> <span class="o">=</span> <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Content-Type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="s1">&#39;Subject&#39;</span> <span class="ow">in</span> <span class="n">mail</span><span class="p">:</span>
+            <span class="n">subject</span> <span class="o">=</span> <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Subject&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">subject</span> <span class="o">=</span> <span class="s1">&#39;Subject Not Found&#39;</span>
+        <span class="k">if</span> <span class="n">mail_type</span> <span class="o">==</span> <span class="s1">&#39;plain&#39;</span><span class="p">:</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_filename</span><span class="p">(</span><span class="n">subject</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;.txt&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_filename</span><span class="p">(</span><span class="n">subject</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;.html&#39;</span><span class="p">)</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_dir_mail_download</span><span class="p">,</span>
+                                 <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;uid&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;-&#39;</span> <span class="o">+</span> <span class="n">file_name</span><span class="p">)</span>
+        <span class="c1"># worst case, if a file name is repeated, attach a random number to the file name</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+            <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_dir_mail_download</span><span class="p">,</span>
+                                     <span class="nb">str</span><span class="p">(</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;-&#39;</span> <span class="o">+</span>
+                                     <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;uid&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;-&#39;</span> <span class="o">+</span> <span class="n">file_name</span><span class="p">)</span>
+        <span class="n">file_obj</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;w+&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;Body&#39;</span> <span class="ow">in</span> <span class="n">mail</span> <span class="ow">and</span> <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Body&#39;</span><span class="p">]:</span>
+            <span class="n">file_obj</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Body&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+            <span class="n">file_obj</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="c1"># save the attachments</span>
+        <span class="k">if</span> <span class="n">save_attachments</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Attachments&#39;</span><span class="p">])</span> <span class="ow">is</span> <span class="ow">not</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Processing [</span><span class="si">%s</span><span class="s2">] Attachments for email with UID [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Attachments&#39;</span><span class="p">]),</span>
+                <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;uid&#39;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">attachments_dir_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">local_dir_mail_download</span><span class="p">,</span>
+                                                <span class="s1">&#39;Attachment-&#39;</span> <span class="o">+</span>
+                                                <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;uid&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;-&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_filename</span><span class="p">(</span>
+                                                    <span class="n">subject</span><span class="o">.</span><span class="n">strip</span><span class="p">()))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">attachments_dir_path</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">attachments_dir_path</span><span class="p">)</span>
+            <span class="c1"># &#39;filename&#39; : content</span>
+            <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Attachments&#39;</span><span class="p">]:</span>
+                <span class="n">file_obj</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">attachments_dir_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">format_filename</span><span class="p">(</span><span class="n">file_name</span><span class="p">)),</span>
+                    <span class="s1">&#39;wb&#39;</span>
+                <span class="p">)</span>
+                <span class="n">file_obj</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">mail</span><span class="p">[</span><span class="s1">&#39;Attachments&#39;</span><span class="p">][</span><span class="n">file_name</span><span class="p">])</span>
+                <span class="n">file_obj</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="MailBox.connect"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.MailBox.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Connects to the IMAP server</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if there is a connection failure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">retry</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span> <span class="o">=</span> <span class="n">imaplib</span><span class="o">.</span><span class="n">IMAP4</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mail_server</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="s1">&#39;Invalid username or password for mail server </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_server</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Connected to mail server </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_server</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excep</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] Retrying to connect to mail server [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">retry</span><span class="p">),</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">mail_server</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">retry</span> <span class="o">&gt;</span> <span class="mi">8</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Failed to connect to mail server with [</span><span class="si">%s</span><span class="s2">] &quot;</span>
+                                       <span class="s2">&quot;exception&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excep</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Couldn&#39;t connect to Mail server </span><span class="si">%s</span><span class="s2"> with error [</span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span>
+                                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mail_server</span><span class="p">,</span> <span class="n">excep</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="MailBox.disconnect"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.MailBox.disconnect">[docs]</a>    <span class="k">def</span> <span class="nf">disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Close the connection created to the IMAP server &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_select_folder</span><span class="p">(</span><span class="s1">&#39;INBOX&#39;</span><span class="p">)</span>  <span class="c1"># close will fail if no folders selected</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span><span class="o">.</span><span class="n">logout</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Disconnected to mail server </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_server</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_select_folder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select a particular folder on the mailbox</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                when the folder name is invalid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span><span class="p">,</span> <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_box</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">folder_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="o">!=</span> <span class="s1">&#39;OK&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Selecting folder [</span><span class="si">%s</span><span class="s1">] on mailbox failed with reason [</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">folder_name</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Mailbox folder changed to [</span><span class="si">%s</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="n">folder_name</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MailBox.download_mails"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.MailBox.download_mails">[docs]</a>    <span class="k">def</span> <span class="nf">download_mails</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">search_filter</span><span class="p">,</span> <span class="n">download_dir</span><span class="p">,</span> <span class="n">mail_folder</span><span class="o">=</span><span class="s1">&#39;INBOX&#39;</span><span class="p">,</span>
+                       <span class="n">save_attachments</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Downloads the mails that match the given search filter and marks the mail as read.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            search_filter (EmailSearchFilter): filter object of search filter class</span>
+
+<span class="sd">            download_dir                (str): directory path to download mails</span>
+
+<span class="sd">            mail_folder                 (str): Folder to search default is &#39;INBOX&#39;</span>
+
+<span class="sd">            save_attachments           (bool): True downloads the attachments in a sub folder</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                when no e-mails found for the given search filter</span>
+<span class="sd">                when mail folder is invalid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_dir_mail_download</span> <span class="o">=</span> <span class="n">download_dir</span>
+        <span class="n">unique_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_mail_uid_list</span><span class="p">(</span><span class="n">search_filter</span><span class="p">,</span> <span class="n">mail_folder</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unique_ids</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">search_filter</span><span class="o">.</span><span class="n">get_recent_only</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>  <span class="c1"># parse and download latest mail alone.</span>
+                <span class="n">unique_ids</span> <span class="o">=</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="n">unique_ids</span><span class="p">)]</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">each_id</span> <span class="ow">in</span> <span class="n">unique_ids</span><span class="p">:</span>
+                <span class="n">mail</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_mails</span><span class="p">(</span><span class="n">each_id</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">mail</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_write_mail_to_disk</span><span class="p">(</span><span class="n">mail</span><span class="p">,</span> <span class="n">save_attachments</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_mark_mail_as_read</span><span class="p">(</span><span class="n">each_id</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+                    <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Downloaded </span><span class="si">%s</span><span class="s2"> of </span><span class="si">%s</span><span class="s2"> mails returned by the search&quot;</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_ids</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;No emails found for search filter [</span><span class="si">%s</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">search_filter</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="EmailSearchFilter"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter">[docs]</a><span class="k">class</span> <span class="nc">EmailSearchFilter</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is used to define the search filter fields in a mail header</span>
+<span class="sd">    By default sets the filter with unread and recent only mails that are sent from yesterday.</span>
+<span class="sd">    use corresponding setter methods to change the filter</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            subject: part of the text to search for in e-mail subject</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unread</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Get unread mails only</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subject</span> <span class="o">=</span> <span class="n">subject</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_address</span> <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># e-Mail Address of the receiver of the mail.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sender_name</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># sender name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recent_only</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Get mails which has the \Recent flag set.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_on_date</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Date on which the mail was sent.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_from_date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+
+<div class="viewcode-block" id="EmailSearchFilter.set_sender_name"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.set_sender_name">[docs]</a>    <span class="k">def</span> <span class="nf">set_sender_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;sets sender name in search filter&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sender_name</span> <span class="o">=</span> <span class="n">sender_name</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.set_to_address"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.set_to_address">[docs]</a>    <span class="k">def</span> <span class="nf">set_to_address</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">email_address</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;sets to address in search filter&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">to_address</span> <span class="o">=</span> <span class="n">email_address</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.set_subject"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.set_subject">[docs]</a>    <span class="k">def</span> <span class="nf">set_subject</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subject</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;sets subject in search filter&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subject</span> <span class="o">=</span> <span class="n">subject</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.set_recent_only"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.set_recent_only">[docs]</a>    <span class="k">def</span> <span class="nf">set_recent_only</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;set latest only flag&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">recent_only</span> <span class="o">=</span> <span class="n">val</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.set_unread_only"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.set_unread_only">[docs]</a>    <span class="k">def</span> <span class="nf">set_unread_only</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;sets unread only flag in search filter&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unread</span> <span class="o">=</span> <span class="n">val</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.set_mail_sent_on"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.set_mail_sent_on">[docs]</a>    <span class="k">def</span> <span class="nf">set_mail_sent_on</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">year</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set date on search filter to search on particular date</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError:</span>
+<span class="sd">                when invalid date/month/year is passed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">year</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">month</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">date</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_on_date</span> <span class="o">=</span> <span class="n">date</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Invalid date given: Date: </span><span class="si">%d</span><span class="s1">, Month: </span><span class="si">%d</span><span class="s1">, Year: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">date</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">year</span><span class="p">)</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.set_mail_sent_from_date"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.set_mail_sent_from_date">[docs]</a>    <span class="k">def</span> <span class="nf">set_mail_sent_from_date</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">date</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">year</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set date on search filter to search from particular date</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError:</span>
+<span class="sd">                when invalid date/month/year is passed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_date</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">year</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">month</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">date</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_from_date</span> <span class="o">=</span> <span class="n">_date</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Invalid date given: Date: </span><span class="si">%d</span><span class="s1">, Month: </span><span class="si">%d</span><span class="s1">, Year: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">date</span><span class="p">,</span> <span class="n">month</span><span class="p">,</span> <span class="n">year</span><span class="p">)</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.get_sender_name"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.get_sender_name">[docs]</a>    <span class="k">def</span> <span class="nf">get_sender_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;gets sender name set in search filter&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sender_name</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.get_to_address"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.get_to_address">[docs]</a>    <span class="k">def</span> <span class="nf">get_to_address</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;gets to address set in search filter&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_address</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.get_subject"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.get_subject">[docs]</a>    <span class="k">def</span> <span class="nf">get_subject</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;gets subject set in search filter&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.get_recent_only"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.get_recent_only">[docs]</a>    <span class="k">def</span> <span class="nf">get_recent_only</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;gets recent only flag value set in search filter&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">recent_only</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.get_mail_sent_on"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.get_mail_sent_on">[docs]</a>    <span class="k">def</span> <span class="nf">get_mail_sent_on</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;gets mail sent on date set in search filter&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_on_date</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.get_mail_sent_from_date"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.get_mail_sent_from_date">[docs]</a>    <span class="k">def</span> <span class="nf">get_mail_sent_from_date</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;gets mail sent from date set in search filter&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_from_date</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.get_unread_only"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.get_unread_only">[docs]</a>    <span class="k">def</span> <span class="nf">get_unread_only</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;gets unread only flag set in search filter&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">unread</span></div>
+
+<div class="viewcode-block" id="EmailSearchFilter.return_search_query_string"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.mail_box.EmailSearchFilter.return_search_query_string">[docs]</a>    <span class="k">def</span> <span class="nf">return_search_query_string</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns the search query string in required format to search emails&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating Search query for mails&#39;</span><span class="p">)</span>
+        <span class="n">search_filter</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="n">search_string_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sender_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;FROM&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sender_name</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_address</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;TO&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_address</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;SUBJECT&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">unread</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;NOT&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;SEEN&#39;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_on_date</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+            <span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;ON&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_on_date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2">-%b-%Y&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_from_date</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+            <span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;SINCE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_sent_from_date</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2">-%b-%Y&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">recent_only</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">search_filter</span><span class="p">[</span><span class="s1">&#39;NOT&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;OLD&#39;</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">search_filter</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">search_string_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; &quot;&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">)</span>
+        <span class="n">search_string</span> <span class="o">=</span> <span class="s2">&quot;(&quot;</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">search_string_list</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Search query created: &#39;</span> <span class="o">+</span> <span class="n">search_string</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">search_string</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

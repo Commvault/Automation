@@ -1,0 +1,795 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Server.JobManager.jobmanager_helper &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Server.JobManager.jobmanager_helper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Server.JobManager.jobmanager_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main file for performing job operations on Commcell</span>
+
+<span class="sd">JobManager is the only class defined in this file</span>
+
+<span class="sd">JobManager:</span>
+<span class="sd">    __init__(job, commcell)             --  initialize instance of the JobManager class</span>
+
+<span class="sd">    __repr__()                          --  Representation string for the instance of the</span>
+<span class="sd">                                            JobManager class</span>
+
+<span class="sd">    wait_for_state()                    --  Waits for the job to go into required state</span>
+
+<span class="sd">    wait_for_phase()                    --  Waits for the job to come to the required phase</span>
+
+<span class="sd">    modify_job()                        --  Suspend, Resume OR kill a job</span>
+
+<span class="sd">    modify_all_jobs()                   --  Suspend, Resume OR Kill all jobs running on Commserver</span>
+
+<span class="sd">    validate_job_state()                --  Validate if the current job state and expected status</span>
+<span class="sd">                                            matches</span>
+
+<span class="sd">    get_filtered_jobs()                 --  Gets job list for all the jobs matching a specific</span>
+<span class="sd">                                            filtering criterion and waits for these jobs to be</span>
+<span class="sd">                                            completed based on the argument flag.</span>
+
+<span class="sd">    check_job_status                    --  Check Job status for Backup and restore Jobs</span>
+<span class="sd">                                            when activity is disabled</span>
+
+<span class="sd">    get_active_job_object()             --  Gives the first active job object that is running</span>
+
+<span class="sd">    @property</span>
+<span class="sd">        job    -- Sets/Gets job object</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">pprint</span> <span class="k">import</span> <span class="n">pformat</span>
+
+<span class="kn">from</span> <span class="nn">cvpysdk.job</span> <span class="k">import</span> <span class="n">Job</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+
+<span class="kn">from</span> <span class="nn">Server.serverhandlers</span> <span class="k">import</span> <span class="n">argtypes</span>
+<span class="kn">from</span> <span class="nn">Server.JobManager</span> <span class="k">import</span> <span class="n">jobmanager_constants</span>
+
+<div class="viewcode-block" id="JobManager"><a class="viewcode-back" href="../../../source/Server.JobManager.html#Server.JobManager.jobmanager_helper.JobManager">[docs]</a><span class="k">class</span> <span class="nc">JobManager</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;JobManager helper class to perform job related operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_job</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">commcell</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize instance of the JobManager class.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span> <span class="o">=</span> <span class="n">jobmanager_constants</span><span class="o">.</span><span class="n">JOB_MAP</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_status</span> <span class="o">=</span> <span class="n">jobmanager_constants</span><span class="o">.</span><span class="n">JOB_STATUS</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">_job</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_job</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">_job</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_job</span><span class="p">,</span> <span class="n">Job</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="n">_job</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Incorrect argument type for job to initialize JobManager&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to initialize job object for JobManager with exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span>
+                            <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Representation string for the instance of the JobManager class.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;JobManager class instance&quot;</span>
+
+<div class="viewcode-block" id="JobManager.wait_for_state"><a class="viewcode-back" href="../../../source/Server.JobManager.html#Server.JobManager.jobmanager_helper.JobManager.wait_for_state">[docs]</a>    <span class="k">def</span> <span class="nf">wait_for_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                       <span class="n">expected_state</span><span class="o">=</span><span class="s2">&quot;completed&quot;</span><span class="p">,</span>
+                       <span class="n">retry_interval</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                       <span class="n">time_limit</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                       <span class="n">hardcheck</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Waits for the job to go into required state</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                expected_state    (str/list)</span>
+<span class="sd">                                           -- Expected job id state. Default = completed.</span>
+<span class="sd">                                                    suspended/killed/running/completed etc..</span>
+<span class="sd">                                                    Can be a string OR list of job states</span>
+<span class="sd">                                                    e.g</span>
+<span class="sd">                                                    completed</span>
+<span class="sd">                                                    [&#39;waiting&#39;, &#39;running&#39;]</span>
+
+<span class="sd">                retry_interval    (int)    -- Interval (in seconds) after which job state</span>
+<span class="sd">                                                    will be checked in a loop. Default = 10</span>
+
+<span class="sd">                time_limit        (int)    -- Time limit after which job status check shall be</span>
+<span class="sd">                                                aborted if the job does not reach the desired</span>
+<span class="sd">                                                 state. Default (in minutes) = 30</span>
+
+<span class="sd">                hardcheck         (bool)   -- If True, function will exception out in case the job</span>
+<span class="sd">                                                does not reaches the desired state.</span>
+<span class="sd">                                              If False, function will return with non-truthy value</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                True/False        (bool)   -- In case job reaches/does not reaches the desired</span>
+<span class="sd">                                                state.</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if :</span>
+
+<span class="sd">                    - failed during execution of module</span>
+
+<span class="sd">            Example:</span>
+<span class="sd">                job_manager = JobManager(job, self._commcell)</span>
+
+<span class="sd">                job_manager.wait_for_state([&#39;waiting&#39;, &#39;running&#39;])</span>
+
+<span class="sd">                job_manager.wait_for_state(&#39;suspended&#39;)</span>
+
+<span class="sd">                job_manager.wait_for_state(&#39;running&#39;)</span>
+
+<span class="sd">                job_manager.wait_for_state(&#39;completed&#39;)</span>
+
+<span class="sd">                job_manager.wait_for_state(&#39;killed&#39;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span>
+            <span class="n">jobid</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expected_state</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">expected_state</span> <span class="o">=</span> <span class="p">[</span><span class="n">expected_state</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Current job [</span><span class="si">{0}</span><span class="s2">] status = [</span><span class="si">{1}</span><span class="s2">],  Waiting for job to go into &quot;</span>
+                          <span class="s2">&quot;state: </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">jobid</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">expected_state</span><span class="p">))</span>
+
+            <span class="n">time_limit</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">+</span><span class="n">time_limit</span><span class="o">*</span><span class="mi">60</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">expected_state</span> <span class="ow">or</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">time_limit</span> <span class="ow">or</span>
+                        <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;killed&#39;</span><span class="p">,</span> <span class="s1">&#39;failed&#39;</span><span class="p">,</span> <span class="s1">&#39;completed w/ one or more errors&#39;</span><span class="p">]):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">validate_job_state</span><span class="p">(</span><span class="n">expected_state</span><span class="p">)</span>
+                    <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Sleep [</span><span class="si">{0}</span><span class="s2">] secs. Job state: [</span><span class="si">{1}</span><span class="s2">], phase [</span><span class="si">{2}</span><span class="s2">], &quot;</span>
+                                  <span class="s2">&quot;Progress: [</span><span class="si">{4}</span><span class="s2">%], Delay reason: [</span><span class="si">{3}</span><span class="s2">] &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">retry_interval</span><span class="p">,</span>
+                                                                                 <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+                                                                                 <span class="n">job</span><span class="o">.</span><span class="n">phase</span><span class="p">,</span>
+                                                                                 <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">,</span>
+                                                                                 <span class="n">job</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;percentComplete&#39;</span><span class="p">)))</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">retry_interval</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">expected_state</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">hardcheck</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">validate_job_state</span><span class="p">(</span><span class="n">expected_state</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job id [</span><span class="si">{0}</span><span class="s2">] status = [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">jobid</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()))</span>
+
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="JobManager.wait_for_phase"><a class="viewcode-back" href="../../../source/Server.JobManager.html#Server.JobManager.jobmanager_helper.JobManager.wait_for_phase">[docs]</a>    <span class="k">def</span> <span class="nf">wait_for_phase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase</span><span class="o">=</span><span class="s1">&#39;backup&#39;</span><span class="p">,</span> <span class="n">total_attempts</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">check_frequency</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Waits for the job to come to the required phase</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                phase               (str)   --  The phase of the job to wait for</span>
+
+<span class="sd">                total_attempts      (int)   --  Total attempts to check the job phase</span>
+
+<span class="sd">                check_frequency     (int)   --  The interval in secs between every check for phase</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None    --      If job comes to the expected phase</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                If the job is already finished or attempts got exhausted</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">attempt</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">phase</span> <span class="o">=</span> <span class="n">phase</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+        <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">phase</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">phase</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s1">&#39;Waiting for job [</span><span class="si">{0}</span><span class="s1">] to come to [</span><span class="si">{1}</span><span class="s1">] phase. Current phase [</span><span class="si">{2}</span><span class="s1">]. &#39;</span>
+                <span class="s1">&#39;Attempt [</span><span class="si">{3}</span><span class="s1">/</span><span class="si">{4}</span><span class="s1">]&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">phase</span><span class="p">,</span> <span class="n">attempt</span><span class="p">,</span> <span class="n">total_attempts</span><span class="p">))</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">check_frequency</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span><span class="o">.</span><span class="n">is_finished</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Job already finished while waiting for phase&#39;</span><span class="p">)</span>
+
+            <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">attempt</span> <span class="o">==</span> <span class="n">total_attempts</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s1">&#39;Attempts exhausted while waiting for the job to come to the required phase&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="JobManager.modify_job"><a class="viewcode-back" href="../../../source/Server.JobManager.html#Server.JobManager.jobmanager_helper.JobManager.modify_job">[docs]</a>    <span class="k">def</span> <span class="nf">modify_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">set_status</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">wait_for_state</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">hardcheck</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Suspend, Resume OR kill a job</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                set_status        (str)    -- job id state. Default = None</span>
+<span class="sd">                                                Job state will be changed to this state.</span>
+<span class="sd">                                                Options:</span>
+<span class="sd">                                                    suspend/resume/kill</span>
+
+<span class="sd">                wait_for_state    (int)    -- True/False: Whether to wait for the job to go in the</span>
+<span class="sd">                                                required state or not.</span>
+
+<span class="sd">                hardcheck         (bool)   -- If True, function will exception out in case the job</span>
+<span class="sd">                                                does not reaches the desired state.</span>
+<span class="sd">                                              If False, function will return with non-truthy value</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                True/False        (bool)   -- In case job reaches/does not reaches the desired</span>
+<span class="sd">                                                state.</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if :</span>
+
+<span class="sd">                    - Unsupported job state passed to the module</span>
+
+<span class="sd">                    - failed during execution of module</span>
+
+<span class="sd">            Example:</span>
+<span class="sd">                job_manager = JobManager(job, self._commcell)</span>
+
+<span class="sd">                job_manager.modify_job(&#39;suspend&#39;)</span>
+
+<span class="sd">                job_manager.modify_job(&#39;resume&#39;)</span>
+
+<span class="sd">                job_manager.modify_job(&#39;kill&#39;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="k">if</span> <span class="n">set_status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unsupported job state passed to modify_job&quot;</span><span class="p">)</span>
+
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span>
+            <span class="n">jobid</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> job id: [</span><span class="si">{1}</span><span class="s2">],   Current status: [</span><span class="si">{2}</span><span class="s2">]&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span><span class="p">[</span><span class="n">set_status</span><span class="p">][</span><span class="s1">&#39;message&#39;</span><span class="p">],</span>
+                                    <span class="n">jobid</span><span class="p">,</span>
+                                    <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()))</span>
+
+            <span class="nb">getattr</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span><span class="p">[</span><span class="n">set_status</span><span class="p">][</span><span class="s1">&#39;module&#39;</span><span class="p">])(</span><span class="n">wait_for_state</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfull.! Job id [</span><span class="si">{0}</span><span class="s2">] status =&quot;</span>
+                          <span class="s2">&quot;[</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">jobid</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()))</span>
+
+            <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span><span class="p">[</span><span class="n">set_status</span><span class="p">][</span><span class="s1">&#39;status&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">hardcheck</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to [</span><span class="si">{0}</span><span class="s2">] job: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">set_status</span><span class="p">,</span> <span class="n">jobid</span><span class="p">))</span>
+
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="JobManager.modify_all_jobs"><a class="viewcode-back" href="../../../source/Server.JobManager.html#Server.JobManager.jobmanager_helper.JobManager.modify_all_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">modify_all_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operation_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Suspend, Resume OR Kill all jobs running on Commserver</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                operation_type        (str)    -- All jobs on commcell will be changed to this</span>
+<span class="sd">                                                    state.</span>
+<span class="sd">                                                    Options:</span>
+<span class="sd">                                                        suspend/resume/kill</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if :</span>
+
+<span class="sd">                    - Unsupported operation_type passed to the module</span>
+
+<span class="sd">                    - failed during execution of module</span>
+
+<span class="sd">            Example:</span>
+<span class="sd">                job_manager = JobManager(job, self._commcell)</span>
+
+<span class="sd">                job_manager.modify_all_jobs(&#39;suspend&#39;)</span>
+
+<span class="sd">                job_manager.modify_all_jobs(&#39;resume&#39;)</span>
+
+<span class="sd">                job_manager.modify_all_jobs(&#39;kill&#39;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">operation_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Supported values for operation_type:</span><span class="si">{0}</span><span class="s2">&quot;</span>
+                                <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Commcell object is set to None.&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> all jobs&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span><span class="p">[</span><span class="n">operation_type</span><span class="p">][</span><span class="s1">&#39;message&#39;</span><span class="p">]))</span>
+
+            <span class="n">jobcontroller</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">job_controller</span>
+
+            <span class="nb">getattr</span><span class="p">(</span><span class="n">jobcontroller</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span><span class="p">[</span><span class="n">operation_type</span><span class="p">][</span><span class="s1">&#39;module_all&#39;</span><span class="p">])()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully </span><span class="si">{0}</span><span class="s2"> all jobs on commcell.&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_job_map</span><span class="p">[</span><span class="n">operation_type</span><span class="p">][</span><span class="s1">&#39;post_message&#39;</span><span class="p">]))</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="JobManager.validate_job_state"><a class="viewcode-back" href="../../../source/Server.JobManager.html#Server.JobManager.jobmanager_helper.JobManager.validate_job_state">[docs]</a>    <span class="nd">@argtypes</span><span class="p">((</span><span class="nb">list</span><span class="p">,</span> <span class="nb">str</span><span class="p">))</span>
+    <span class="k">def</span> <span class="nf">validate_job_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expected_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Validate if the current job state and expected status matches</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                expected_state    (str/list)    -- Expected job id state.</span>
+<span class="sd">                                                    suspended/killed/running/completed etc..</span>
+<span class="sd">                                                    Can be a list or string with job states</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if :</span>
+
+<span class="sd">                    - Expected job state (expected_state) is not equal to current job state</span>
+
+<span class="sd">                    - failed during execution of module</span>
+
+<span class="sd">            Example:</span>
+<span class="sd">                validate_job_state(&#39;running&#39;)</span>
+
+<span class="sd">                validate_job_state(&#39;suspended&#39;)</span>
+
+<span class="sd">                validate_job_state(&#39;running&#39;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span>
+            <span class="n">jobid</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="n">job_status</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expected_state</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">expected_state</span> <span class="o">=</span> <span class="p">[</span><span class="n">expected_state</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validation: Current job [</span><span class="si">{0}</span><span class="s2">] state: [</span><span class="si">{1}</span><span class="s2">],   Expected: </span><span class="si">{2}</span><span class="s2">&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">jobid</span><span class="p">,</span> <span class="n">job_status</span><span class="p">,</span> <span class="n">expected_state</span><span class="p">))</span>
+
+            <span class="k">assert</span> <span class="n">job_status</span> <span class="ow">in</span> <span class="n">expected_state</span><span class="p">,</span> <span class="s2">&quot;Job [</span><span class="si">{0}</span><span class="s2">] validation failed&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">jobid</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="JobManager.get_filtered_jobs"><a class="viewcode-back" href="../../../source/Server.JobManager.html#Server.JobManager.jobmanager_helper.JobManager.get_filtered_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">get_filtered_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                          <span class="n">client</span><span class="p">,</span>
+                          <span class="n">current_state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                          <span class="n">expected_state</span><span class="o">=</span><span class="s1">&#39;completed&#39;</span><span class="p">,</span>
+                          <span class="n">lookup_time</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                          <span class="n">job_filter</span><span class="o">=</span><span class="s1">&#39;backup&#39;</span><span class="p">,</span>
+                          <span class="n">hardcheck</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                          <span class="n">time_limit</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                          <span class="n">retry_interval</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                          <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Gets job list for all the jobs matching a specific filtering criterion and waits</span>
+<span class="sd">                for these jobs to be completed (based on expected_state flag)</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                client_name     (str)   --  name of the client to filter out the jobs for</span>
+<span class="sd">                                                default: None, get all the jobs</span>
+
+<span class="sd">                current_state   (str/list)</span>
+<span class="sd">                                        --  Expected current state of the jobs being fetched.</span>
+<span class="sd">                                                default: All jobs matching the filtering criterion</span>
+<span class="sd">                                                            and current status as running</span>
+
+<span class="sd">                current_state and expected_state go hand in hand.</span>
+<span class="sd">                    Basically we are looking for active jobs to match current_state and then wait</span>
+<span class="sd">                        for job to reach expected_state</span>
+
+<span class="sd">                expected_state  (list/str)</span>
+<span class="sd">                                        --  Wait for the jobs to reach any of the required state</span>
+<span class="sd">                                                default: None</span>
+<span class="sd">                                                By default just return all the jobs and do not</span>
+<span class="sd">                                                wait. If provided then wait for all jobs to wait</span>
+<span class="sd">                                                for a certain state.</span>
+
+<span class="sd">                                                Options:</span>
+<span class="sd">                                                    &#39;completed&#39;</span>
+<span class="sd">                                                    &#39;failed&#39;</span>
+<span class="sd">                                                    &#39;suspended&#39;</span>
+<span class="sd">                                                    &#39;waiting&#39;</span>
+<span class="sd">                                                    &#39;pending&#39;</span>
+
+<span class="sd">                lookup_time     (int)   --  get all the jobs executed within the number of hours</span>
+<span class="sd">                                                default: 5 Hours</span>
+
+<span class="sd">                job_filter      (str)   --  type of jobs to filter</span>
+<span class="sd">                                            for multiple filters, give the values</span>
+<span class="sd">                                            **comma(,)** separated</span>
+
+<span class="sd">                                            List of Possible Values:</span>
+<span class="sd">                                                Backup</span>
+<span class="sd">                                                Restore</span>
+<span class="sd">                                                AUXCOPY</span>
+<span class="sd">                                                WORKFLOW</span>
+<span class="sd">                                                etc..</span>
+
+<span class="sd">                                            default: Backup</span>
+
+<span class="sd">                hardcheck       (bool)   -- If true, will throw exception in case of failed</span>
+<span class="sd">                                                client validation.</span>
+<span class="sd">                                              If false, will return False if validation fails</span>
+
+<span class="sd">                retry_interval  (int)    -- Interval (in seconds) after which job state</span>
+<span class="sd">                                                    will be checked in a loop. Default = 10</span>
+
+<span class="sd">                time_limit      (int)    -- Time limit after which job status check shall be</span>
+<span class="sd">                                                aborted if the job does not reach the desired</span>
+<span class="sd">                                                 state. Default (in minutes) = 30</span>
+
+<span class="sd">                kwargs          (dict)  --  dict of key-word arguments</span>
+
+<span class="sd">                Available kwargs Options:</span>
+
+<span class="sd">                    limit           (int)   --  total number of jobs list that are to be returned</span>
+<span class="sd">                                                    default: 20</span>
+
+<span class="sd">                    show_aged_job   (bool)  --  boolean specifying whether to include aged jobs in</span>
+<span class="sd">                                                    the result or not</span>
+<span class="sd">                                                    default: False</span>
+
+<span class="sd">                    clients_list    (list)  --  list of clients to return the jobs for</span>
+<span class="sd">                                                    default: []</span>
+
+<span class="sd">                    job_type_list   (list)  --  list of job operation types</span>
+<span class="sd">                                                    default: []</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (bool, dict/list)    -- Tuple of boolean value based on module return value</span>
+<span class="sd">                                            and job dictionary or list based on filtered criterion</span>
+
+<span class="sd">            Raises</span>
+<span class="sd">                Exception</span>
+<span class="sd">                    - if Invalid argument passed.</span>
+<span class="sd">                    - Time out waiting to get valid jobs to meet filtered criterion</span>
+<span class="sd">                    - Failed during module execution</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">current_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">current_state</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;running&#39;</span><span class="p">,</span> <span class="s1">&#39;waiting&#39;</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">current_state</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">current_state</span> <span class="o">=</span> <span class="p">[</span><span class="n">current_state</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">current_state</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">current_state</span> <span class="o">=</span> <span class="p">[</span><span class="n">_state</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">_state</span> <span class="ow">in</span> <span class="n">current_state</span><span class="p">]</span>
+
+            <span class="n">jobcontroller</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">job_controller</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting list of all [</span><span class="si">{0}</span><span class="s2">] jobs for client [</span><span class="si">{1}</span><span class="s2">] within [</span><span class="si">{2}</span><span class="s2">] hours&quot;</span>
+                          <span class="s2">&quot; and filters [</span><span class="si">{3}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_filter</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">lookup_time</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
+
+            <span class="n">jobs</span> <span class="o">=</span> <span class="n">jobcontroller</span><span class="o">.</span><span class="n">all_jobs</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">lookup_time</span><span class="p">,</span> <span class="n">job_filter</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Jobs fetched: [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pformat</span><span class="p">(</span><span class="n">jobs</span><span class="p">)))</span>
+
+            <span class="k">if</span> <span class="n">expected_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">jobs</span><span class="p">)</span>
+
+            <span class="n">time_limit</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">+</span><span class="n">time_limit</span><span class="o">*</span><span class="mi">60</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">jobs</span><span class="p">:</span>
+                    <span class="c1"># Check if any of the jobs have state as [current_state]. If not continue</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">jobs</span><span class="p">[</span><span class="n">_id</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">current_state</span> <span class="k">for</span> <span class="n">_id</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">):</span>
+                        <span class="n">jobs</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+                        <span class="k">continue</span>
+
+                    <span class="n">job_ids</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">_id</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">jobs</span><span class="p">[</span><span class="n">_id</span><span class="p">][</span><span class="s1">&#39;status&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">current_state</span><span class="p">:</span>
+                            <span class="n">job_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_id</span><span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job matching filtering criterion: [</span><span class="si">{0}</span><span class="s2">]: [</span><span class="si">{1}</span><span class="s2">]&quot;</span>
+                                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_id</span><span class="p">,</span> <span class="n">pformat</span><span class="p">(</span><span class="n">jobs</span><span class="p">[</span><span class="n">_id</span><span class="p">])))</span>
+
+                    <span class="c1"># Wait for the jobs to reach the required expected state</span>
+                    <span class="k">for</span> <span class="n">jobid</span> <span class="ow">in</span> <span class="n">job_ids</span><span class="p">:</span>
+                        <span class="n">response</span> <span class="o">=</span> <span class="n">JobManager</span><span class="p">(</span><span class="n">jobid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span><span class="o">.</span><span class="n">wait_for_state</span><span class="p">(</span>
+                            <span class="n">expected_state</span><span class="p">,</span> <span class="n">retry_interval</span><span class="p">,</span> <span class="n">time_limit</span><span class="p">,</span> <span class="n">hardcheck</span><span class="p">)</span>
+
+                    <span class="k">return</span> <span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">job_ids</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">jobs</span> <span class="o">=</span> <span class="n">jobcontroller</span><span class="o">.</span><span class="n">all_jobs</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">lookup_time</span><span class="p">,</span> <span class="n">job_filter</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">time_limit</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Timed out waiting to get valid jobs which meets the filtered criterion&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">hardcheck</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Timed out waiting to get valid jobs to meet filtered criterion&quot;</span><span class="p">)</span>
+
+                        <span class="k">return</span> <span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">jobs</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for [</span><span class="si">{0}</span><span class="s2">] seconds &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">retry_interval</span><span class="p">))</span>
+                        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">retry_interval</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Failed [</span><span class="si">{0}</span><span class="s2">]: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="JobManager.get_active_job_object"><a class="viewcode-back" href="../../../source/Server.JobManager.html#Server.JobManager.jobmanager_helper.JobManager.get_active_job_object">[docs]</a>    <span class="k">def</span> <span class="nf">get_active_job_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">time_limit</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">retry_interval</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39; Gives the first active job object that is running</span>
+<span class="sd">        args:</span>
+<span class="sd">        client_name : {str} client name on which to check the active job list</span>
+
+<span class="sd">        returns</span>
+<span class="sd">        job_obj (list)  : returns the first active job object &#39;&#39;&#39;</span>
+
+        <span class="n">time_limit</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">+</span><span class="n">time_limit</span><span class="o">*</span><span class="mi">60</span>
+        <span class="n">jobcontroller</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">job_controller</span>
+        <span class="n">active_jobs</span> <span class="o">=</span> <span class="n">jobcontroller</span><span class="o">.</span><span class="n">active_jobs</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">client_name</span><span class="p">,</span> <span class="n">job_filter</span><span class="o">=</span><span class="s2">&quot;Backup&quot;</span><span class="p">)</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">active_jobs</span><span class="p">:</span>
+            <span class="n">active_jobs</span> <span class="o">=</span> <span class="n">jobcontroller</span><span class="o">.</span><span class="n">active_jobs</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">client_name</span><span class="p">,</span> <span class="n">job_filter</span><span class="o">=</span><span class="s2">&quot;Backup&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">active_jobs</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">time_limit</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Timed out waiting to get valid active jobs&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for [</span><span class="si">{0}</span><span class="s2">] seconds &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">retry_interval</span><span class="p">))</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">retry_interval</span><span class="p">)</span>
+        <span class="n">lap_job_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">active_jobs</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">jm_obj</span> <span class="o">=</span> <span class="n">jobcontroller</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">lap_job_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jm_obj</span></div>
+
+<div class="viewcode-block" id="JobManager.check_job_status"><a class="viewcode-back" href="../../../source/Server.JobManager.html#Server.JobManager.jobmanager_helper.JobManager.check_job_status">[docs]</a>    <span class="k">def</span> <span class="nf">check_job_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                         <span class="n">host_name</span><span class="p">,</span>
+                         <span class="n">subclient_obj</span><span class="p">,</span>
+                         <span class="n">_name</span><span class="p">,</span>
+                         <span class="n">entity_name</span><span class="o">=</span><span class="s1">&#39;client&#39;</span><span class="p">,</span>
+                         <span class="n">backup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                         <span class="n">client_1</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check Job status for Backup and restore Jobs when activity is disabled.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                host_name (str)           --  client hostname</span>
+
+<span class="sd">                subclient_obj(object)     --  client object</span>
+
+<span class="sd">                _name(str)                -- client/IDA/Subclinet objects name</span>
+
+<span class="sd">                entity_name(str)          -- client/IDA/Subclient</span>
+
+<span class="sd">                backup(flag)              --  True if backup, False if restore</span>
+
+<span class="sd">                client_1(flag)            --  True if it is client1, False if client2</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if job status and delay reason is not correct</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">job_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span>
+        <span class="k">if</span> <span class="n">client_1</span><span class="p">:</span>
+            <span class="n">str_ida</span> <span class="o">=</span> <span class="s1">&#39;Windows File System&#39;</span>
+            <span class="k">if</span> <span class="n">entity_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;client&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">backup</span><span class="p">:</span>
+                    <span class="n">result_bkp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">[</span><span class="n">entity_name</span><span class="p">][</span><span class="s1">&#39;backup&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_name</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">result_bkp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">[</span><span class="n">entity_name</span><span class="p">][</span><span class="s1">&#39;restore&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">host_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">entity_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;ida&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">backup</span><span class="p">:</span>
+                    <span class="n">result_bkp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">[</span><span class="n">entity_name</span><span class="p">][</span><span class="s1">&#39;backup&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">str_ida</span><span class="p">,</span> <span class="n">_name</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">result_bkp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">[</span><span class="n">entity_name</span><span class="p">][</span><span class="s1">&#39;restore&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">str_ida</span><span class="p">,</span> <span class="n">host_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">entity_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;subclient&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">backup</span><span class="p">:</span>
+                    <span class="n">_obj</span> <span class="o">=</span> <span class="n">subclient_obj</span><span class="o">.</span><span class="n">subclient_name</span>
+                    <span class="n">result_bkp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">[</span><span class="n">entity_name</span><span class="p">][</span><span class="s1">&#39;backup&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_obj</span><span class="p">,</span> <span class="n">_name</span><span class="p">,</span> <span class="n">str_ida</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">job_object</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="s1">&#39;Queued&#39;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;job </span><span class="si">{0}</span><span class="s2"> Status other than </span><span class="se">\&quot;</span><span class="s2">Queued</span><span class="se">\&quot;</span><span class="s2"> for </span><span class="si">{1}</span><span class="s2"> &quot;</span>
+                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_object</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">_name</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job is in Queued state as Queue job is enabled&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">job_object</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;&lt;br&gt;&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">result_bkp</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job Fired with Correct Failure reason: </span><span class="si">{0}</span><span class="s2">&quot;</span>
+                                  <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_object</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Activity is disabled on Client, but no failure reason&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">job_object</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;Queued&#39;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;job </span><span class="si">{0}</span><span class="s2"> is in </span><span class="se">\&quot;</span><span class="s2">Queued</span><span class="se">\&quot;</span><span class="s2"> state for </span><span class="si">{1}</span><span class="s2">&quot;</span>
+                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_object</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">_name</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job is not in Queued state as activity is not disabled on </span><span class="si">{0}</span><span class="s2">&quot;</span>
+                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_name</span><span class="p">))</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Treats the job object as a read-only attribute.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job</span>
+
+    <span class="nd">@job</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the job object for the instance</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_object    (job object)    -- Job instance of SDK Job class</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">job_object</span><span class="p">,</span> <span class="n">Job</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Value [</span><span class="si">{0}</span><span class="s2">] should be instance of SDK Job class&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_object</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_job</span> <span class="o">=</span> <span class="n">job_object</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

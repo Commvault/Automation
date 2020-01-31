@@ -1,0 +1,439 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Web.API.Core.WebConsole.store &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Web.API.Core.WebConsole.store</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Web.API.Core.WebConsole.store</h1><div class="highlight"><pre>
+<span></span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="sd">&quot;&quot;&quot; API to work on Software store&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">lru_cache</span>
+
+<span class="kn">from</span> <span class="nn">Web.Common.exceptions</span> <span class="k">import</span> <span class="n">CVWebAPIException</span><span class="p">,</span> <span class="n">CVNotFound</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.logger</span> <span class="k">import</span> <span class="n">get_log</span>
+<span class="kn">from</span> <span class="nn">Web.WebConsole.Store</span> <span class="k">import</span> <span class="n">storeapp</span>
+<span class="kn">from</span> <span class="nn">Web.API.Core</span> <span class="k">import</span> <span class="n">cvsessions</span>
+
+<span class="n">_STORE_CONSTANTS</span> <span class="o">=</span> <span class="n">storeapp</span><span class="o">.</span><span class="n">get_store_config</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="Store"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store">[docs]</a><span class="k">class</span> <span class="nc">Store</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Software store API</span>
+
+<span class="sd">    Networks calls on cloud are quite time consuming and have a huge response. So the</span>
+<span class="sd">    responses are cached, the following points needs to kept int mind.</span>
+
+<span class="sd">        * We use `functools.lru_cache`, but since max_size is None, LRU algo is not</span>
+<span class="sd">        used and entries are never evicted till its garbage collected.</span>
+
+<span class="sd">        * Python cache provided is not thread safe, so writes needs to be serialized.</span>
+<span class="sd">        However reads can be concurrent from multiple threads. For simplicity, simply</span>
+<span class="sd">        call the get_packages(&quot;Reports&quot;, None, None) before spawning any threads to</span>
+<span class="sd">        populate the cache, after that you are good to use the api in multiple threads</span>
+<span class="sd">        for reads.</span>
+
+<span class="sd">        * To debug or check caching performance, use api.get_packages.cache_info() and</span>
+<span class="sd">        api.get_all_categories.cache_info()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cvsession</span><span class="p">:</span> <span class="n">cvsessions</span><span class="o">.</span><span class="n">Store</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span> <span class="o">=</span> <span class="n">cvsession</span><span class="o">.</span><span class="n">base_url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_session</span> <span class="o">=</span> <span class="n">cvsession</span><span class="o">.</span><span class="n">session</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_csrf</span> <span class="o">=</span> <span class="n">cvsession</span><span class="o">.</span><span class="n">csrf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_LOG</span> <span class="o">=</span> <span class="n">get_log</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__get_pkg_details_by_page</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">category</span><span class="p">,</span> <span class="n">page</span><span class="p">,</span> <span class="n">sub_category</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">resp_txt</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_category_detail</span><span class="p">(</span><span class="n">category</span><span class="p">)[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">sub_category</span><span class="p">:</span>
+                <span class="n">sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sub_category</span><span class="p">(</span><span class="n">category</span><span class="p">,</span> <span class="n">sub_category</span><span class="p">)</span>
+                <span class="n">sc_url</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&amp;subcategoryId=</span><span class="si">{sc[&#39;id&#39;]}</span><span class="s2">&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sc_url</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span> <span class="o">+</span> <span class="s2">&quot;softwarestore/store-package-list.do?&quot;</span>
+                <span class="n">f</span><span class="s2">&quot;categoryId=</span><span class="si">{c}{sc_url}</span><span class="s2">&amp;page=</span><span class="si">{page}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_LOG</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;API - Retrieving packages [GET </span><span class="si">{url}</span><span class="s2">]&quot;</span><span class="p">)</span>
+            <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+            <span class="n">resp_txt</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span>
+            <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVWebAPIException</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Unable to retrieve packages from [</span><span class="si">{category}</span><span class="s2">]&quot;</span><span class="p">,</span>
+                <span class="n">url</span><span class="p">,</span>
+                <span class="n">resp_txt</span>
+            <span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+<div class="viewcode-block" id="Store.install"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.install">[docs]</a>    <span class="k">def</span> <span class="nf">install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">category</span><span class="p">,</span> <span class="n">sub_category</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Install the given package</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): Package name</span>
+<span class="sd">            category (str): Category of the package</span>
+<span class="sd">            sub_category (str): Sub-category of the package</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">detail</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">category</span><span class="p">,</span> <span class="n">sub_category</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span> <span class="o">+</span>
+            <span class="n">f</span><span class="s2">&quot;softwarestore/store-installFromAppstore.do?packageId=</span><span class="si">{detail[&#39;id&#39;]}</span><span class="s2">&quot;</span>
+            <span class="n">f</span><span class="s2">&quot;&amp;platformId=1&amp;updateMethod=0&quot;</span>
+        <span class="p">)</span>
+        <span class="n">resp_txt</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_LOG</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="n">f</span><span class="s2">&quot;API - Installing Name [</span><span class="si">{name}</span><span class="s2">], Category [</span><span class="si">{category}</span><span class="s2">], &quot;</span>
+            <span class="n">f</span><span class="s2">&quot;Sub-Category [</span><span class="si">{sub_category}</span><span class="s2">] [POST </span><span class="si">{url}</span><span class="s2">]&quot;</span>
+        <span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+            <span class="n">resp_txt</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span>
+            <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="s2">&quot;installed successfully.&quot;</span> <span class="ow">in</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;msg&#39;</span><span class="p">][</span><span class="s1">&#39;errorMessage&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVWebAPIException</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Unable to install [</span><span class="si">{name}</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">resp_txt</span>
+            <span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span></div>
+
+<div class="viewcode-block" id="Store.install_report"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.install_report">[docs]</a>    <span class="k">def</span> <span class="nf">install_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Install the report</span>
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): Name of the report</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">install</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;Reports&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Store.install_workflow"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.install_workflow">[docs]</a>    <span class="k">def</span> <span class="nf">install_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Install the workflow</span>
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): name of the workflow</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">install</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;Workflows&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Store.get_all_categories"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.get_all_categories">[docs]</a>    <span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get_all_categories</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">detailed</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return all the store categories</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">             detailed (bool): If enabled, a detailed response is returned</span>
+<span class="sd">             else, only the category name is returned</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span> <span class="o">+</span> <span class="s2">&quot;softwarestore/store-categories.do&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_LOG</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;API - Retrieving store categories [GET </span><span class="si">{url}</span><span class="s2">]&quot;</span><span class="p">)</span>
+        <span class="n">resp_txt</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+            <span class="n">resp_txt</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span>
+            <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="n">categories</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">categories</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">detailed</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">categories</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">category</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">category</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVWebAPIException</span><span class="p">(</span>
+                <span class="s2">&quot;Unable to retrieve the categories&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">resp_txt</span>
+            <span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span></div>
+
+<div class="viewcode-block" id="Store.get_packages"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.get_packages">[docs]</a>    <span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get_packages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">category_name</span><span class="p">,</span> <span class="n">sub_category</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all the packages</span>
+
+<span class="sd">        Response will be cached. Use the following code to clear cache</span>
+<span class="sd">        &gt;&gt;&gt; api = Store()</span>
+<span class="sd">        &gt;&gt;&gt; api.get_packages.cache_clear()</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            category_name (str): Name of the category on store</span>
+<span class="sd">            sub_category (str/None): Name of the sub-category</span>
+<span class="sd">            details (bool): If true, returns a more detailed response</span>
+<span class="sd">            else, only a list of package names</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pkg_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_pkg_details_by_page</span><span class="p">(</span>
+            <span class="n">category_name</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">sub_category</span>
+        <span class="p">)</span>
+        <span class="n">pages</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">pkg_details</span><span class="p">[</span><span class="s2">&quot;pageCount&quot;</span><span class="p">])</span>
+        <span class="n">packages_list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__get_pkg_details_by_page</span><span class="p">(</span>
+                <span class="n">category_name</span><span class="p">,</span> <span class="n">page</span><span class="p">,</span> <span class="n">sub_category</span>
+            <span class="p">)[</span><span class="s2">&quot;packages&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">pages</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">package</span> <span class="k">if</span> <span class="n">details</span> <span class="k">else</span> <span class="n">package</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">packages</span> <span class="ow">in</span> <span class="n">packages_list</span>
+            <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">packages</span>
+        <span class="p">]</span></div>
+
+<div class="viewcode-block" id="Store.get_category_detail"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.get_category_detail">[docs]</a>    <span class="k">def</span> <span class="nf">get_category_detail</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get category detail</span>
+
+<span class="sd">        Response will be cached. Use the following code to clear cache</span>
+<span class="sd">        &gt;&gt;&gt; api = Store()</span>
+<span class="sd">        &gt;&gt;&gt; api.get_all_categories.cache_clear()</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): name of category</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">categories</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_all_categories</span><span class="p">(</span><span class="n">detailed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">name</span><span class="p">,</span>
+                <span class="n">categories</span>
+            <span class="p">))</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVNotFound</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Category [</span><span class="si">{name}</span><span class="s2">] not found&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Store.get_package"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.get_package">[docs]</a>    <span class="k">def</span> <span class="nf">get_package</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">category</span><span class="p">,</span> <span class="n">sub_category</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns detailed info on the package</span>
+
+<span class="sd">        Response will be cached. Use the following code to clear cache</span>
+<span class="sd">        &gt;&gt;&gt; api = Store()</span>
+<span class="sd">        &gt;&gt;&gt; api.get_packages.cache_clear()</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): name of the package</span>
+<span class="sd">            category (str): Category name</span>
+<span class="sd">            sub_category (str): Subcategory name</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: JSON response as dictionary</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            CVNotFound: when package is not found</span>
+<span class="sd">            Exception: As raised by get_packages</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">pkg</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_packages</span><span class="p">(</span><span class="n">category</span><span class="p">,</span> <span class="n">sub_category</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="p">))</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVNotFound</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Package [</span><span class="si">{name}</span><span class="s2">] not found&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Store.get_sub_category"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.get_sub_category">[docs]</a>    <span class="k">def</span> <span class="nf">get_sub_category</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">category</span><span class="p">,</span> <span class="n">sub_category</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns detailed info on the subcategory</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            category (str): Category name</span>
+<span class="sd">            sub_category (str): Subcategory name</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: JSON response as dictionary</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            CVNotFound: When package is not found</span>
+<span class="sd">            Exception: As raised from get_category_detail</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">category</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_category_detail</span><span class="p">(</span><span class="n">category</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">next</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">pkg</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">sub_category</span><span class="p">,</span>
+                <span class="n">category</span><span class="p">[</span><span class="s2">&quot;subcategories&quot;</span><span class="p">]</span>
+            <span class="p">))</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVNotFound</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;SubCategory [</span><span class="si">{sub_category}</span><span class="s2">] not found&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Store.get_reports"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.get_reports">[docs]</a>    <span class="k">def</span> <span class="nf">get_reports</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">detailed</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the list of reports, set the details flag to</span>
+<span class="sd">        true for getting all the info on each report</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_packages</span><span class="p">(</span><span class="s2">&quot;Reports&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="n">detailed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Store.get_workflows"><a class="viewcode-back" href="../../../../../source/Web.API.Core.WebConsole.html#Web.API.Core.WebConsole.store.Store.get_workflows">[docs]</a>    <span class="k">def</span> <span class="nf">get_workflows</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">detailed</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the list of all the workflow names, set the details flag to</span>
+<span class="sd">        true for getting all the info on each report</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_packages</span><span class="p">(</span><span class="s2">&quot;Workflows&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">details</span><span class="o">=</span><span class="n">detailed</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

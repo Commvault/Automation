@@ -1,0 +1,657 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>VirtualServer.VSAUtils.alicloud &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>VirtualServer.VSAUtils.alicloud</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for VirtualServer.VSAUtils.alicloud</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Main file that does all operations on AliCloud</span>
+
+<span class="sd">Classes:</span>
+
+<span class="sd">AliHelper - Ali Cloud class that provides elastic compute service to automation</span>
+
+<span class="sd">AliVm - AliThis is the main file for all  Ali Cloud VM operations</span>
+
+<span class="sd">AliHelper:</span>
+
+<span class="sd">build_request_string()	    --	Builds the request string to be used with the API requests</span>
+
+<span class="sd">execute_action()		    --	Computes RPC URL based on Ali Cloud standard.</span>
+
+<span class="sd">get_regions()			    --	Returns all the regions available.</span>
+
+<span class="sd">get_all_vms_in_hypervisor()	--	gets all vms from all regions in ali cloud.</span>
+
+<span class="sd">compute_free_resources()    --  computes the region, network and security groups based on proxy</span>
+
+
+<span class="sd">AliVM:</span>
+
+<span class="sd">delete_vm()			--	Delete the VM.</span>
+
+<span class="sd">power_on()			--	power on the VM.</span>
+
+<span class="sd">power_off()         --  power off the VM.</span>
+
+<span class="sd">update_vm_info()    --  updates vm information to current state.</span>
+
+<span class="sd">get_vm_basic_prop() --  gets the basic properties of the VM like guest os, IP, power state and GUID</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="k">import</span> <span class="n">quote</span><span class="p">,</span> <span class="n">urlencode</span>
+<span class="kn">import</span> <span class="nn">hmac</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">VirtualServer.VSAUtils.HypervisorHelper</span> <span class="k">import</span> <span class="n">Hypervisor</span>
+<span class="kn">from</span> <span class="nn">VirtualServer.VSAUtils.VMHelper</span> <span class="k">import</span> <span class="n">HypervisorVM</span>
+
+
+<div class="viewcode-block" id="AliCloudHelper"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudHelper">[docs]</a><span class="k">class</span> <span class="nc">AliCloudHelper</span><span class="p">(</span><span class="n">Hypervisor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Ali Cloud class that provides elastic compute service to automation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># pylint: disable=too-many-arguments</span>
+    <span class="c1"># pylint: disable=too-many-instance-attributes</span>
+    <span class="c1"># This requirement is coming from base class.</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">server_host_name</span><span class="p">,</span>
+                 <span class="n">host_machine</span><span class="p">,</span>
+                 <span class="n">user_name</span><span class="p">,</span>
+                 <span class="n">password</span><span class="p">,</span>
+                 <span class="n">instance_type</span><span class="p">,</span>
+                 <span class="n">commcell</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            server_host_name  (str) -- Url of Ali Cloud.defaults to public url</span>
+
+<span class="sd">            host_machine (str)  -- the client of CS where we will execute all the powershell cmd</span>
+
+<span class="sd">            user_name (str)  -- Access key of the user</span>
+
+<span class="sd">            password (str)  -- Secret key corresponding to the access key.</span>
+
+<span class="sd">            instance_type (str)  -- Will be defaulted to ALI , when object is created for</span>
+<span class="sd">                                        hypervisor class.</span>
+
+<span class="sd">            commcell (Object) -- commcell object created using python SDK.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># pylint: disable=too-many-instance-attributes</span>
+        <span class="c1"># pylint: disable=unused-argument</span>
+        <span class="c1"># We inherit all this from base class , it might be required for ali cloud ,but will be</span>
+        <span class="c1"># required for other hypervisors. Cant do much.</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AliCloudHelper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">server_host_name</span><span class="p">,</span> <span class="n">host_machine</span><span class="p">,</span>
+                                             <span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">instance_type</span><span class="p">,</span> <span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ali_url</span> <span class="o">=</span> <span class="s2">&quot;https://ecs.aliyuncs.com/?&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">access_key</span> <span class="o">=</span> <span class="n">user_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">secret_key</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">secret_key</span> <span class="o">+=</span> <span class="s2">&quot;&amp;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ali_common_param</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;AccessKeyId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">access_key</span><span class="p">,</span>
+            <span class="s2">&quot;Format&quot;</span><span class="p">:</span> <span class="s2">&quot;JSON&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;SignatureMethod&quot;</span><span class="p">:</span> <span class="s2">&quot;HMAC-SHA1&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;SignatureVersion&quot;</span><span class="p">:</span> <span class="s2">&quot;1.0&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Version&quot;</span><span class="p">:</span> <span class="s2">&quot;2014-05-26&quot;</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">region_ids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vm_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vm_region_map</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vm_details</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="AliCloudHelper.build_request_string"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudHelper.build_request_string">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">build_request_string</span><span class="p">(</span><span class="n">table</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Builds a request string from the request params</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            table   (dict): the params to be sent with the request</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            res (basestring):   encoded string of all the request params</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">res</span> <span class="o">=</span> <span class="n">urlencode</span><span class="p">(</span><span class="n">items</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="s1">&#39;%20&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;%2A&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%7E</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;~&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">res</span></div>
+
+<div class="viewcode-block" id="AliCloudHelper.execute_action"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudHelper.execute_action">[docs]</a>    <span class="k">def</span> <span class="nf">execute_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">additional_param</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Computes RPC URL based on Ali Cloud standard.</span>
+<span class="sd">        Args:</span>
+
+<span class="sd">            action (str) -- Name of the Action to be performed.</span>
+
+<span class="sd">            additional_param  (dict)   -- Key value pair of additional inputs to the action</span>
+<span class="sd">            specified.</span>
+
+<span class="sd">        Returns:</span>
+
+<span class="sd">            Response from the RPC call if status is 200.</span>
+
+<span class="sd">        Raises:</span>
+
+<span class="sd">            When RPC call failed. Dumps response in the exception message.</span>
+
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># pylint: disable=too-many-locals</span>
+        <span class="c1"># url encoding and signature calculation involves multiple steps and we need locals.</span>
+
+        <span class="k">if</span> <span class="n">additional_param</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">additional_param</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+        <span class="n">utc</span> <span class="o">=</span> <span class="n">now</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="n">timespec</span><span class="o">=</span><span class="s1">&#39;seconds&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;Z&#39;</span>
+        <span class="n">api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ali_url</span>
+
+        <span class="kn">import</span> <span class="nn">copy</span>
+        <span class="c1"># Have dict per execute call</span>
+        <span class="c1"># Hence multiple request can be made simultaneously</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ali_common_param</span><span class="p">)</span>
+        <span class="n">params</span><span class="p">[</span><span class="s1">&#39;Action&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">action</span>
+        <span class="n">params</span><span class="p">[</span><span class="s1">&#39;SignatureNonce&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid1</span><span class="p">())</span>
+        <span class="n">params</span><span class="p">[</span><span class="s1">&#39;Timestamp&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">utc</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">additional_param</span><span class="p">)</span>
+
+        <span class="n">encoded_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_request_string</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">string_to_sign</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;GET&amp;</span><span class="si">%2F</span><span class="s2">&amp;{quote(encoded_params)}&quot;</span>
+
+        <span class="c1"># Generate signature</span>
+        <span class="n">digest</span> <span class="o">=</span> <span class="n">hmac</span><span class="o">.</span><span class="n">new</span><span class="p">(</span>
+            <span class="nb">bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">secret_key</span><span class="p">,</span> <span class="s1">&#39;UTF-8&#39;</span><span class="p">),</span>
+            <span class="nb">bytes</span><span class="p">(</span><span class="n">string_to_sign</span><span class="p">,</span> <span class="s1">&#39;UTF-8&#39;</span><span class="p">),</span>
+            <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">()</span>
+        <span class="n">sign</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">standard_b64encode</span><span class="p">(</span><span class="n">digest</span><span class="p">)</span>
+        <span class="n">signature</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">sign</span><span class="p">,</span> <span class="s2">&quot;UTF-8&quot;</span><span class="p">)</span>
+        <span class="n">params</span><span class="p">[</span><span class="s1">&#39;Signature&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">signature</span>
+
+        <span class="n">url</span> <span class="o">=</span> <span class="n">api</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_request_string</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="n">retry</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">retry</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+                <span class="n">retry</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">continue</span>
+            <span class="k">elif</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span> <span class="ow">and</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Ali Cloud REST call failed, Response [</span><span class="si">{}</span><span class="s2">] and message [</span><span class="si">{}</span><span class="s2">] &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="p">),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="AliCloudHelper.get_regions"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudHelper.get_regions">[docs]</a>    <span class="k">def</span> <span class="nf">get_regions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns all the regions available.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            region_list   (list)    -- List of regions in ali cloud</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">regions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_action</span><span class="p">(</span><span class="s2">&quot;DescribeRegions&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">region</span> <span class="ow">in</span> <span class="n">regions</span><span class="p">[</span><span class="s2">&quot;Regions&quot;</span><span class="p">][</span><span class="s2">&quot;Region&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">region_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">region</span><span class="p">[</span><span class="s2">&quot;RegionId&quot;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="AliCloudHelper.get_all_vms_in_hypervisor"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudHelper.get_all_vms_in_hypervisor">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_vms_in_hypervisor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">region_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        gets all vms from all regions in ali cloud.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            region_id   (basestring / list):   regions whose instances are to be obtained</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list of all instances in the regions</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">region_id</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">region_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">regions</span> <span class="o">=</span> <span class="p">[</span><span class="n">region_id</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">region_id</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">regions</span> <span class="o">=</span> <span class="n">region_id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_regions</span><span class="p">()</span>
+            <span class="n">regions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_ids</span>
+        <span class="c1"># self.region_ids = [&#39;ap-southeast-1&#39;, &#39;ap-southeast-2&#39;]</span>
+
+        <span class="k">for</span> <span class="n">region</span> <span class="ow">in</span> <span class="n">regions</span><span class="p">:</span>
+            <span class="n">get_vms</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;RegionId&quot;</span><span class="p">:</span> <span class="n">region</span>
+            <span class="p">}</span>
+            <span class="n">instances</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_action</span><span class="p">(</span><span class="s2">&quot;DescribeInstances&quot;</span><span class="p">,</span> <span class="n">get_vms</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">instance</span> <span class="ow">in</span> <span class="n">instances</span><span class="p">[</span><span class="s2">&quot;Instances&quot;</span><span class="p">][</span><span class="s2">&quot;Instance&quot;</span><span class="p">]:</span>
+                <span class="n">instance_name</span> <span class="o">=</span> <span class="n">instance</span><span class="p">[</span><span class="s2">&quot;InstanceName&quot;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">vm_region_map</span><span class="p">[</span><span class="n">instance_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">region</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">vm_details</span><span class="p">[</span><span class="n">instance_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">instance</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_region_map</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="AliCloudHelper.compute_free_resources"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudHelper.compute_free_resources">[docs]</a>    <span class="k">def</span> <span class="nf">compute_free_resources</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proxy</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute the free resources of the endpoint depending on proxy and source instance</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            proxy   (basestring):   name of the proxy whose region has to be found out</span>
+
+<span class="sd">        Returns:</span>
+
+<span class="sd">            zone    (basestring):   the zone to restore the VMs to</span>
+
+<span class="sd">            vpc     (basestring):   the vpc the restored VMs should be associated with</span>
+
+<span class="sd">            security_groups (basestring):   the security group to be associated to</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if there is an error in computing the resources of the endpoint.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">proxy</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_region_map</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_regions</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_all_vms_in_hypervisor</span><span class="p">()</span>
+            <span class="n">region</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_region_map</span><span class="p">[</span><span class="n">proxy</span><span class="p">]</span>
+
+            <span class="n">get_network</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;RegionId&#39;</span><span class="p">:</span> <span class="n">region</span><span class="p">}</span>
+
+            <span class="n">networks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execute_action</span><span class="p">(</span><span class="s2">&quot;DescribeNetworkInterfaces&quot;</span><span class="p">,</span> <span class="n">get_network</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">network</span> <span class="ow">in</span> <span class="n">networks</span><span class="p">[</span><span class="s1">&#39;NetworkInterfaceSets&#39;</span><span class="p">][</span><span class="s1">&#39;NetworkInterfaceSet&#39;</span><span class="p">]:</span>
+                <span class="n">security_groups</span> <span class="o">=</span> <span class="n">network</span><span class="p">[</span><span class="s1">&#39;SecurityGroupIds&#39;</span><span class="p">][</span><span class="s1">&#39;SecurityGroupId&#39;</span><span class="p">]</span>
+                <span class="n">vpc</span> <span class="o">=</span> <span class="n">network</span><span class="p">[</span><span class="s1">&#39;VSwitchId&#39;</span><span class="p">]</span>
+                <span class="n">zone</span> <span class="o">=</span> <span class="n">network</span><span class="p">[</span><span class="s1">&#39;ZoneId&#39;</span><span class="p">]</span>
+                <span class="k">break</span>
+
+            <span class="k">return</span> <span class="n">zone</span><span class="p">,</span> <span class="n">vpc</span><span class="p">,</span> <span class="n">security_groups</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An exception </span><span class="si">%s</span><span class="s2"> occurred in computing free resources&quot;</span>
+                               <span class="s2">&quot; for restore&quot;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="AliCloudVM"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudVM">[docs]</a><span class="k">class</span> <span class="nc">AliCloudVM</span><span class="p">(</span><span class="n">HypervisorVM</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is the main file for all  Ali Cloud VM operations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># pylint: disable=too-many-instance-attributes</span>
+    <span class="c1"># VM property mandates many attributes.</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hv_obj</span><span class="p">,</span> <span class="n">vm_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            hv_obj   (Object)    -- hypervisor object</span>
+
+<span class="sd">            vm_name   (str)    -- name of the vm</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AliCloudVM</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">hv_obj</span><span class="p">,</span> <span class="n">vm_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span> <span class="o">=</span> <span class="n">hv_obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span> <span class="o">=</span> <span class="n">vm_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_of_cpu</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">memory</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disk_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">region_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">vm_region_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">vm_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">vm_details</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">vm_name</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">guid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">guest_os</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ip</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power_state</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power_status_on</span> <span class="o">=</span> <span class="s2">&quot;Running&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power_status_off</span> <span class="o">=</span> <span class="s2">&quot;Stopped&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance_type</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_vm_info</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_basic_props_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_vm_info</span><span class="p">()</span>
+
+<div class="viewcode-block" id="AliCloudVM.delete_vm"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudVM.delete_vm">[docs]</a>    <span class="k">def</span> <span class="nf">delete_vm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        delete the VM.</span>
+
+<span class="sd">        return:</span>
+<span class="sd">                True - when delete is successful</span>
+
+<span class="sd">                False - when delete failed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">delete_instance</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;RegionId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_id</span><span class="p">,</span>
+            <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">execute_action</span><span class="p">(</span><span class="s2">&quot;DeleteInstance&quot;</span><span class="p">,</span> <span class="n">delete_instance</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="AliCloudVM.power_on"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudVM.power_on">[docs]</a>    <span class="k">def</span> <span class="nf">power_on</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        power on the VM.</span>
+
+<span class="sd">        return:</span>
+<span class="sd">                True - when power on is successful</span>
+
+<span class="sd">        Exception:</span>
+<span class="sd">                When power on failed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">start_instance</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;RegionId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_id</span><span class="p">,</span>
+            <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">execute_action</span><span class="p">(</span><span class="s2">&quot;StartInstance&quot;</span><span class="p">,</span> <span class="n">start_instance</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="AliCloudVM.power_off"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudVM.power_off">[docs]</a>    <span class="k">def</span> <span class="nf">power_off</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        power off the VM.</span>
+
+<span class="sd">        return:</span>
+<span class="sd">                True - when power off is successful</span>
+
+<span class="sd">        Exception:</span>
+<span class="sd">                When power off failed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stop_instance</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span><span class="p">,</span>
+            <span class="s2">&quot;ForceStop&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">execute_action</span><span class="p">(</span><span class="s2">&quot;StopInstance&quot;</span><span class="p">,</span> <span class="n">stop_instance</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="AliCloudVM.update_vm_info"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudVM.update_vm_info">[docs]</a>    <span class="k">def</span> <span class="nf">update_vm_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s1">&#39;Basic&#39;</span><span class="p">,</span> <span class="n">os_info</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">force_update</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Updates vm properties to the current state.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            prop            (basestring):   the type of properties to collect from VM</span>
+
+<span class="sd">                possible values:</span>
+<span class="sd">                    Basic - Collect just the basic properties like GUID, Power state, IP and OS</span>
+<span class="sd">                    All -   Collect all the possible properties of the VM</span>
+
+<span class="sd">            os_info         (bool):         If os information needs to be collected</span>
+
+<span class="sd">            force_update    (bool):         If the properties have to be refreshed again</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if there is an error while updating the VM properties</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_basic_props_initialized</span> <span class="ow">or</span> <span class="n">force_update</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_vm_basic_prop</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_basic_props_initialized</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="n">os_info</span> <span class="ow">or</span> <span class="n">prop</span> <span class="o">==</span> <span class="s1">&#39;All&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_vm_basic_prop</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">vm_guest_os</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">guest_os</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;InstanceType&#39;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">no_of_cpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;Cpu&#39;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">memory</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;Memory&#39;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">security_groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;SecurityGroupIds&#39;</span><span class="p">][</span><span class="s1">&#39;SecurityGroupId&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;VpcAttributes&#39;</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">network</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;VpcAttributes&#39;</span><span class="p">][</span><span class="s1">&#39;VpcId&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span>
+                        <span class="s1">&#39;VpcAttributes&#39;</span><span class="p">][</span><span class="s1">&#39;VSwitchId&#39;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_drive_list</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">prop</span> <span class="o">==</span> <span class="s1">&#39;Basic&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_vm_basic_prop</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;The VM properties has not been obtained yet&quot;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_vm_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all VM Info related to the given VM.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if there is an error while getting the VM information</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;VM information :: Getting all information of VM [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_id</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">get_all_vms_in_hypervisor</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">region_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">vm_region_map</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">vm_details</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span><span class="p">][</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">get_all_vms_in_hypervisor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">region_id</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">vm_details</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span><span class="p">][</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">]</span>
+            <span class="n">vm_info</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;RegionId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">region_id</span><span class="p">,</span>
+                <span class="s2">&quot;InstanceId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span>
+            <span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">ali_url</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;https://ecs.</span><span class="si">{self.region_id}</span><span class="s2">.aliyuncs.com/?&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">execute_action</span><span class="p">(</span><span class="s2">&quot;DescribeInstanceAttribute&quot;</span><span class="p">,</span> <span class="n">vm_info</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception in get_vm_info&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AliCloudVM.get_vm_basic_prop"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.alicloud.AliCloudVM.get_vm_basic_prop">[docs]</a>    <span class="k">def</span> <span class="nf">get_vm_basic_prop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the basic properties of the VM like GUID, PowerState, GuestOS and IP</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if there is an exception with getting the basic properties</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;The VM info has not been obtained yet.&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">guid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s2">&quot;InstanceId&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">power_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s2">&quot;Status&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">guest_os</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ali_cloud</span><span class="o">.</span><span class="n">vm_details</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span><span class="p">][</span><span class="s1">&#39;OSType&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;PublicIpAddress&#39;</span><span class="p">][</span><span class="s1">&#39;IpAddress&#39;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ip</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;PublicIpAddress&#39;</span><span class="p">][</span><span class="s1">&#39;IpAddress&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ip</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;VpcAttributes&#39;</span><span class="p">][</span><span class="s1">&#39;PrivateIpAddress&#39;</span><span class="p">][</span><span class="s1">&#39;IpAddress&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception while getting basic properties of VM&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

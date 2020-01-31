@@ -1,0 +1,439 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Application.LotusNotes.lndmhelper &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Application.LotusNotes.lndmhelper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Application.LotusNotes.lndmhelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;&quot;Helper for Domino Mailbox Archiver automation operations</span>
+
+<span class="sd">    LNDOCHelper:</span>
+<span class="sd">        __init__(testcase)                          --  Initialize the lndmhelper object</span>
+
+<span class="sd">        verify_archive()                            --  Verifies archival for a subclient</span>
+
+<span class="sd">        verify_basic_restores()                     --  Verifies in-place and out-place restores</span>
+
+<span class="sd">        _create_blank_mail_file()                   --  Creates a 0 document mail nsf for restores</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">.cvrest_helper</span> <span class="k">import</span> <span class="n">CVRestHelper</span>
+<span class="kn">from</span> <span class="nn">.csdbhelper</span> <span class="k">import</span> <span class="n">CSDBHelper</span>
+<span class="kn">from</span> <span class="nn">.exception</span> <span class="k">import</span> <span class="n">LNException</span><span class="p">,</span> <span class="n">TimeoutException</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">OUT_PLACE_FOLDER_PATH</span>
+
+
+<div class="viewcode-block" id="LNDMHelper"><a class="viewcode-back" href="../../../source/Application.LotusNotes.html#Application.LotusNotes.lndmhelper.LNDMHelper">[docs]</a><span class="k">class</span> <span class="nc">LNDMHelper</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;&quot;Contains helper functions for LN Agent related automation tasks</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;Initializes the LNDM Helper class object</span>
+
+<span class="sd">                Properties to be initialized:</span>
+<span class="sd">                    tc      (object)    --  testcase object</span>
+
+<span class="sd">                    cvhelp  (object)    --  object of CVRestHelper class</span>
+
+<span class="sd">                    dbhelp  (object)    --  object of CSDBHelper class</span>
+
+<span class="sd">                    log     (object)    --  object of the logger class</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span> <span class="o">=</span> <span class="n">testcase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span> <span class="o">=</span> <span class="n">CVRestHelper</span><span class="p">(</span><span class="n">testcase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dbhelp</span> <span class="o">=</span> <span class="n">CSDBHelper</span><span class="p">(</span><span class="n">testcase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">testcase</span><span class="o">.</span><span class="n">log</span>
+
+<div class="viewcode-block" id="LNDMHelper.verify_archive"><a class="viewcode-back" href="../../../source/Application.LotusNotes.html#Application.LotusNotes.lndmhelper.LNDMHelper.verify_archive">[docs]</a>    <span class="k">def</span> <span class="nf">verify_archive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;Verifies archival for a subclient.</span>
+<span class="sd">        Requires the subclient to be already created</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dbhelp</span><span class="o">.</span><span class="n">fetch_subclient_content</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_backup</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;FULL&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">browse_paths_dictionary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">recursive_browse</span><span class="p">(</span>
+                <span class="n">subclient</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">subclient</span><span class="p">,</span>
+                <span class="n">machine</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">machine</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;dbs_in_subclient:&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;browse paths:&#39;</span><span class="p">)</span>
+            <span class="n">browse_result</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">browse_path</span> <span class="ow">in</span> <span class="n">browse_paths_dictionary</span><span class="p">:</span>
+                <span class="n">browse_result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">browse_paths_dictionary</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">browse_path</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">browse_result</span><span class="p">):</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="n">_</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s1">&#39;WINDOWS&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">os_info</span><span class="p">:</span>
+                    <span class="n">_1_</span><span class="p">,</span> <span class="n">_2_</span> <span class="o">=</span> <span class="n">_</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\u0012</span><span class="s1">&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">_</span> <span class="o">=</span> <span class="n">_1_</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">browse_result</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">_</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">browse_result</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">browse_result</span><span class="p">)</span> <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Browse failed&#39;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">LNException</span><span class="p">(</span><span class="s1">&#39;CVOperation&#39;</span><span class="p">,</span> <span class="s1">&#39;101&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Test Scenario PASSED&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">pass_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="n">TimeoutException</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">pass_count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Browse processor ran indefinately&#39;</span><span class="p">)</span>
+            <span class="k">pass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">remove_restored_dbs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_blank_mail_file</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">common_options_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;unconditionalOverwrite&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_restore</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="LNDMHelper.verify_basic_restores"><a class="viewcode-back" href="../../../source/Application.LotusNotes.html#Application.LotusNotes.lndmhelper.LNDMHelper.verify_basic_restores">[docs]</a>    <span class="k">def</span> <span class="nf">verify_basic_restores</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;Verifies in-place and out-place restores for a subclient.</span>
+<span class="sd">        Requires the subclient to be already created</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dbhelp</span><span class="o">.</span><span class="n">fetch_subclient_content</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">job_ini</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_backup</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;FULL&#39;</span><span class="p">)</span>
+        <span class="n">test_scenarios</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;OUT PLACE RESTORE&#39;</span><span class="p">,</span> <span class="s1">&#39;IN PLACE RESTORE&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">test_scenarios</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********************************************************************&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{step}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********************************************************************&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;**********************COLLECT*DOC*PROPERTIES***********************&#39;</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">collect_doc_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+            <span class="n">src_properties</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">_</span><span class="p">[</span><span class="s1">&#39;documents&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">response</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">remove_restored_dbs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s1">&#39;OUT&#39;</span> <span class="ow">in</span> <span class="n">step</span><span class="p">:</span>
+                    <span class="n">database_name</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{OUT_PLACE_FOLDER_PATH}{self.tc.machine.os_sep}{database}</span><span class="s1">&#39;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">database_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_create_blank_mail_file</span><span class="p">(</span><span class="n">database_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_restore</span><span class="p">(</span><span class="n">type_of_restore</span><span class="o">=</span><span class="n">step</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;**********************COLLECT*DOC*PROPERTIES***********************&#39;</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">collect_doc_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span>
+            <span class="n">cv_properties</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">_</span><span class="p">[</span><span class="s1">&#39;documents&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">response</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">src_properties</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">cv_properties</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">src_properties</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="n">cv_properties</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">LNException</span><span class="p">(</span><span class="s1">&#39;DocProperties&#39;</span><span class="p">,</span> <span class="s1">&#39;101&#39;</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{step}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Test Scenario </span><span class="si">{step}</span><span class="s1"> PASSED&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">remove_restored_dbs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">remove_restored_dbs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">,</span> <span class="s1">&#39;OUT&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_create_blank_mail_file</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_restore</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">job_ini</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="o">=</span><span class="n">job_ini</span><span class="o">.</span><span class="n">end_time</span><span class="p">)</span>
+            <span class="k">del</span> <span class="n">src_properties</span><span class="p">,</span> <span class="n">cv_properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">pass_count</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="LNDMHelper.verify_append"><a class="viewcode-back" href="../../../source/Application.LotusNotes.html#Application.LotusNotes.lndmhelper.LNDMHelper.verify_append">[docs]</a>    <span class="k">def</span> <span class="nf">verify_append</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;Verifies that restore option &#39;Append&#39; works as expected.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dbhelp</span><span class="o">.</span><span class="n">fetch_subclient_content</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">job_ini</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_backup</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;FULL&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">common_options_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;append&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;unconditionalOverwrite&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;**********************COLLECT*DOC*PROPERTIES***********************&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">collect_doc_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">src_properties</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">_</span><span class="p">[</span><span class="s1">&#39;documents&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">response</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">remove_restored_dbs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">:</span>
+            <span class="n">database_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_blank_mail_file</span><span class="p">(</span><span class="n">database_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">return_result_json</span><span class="p">(</span>
+                <span class="s1">&#39;add documents&#39;</span><span class="p">,</span>
+                <span class="n">param</span><span class="o">=</span><span class="p">[</span><span class="n">database</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">os_sep</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">),</span> <span class="s2">&quot;2&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_restore</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;**********************COLLECT*DOC*PROPERTIES***********************&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">collect_doc_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">cv_properties</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">_</span><span class="p">[</span><span class="s1">&#39;documents&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">response</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">src_properties</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">cv_properties</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">src_properties</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="nb">set</span><span class="p">(</span><span class="n">cv_properties</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">LNException</span><span class="p">(</span><span class="s1">&#39;DocProperties&#39;</span><span class="p">,</span> <span class="s1">&#39;102&#39;</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Test Scenario PASSED&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">pass_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">remove_restored_dbs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_blank_mail_file</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_restore</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">job_ini</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="o">=</span><span class="n">job_ini</span><span class="o">.</span><span class="n">end_time</span><span class="p">)</span>
+        <span class="k">del</span> <span class="n">src_properties</span><span class="p">,</span> <span class="n">cv_properties</span></div>
+
+<div class="viewcode-block" id="LNDMHelper.verify_skip"><a class="viewcode-back" href="../../../source/Application.LotusNotes.html#Application.LotusNotes.lndmhelper.LNDMHelper.verify_skip">[docs]</a>    <span class="k">def</span> <span class="nf">verify_skip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;Verifies that restore option &#39;Skip&#39; works as expected.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dbhelp</span><span class="o">.</span><span class="n">fetch_subclient_content</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">job_ini</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_backup</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="s1">&#39;FULL&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">common_options_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;skip&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;unconditionalOverwrite&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;**********************COLLECT*DOC*PROPERTIES***********************&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">collect_doc_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">src_properties</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">_</span><span class="p">[</span><span class="s1">&#39;documents&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">response</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">remove_restored_dbs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">:</span>
+            <span class="n">database_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_blank_mail_file</span><span class="p">(</span><span class="n">database_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_restore</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;**********************COLLECT*DOC*PROPERTIES***********************&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">collect_doc_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">cv_properties</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">_</span><span class="p">[</span><span class="s1">&#39;documents&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">response</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">src_properties</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">cv_properties</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">src_properties</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="n">cv_properties</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">LNException</span><span class="p">(</span><span class="s1">&#39;DocProperties&#39;</span><span class="p">,</span> <span class="s1">&#39;101&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Test Scenario PASSED&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">remove_restored_dbs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_blank_mail_file</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_restore</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">job_ini</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="o">=</span><span class="n">job_ini</span><span class="o">.</span><span class="n">end_time</span><span class="p">)</span>
+        <span class="k">del</span> <span class="n">src_properties</span><span class="p">,</span> <span class="n">cv_properties</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">pass_count</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="LNDMHelper.deleted_subclient"><a class="viewcode-back" href="../../../source/Application.LotusNotes.html#Application.LotusNotes.lndmhelper.LNDMHelper.deleted_subclient">[docs]</a>    <span class="k">def</span> <span class="nf">deleted_subclient</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;Verifies data protection for a deleted subclient.</span>
+<span class="sd">        Need to create the subclient manually again after this test scenario deletes it.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">doc_count_src</span><span class="p">,</span> <span class="n">doc_count_cv</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dbhelp</span><span class="o">.</span><span class="n">fetch_subclient_content</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">collect_doc_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">doc_count_src</span> <span class="o">=</span> <span class="n">doc_count_src</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">_</span><span class="p">[</span><span class="s1">&#39;documents&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">response</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">run_backup</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">remove_restored_dbs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">,</span> <span class="s1">&#39;in&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">database</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">:</span>
+            <span class="n">database_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">database</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_create_blank_mail_file</span><span class="p">(</span><span class="n">database_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">delete</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">backupset</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">end_time</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;****************COLLECT*DOC*PROPERTIES********************&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">collect_doc_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">dbs_in_subclient</span><span class="p">)</span>
+        <span class="n">doc_count_cv</span> <span class="o">=</span> <span class="n">doc_count_cv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">_</span><span class="p">[</span><span class="s1">&#39;documents&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">response</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">doc_count_src</span> <span class="o">==</span> <span class="n">doc_count_cv</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tc</span><span class="o">.</span><span class="n">pass_count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Able to restore user defined subclient version&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Unable to restore user defined subclient version&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="n">f</span><span class="s1">&#39;Source: </span><span class="si">{doc_count_src}</span><span class="s1"> CV: </span><span class="si">{doc_count_cv}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_create_blank_mail_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;Creates a 0 document mail nsf for restores</span>
+
+<span class="sd">                Args:</span>
+<span class="sd">                    database_name       (str)       --  Name by which database has to be created</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">restore_jstring</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;key&quot;</span><span class="p">:</span>
+                <span class="p">[{</span>
+                    <span class="s2">&quot;template&quot;</span><span class="p">:</span> <span class="s2">&quot;mail9.ntf&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;numdb&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;numdocs&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;numlogs&quot;</span><span class="p">:</span> <span class="s2">&quot;null&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;dbname&quot;</span><span class="p">:</span> <span class="n">database_name</span><span class="p">,</span>
+                    <span class="s2">&quot;trlog&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;del&quot;</span><span class="p">:</span> <span class="s2">&quot;false&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;incremental&quot;</span><span class="p">:</span> <span class="s2">&quot;false&quot;</span>
+                <span class="p">}]</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvhelp</span><span class="o">.</span><span class="n">return_result_json</span><span class="p">(</span><span class="s1">&#39;data populator&#39;</span><span class="p">,</span> <span class="n">jstring</span><span class="o">=</span><span class="n">restore_jstring</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

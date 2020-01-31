@@ -1,0 +1,445 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Install.sim_call_helper &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>Install.sim_call_helper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Install.sim_call_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Helper file for performing install operations</span>
+
+<span class="sd">SimCallHelper is the only class defined in this file</span>
+
+<span class="sd">SimCallHelper: Helper class to perform Install operations</span>
+
+<span class="sd">SimCallHelper:</span>
+
+<span class="sd">    generate_xml()          -- To generate xml for simCall and store it in the given path</span>
+
+<span class="sd">    execute_sim_call()      -- To generate the XML for the sim call operation and execute the sim call</span>
+
+<span class="sd">    install_new_client()    -- To install a new client on the commcell machine</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="k">as</span> <span class="nn">ET</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.logger</span> <span class="k">import</span> <span class="n">get_log</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="k">import</span> <span class="n">OptionsSelector</span>
+<span class="kn">from</span> <span class="nn">Install.InstallUtils.installer_constants</span> <span class="k">import</span> <span class="p">(</span><span class="n">CLIENT_USERNAME</span><span class="p">,</span> <span class="n">CLIENT_PASSWORD</span><span class="p">,</span> <span class="n">SIM_USER</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SimCallHelper"><a class="viewcode-back" href="../../source/Install.html#Install.sim_call_helper.SimCallHelper">[docs]</a><span class="k">class</span> <span class="nc">SimCallHelper</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper file for Sim call to perform install operations</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the SimCallHelper object</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            commcell    (object)    -- object of commcell class</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">temp_dir</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">TEMP_DIR</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_install_directory</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_client</span><span class="o">.</span><span class="n">install_directory</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">controller_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_client</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SimCallHelper.generate_xml"><a class="viewcode-back" href="../../source/Install.html#Install.sim_call_helper.SimCallHelper.generate_xml">[docs]</a>    <span class="k">def</span> <span class="nf">generate_xml</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">commserv_hostname</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">client_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">client_hostname</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">auth_code</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        To generate the XML for the sim call operation</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path                    (str)       -- Full path to generate the XML file</span>
+
+<span class="sd">            commserv_hostname       (str)       -- Full hostname of the commserv machine</span>
+
+<span class="sd">            client_name             (str)       -- Name of the client to be created</span>
+
+<span class="sd">            client_hostname         (str)       -- Full hostname of the client machine</span>
+
+<span class="sd">            username                (str)       -- Username for the commcell</span>
+
+<span class="sd">            password                (str)       -- Encrypted password for the commcell machine</span>
+
+<span class="sd">            auth_code               (str)       -- Organization authcode to be used for installation</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">xml</span> <span class="o">=</span> <span class="n">fr</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            &lt;CVInstallManager_ClientSetup Focus=&quot;Instance001&quot; Operationtype=&quot;0&quot; RemoteClient=&quot;1&quot; requestType=&quot;1&quot;&gt;</span>
+<span class="s2">               &lt;CommServeInfo&gt;</span>
+<span class="s2">                  &lt;CommserveHostInfo _type_=&quot;3&quot; clientName=&quot;&quot; hostName=&quot;</span><span class="si">{commserv_hostname}</span><span class="s2">&quot; /&gt;</span>
+<span class="s2">               &lt;/CommServeInfo&gt;</span>
+<span class="s2">               &lt;ClientAuthentication AuthenticationEnabled=&quot;1&quot; DomainConfigured=&quot;0&quot; PrincipalName=&quot;&quot;</span>
+<span class="s2">                ProviderID=&quot;1&quot; SSOEnabled=&quot;0&quot;&gt;</span>
+<span class="s2">                  &lt;userAccountToLogin domainName=&quot;&quot; password=&quot;{password or CLIENT_PASSWORD}&quot;</span>
+<span class="s2">                   userName=&quot;{username or CLIENT_USERNAME}&quot; /&gt;</span>
+<span class="s2">               &lt;/ClientAuthentication&gt;</span>
+<span class="s2">               &lt;clientComposition activateClient=&quot;1&quot; packageDeliveryOption=&quot;0&quot;&gt;</span>
+<span class="s2">                  &lt;clientInfo&gt;</span>
+<span class="s2">                     &lt;client clientPassword=&quot;{password or CLIENT_PASSWORD}&quot;</span>
+<span class="s2">                      cvdPort=&quot;8400&quot; installDirectory=&quot;C:\Program Files\Commvault\ContentStore&quot;&gt;</span>
+<span class="s2">                        &lt;clientEntity _type_=&quot;3&quot; clientName=&quot;</span><span class="si">{client_name}</span><span class="s2">&quot; hostName=&quot;</span><span class="si">{client_hostname}</span><span class="s2">&quot; /&gt;</span>
+<span class="s2">                        &lt;osInfo PlatformType=&quot;X64&quot; SubType=&quot;Server&quot; Type=&quot;Windows&quot; Version=&quot;6.2&quot;&gt;</span>
+<span class="s2">                           &lt;OsDisplayInfo OSBuild=&quot;9200&quot; OSName=&quot;Windows Server 2012 R2 Datacenter&quot;</span>
+<span class="s2">                            ProcessorType=&quot;WinX64&quot; /&gt;</span>
+<span class="s2">                        &lt;/osInfo&gt;</span>
+<span class="s2">                        &lt;jobResulsDir path=&quot;C:\Program Files\Commvault\ContentStore\iDataAgent\JobResults&quot; /&gt;</span>
+<span class="s2">                        &lt;versionInfo GalaxyBuildNumber=&quot;BUILD80&quot;&gt;</span>
+<span class="s2">                           &lt;GalaxyRelease ReleaseString=&quot;11.0&quot; _type_=&quot;58&quot; /&gt;</span>
+<span class="s2">                        &lt;/versionInfo&gt;</span>
+<span class="s2">                     &lt;/client&gt;</span>
+<span class="s2">                     &lt;clientProps BinarySetID=&quot;3&quot; ClientInterface=&quot;&quot;</span>
+<span class="s2">                      byteOrder=&quot;Little-endian&quot; /&gt;</span>
+<span class="s2">                  &lt;/clientInfo&gt;</span>
+<span class="s2">                  &lt;components&gt;</span>
+<span class="s2">                     &lt;componentInfo ComponentId=&quot;1&quot; ComponentName=&quot;File System Core&quot; _type_=&quot;60&quot; clientSidePackage=&quot;1&quot;</span>
+<span class="s2">                      consumeLicense=&quot;1&quot; /&gt;</span>
+<span class="s2">                     &lt;commonInfo&gt;</span>
+<span class="s2">                        &lt;storagePolicyToUse _type_=&quot;17&quot; storagePolicyId=&quot;1&quot; storagePolicyName=&quot;CV_DEFAULT&quot; /&gt;</span>
+<span class="s2">                     &lt;/commonInfo&gt;</span>
+<span class="s2">                  &lt;/components&gt;</span>
+<span class="s2">                  &lt;patchInformation friendlyName=&quot;&quot; spVersion=&quot;</span><span class="si">{self.commcell.commserv_version}</span><span class="s2">&quot;&gt;</span>
+<span class="s2">                     &lt;packagePatches pkgId=&quot;1&quot;/&gt;</span>
+<span class="s2">                  &lt;/patchInformation&gt;</span>
+<span class="s2">               &lt;/clientComposition&gt;</span>
+<span class="s2">               &lt;installFlags activateAllUserProfiles=&quot;0&quot; /&gt;</span>
+<span class="s2">                &lt;organizationProperties/&gt;</span>
+<span class="s2">            &lt;/CVInstallManager_ClientSetup&gt;</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+
+        <span class="n">xml</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">xml</span><span class="p">)</span>
+
+        <span class="c1"># To convert to an ElementTree</span>
+        <span class="n">xml_tree</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">ElementTree</span><span class="p">(</span><span class="n">xml</span><span class="p">)</span>
+
+        <span class="c1"># To set Authcode if given</span>
+        <span class="k">if</span> <span class="n">auth_code</span><span class="p">:</span>
+            <span class="n">xml_tree</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;organizationProperties&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;authCode&#39;</span><span class="p">,</span> <span class="n">auth_code</span><span class="p">)</span>
+
+        <span class="c1"># To store it in the given path</span>
+        <span class="n">xml_tree</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SimCallHelper.execute_sim_call"><a class="viewcode-back" href="../../source/Install.html#Install.sim_call_helper.SimCallHelper.execute_sim_call">[docs]</a>    <span class="k">def</span> <span class="nf">execute_sim_call</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">input_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">output_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        To generate the XML for the sim call operation and execute the sim call</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_path              (str)       -- Full path to generate the XML file</span>
+
+<span class="sd">            output_path             (str)       -- Full path to store the response</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception</span>
+
+<span class="sd">                If sim call failed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sim_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_install_directory</span><span class="p">,</span>
+                                                   <span class="s1">&#39;Base&#39;</span><span class="p">,</span>
+                                                   <span class="s1">&#39;SIMCallWrapper.exe&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Command to execute simcall</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&amp;&quot;</span><span class="si">{sim_path}</span><span class="s1">&quot; -enc </span><span class="si">{SIM_USER}</span><span class="s1"> -input &quot;</span><span class="si">{input_path}</span><span class="s1">&quot; -output &quot;</span><span class="si">{output_path}</span><span class="s1">&quot;&#39;</span>
+
+        <span class="c1"># To execute the command on the controller machine</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+
+        <span class="c1"># To read the output file for error level</span>
+        <span class="n">file_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s1">&#39;SimCallWrapper completed&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">formatted_output</span> <span class="ow">and</span> <span class="s1">&#39;ErrorCode=&quot;0&quot;&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">file_output</span><span class="p">:</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;&lt;(.*)SimError (.*?)/&gt;&#39;</span><span class="p">,</span> <span class="n">file_output</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">I</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;SimError: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">error</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;SimError: {error.group(2)}&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SimCallHelper.install_new_client"><a class="viewcode-back" href="../../source/Install.html#Install.sim_call_helper.SimCallHelper.install_new_client">[docs]</a>    <span class="k">def</span> <span class="nf">install_new_client</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">client_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">client_hostname</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">auth_code</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        To install a new client on the commcell machine</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            client_name     (str)   -- Name of the client to be created</span>
+
+<span class="sd">            client_hostname (str)   -- Hostname of the client machine</span>
+
+<span class="sd">            auth_code       (str)   -- Organization authcode to be used for installation</span>
+
+<span class="sd">            username        (str)   -- Username to install the new client</span>
+
+<span class="sd">            password        (str)   -- Password to be used to install the new client</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (str,str)     -- (clientname, hostname)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">client_name</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">client_hostname</span><span class="p">:</span>
+            <span class="c1"># To get a randomly generated client name and hostname</span>
+            <span class="n">client_name</span> <span class="o">=</span> <span class="n">client_hostname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">get_custom_str</span><span class="p">(</span><span class="s1">&#39;client&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;client name: &quot;</span><span class="si">%s</span><span class="s1">&quot; </span><span class="se">\n</span><span class="s1"> client hostname: &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">client_hostname</span><span class="p">)</span>
+
+        <span class="c1"># To create temp directory in Automation folder if not present on controller machine</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temp_dir</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">controller_machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temp_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully created temporary directory for Automation on controller machine&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Path to save the generated xml file on the controller machine</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;{self.controller_machine.join_path(self.temp_dir, &#39;Simcall.xml&#39;)}&quot;</span>
+
+        <span class="c1"># To generate xml for sim call</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generate_xml</span><span class="p">(</span>
+            <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span>
+            <span class="n">commserv_hostname</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_hostname</span><span class="p">,</span>
+            <span class="n">client_name</span><span class="o">=</span><span class="n">client_name</span><span class="p">,</span>
+            <span class="n">client_hostname</span><span class="o">=</span><span class="n">client_hostname</span><span class="p">,</span>
+            <span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span>
+            <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">,</span>
+            <span class="n">auth_code</span><span class="o">=</span><span class="n">auth_code</span><span class="p">)</span>
+
+        <span class="c1"># To generate input path for the sim call</span>
+        <span class="n">input_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_install_directory</span><span class="p">,</span> <span class="s1">&#39;Temp&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Input path for the Sim call: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">input_path</span><span class="p">)</span>
+
+        <span class="c1"># To copy the xml file form the controller machine to the commcell machine</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span><span class="o">.</span><span class="n">copy_from_local</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">input_path</span><span class="p">)</span>
+
+        <span class="c1"># Full Path of the input path</span>
+        <span class="n">input_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">input_path</span><span class="p">,</span> <span class="s1">&#39;Simcall.xml&#39;</span><span class="p">)</span>
+
+        <span class="c1"># To generate output path for the sim call</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_install_directory</span><span class="p">,</span>
+                                                      <span class="s1">&#39;Temp&#39;</span><span class="p">,</span>
+                                                      <span class="s1">&#39;Simcall_output.xml&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Output path for the Sim call: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">output_path</span><span class="p">)</span>
+
+        <span class="c1"># To use sim call to install a new client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execute_sim_call</span><span class="p">(</span><span class="n">input_path</span><span class="o">=</span><span class="n">input_path</span><span class="p">,</span> <span class="n">output_path</span><span class="o">=</span><span class="n">output_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully installed Client: </span><span class="si">%s</span><span class="s1"> on Commserv: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span>
+                      <span class="n">client_name</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">)</span>
+
+        <span class="c1"># To delete the xml file from the controller machine</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">controller_machine</span><span class="o">.</span><span class="n">delete_file</span><span class="p">(</span>
+            <span class="n">f</span><span class="s2">&quot;{self.controller_machine.join_path(self.temp_dir, &#39;Simcall.xml&#39;)}&quot;</span><span class="p">)</span>
+
+        <span class="c1"># To delete the input path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span><span class="o">.</span><span class="n">delete_file</span><span class="p">(</span><span class="n">input_path</span><span class="p">)</span>
+
+        <span class="c1"># To delete the output path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_machine</span><span class="o">.</span><span class="n">delete_file</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">client_hostname</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

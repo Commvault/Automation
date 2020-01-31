@@ -1,0 +1,770 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>AutomationUtils.cvtestset &mdash; Commvault Automation 11.18 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>AutomationUtils.cvtestset</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for AutomationUtils.cvtestset</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Base Class for all CV Testsets</span>
+
+<span class="sd">CVTestset is the only class defined in this class</span>
+
+<span class="sd">CVTestset: Base Class for executing Testsets.</span>
+
+<span class="sd">CVTestset:</span>
+<span class="sd">    __init__()                  --  initialize basic objects of a Testset</span>
+
+<span class="sd">    populate_testcase_queue()   --  add all testcase(s) into the queue for a specific testset</span>
+
+<span class="sd">    _testcase_processor()       --  thread worker which operates on the testcase queue</span>
+
+<span class="sd">    start_testcase_threads()    --  starts worker threads which will populate the queue</span>
+
+<span class="sd">    _update_qa()                --  updates the test case run status to the QA Center</span>
+
+<span class="sd">    convert_json()              --  converts workflow JSON to testset based JSON</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Queue</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">current_thread</span>
+
+<span class="kn">import</span> <span class="nn">socket</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils.engweb_operations</span> <span class="k">import</span> <span class="n">EngWeb</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="k">import</span> <span class="n">CVTestCase</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">commonutils</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">defines</span> <span class="k">as</span> <span class="n">A_DEF</span>
+
+
+<div class="viewcode-block" id="CVTestset"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.cvtestset.CVTestset">[docs]</a><span class="k">class</span> <span class="nc">CVTestset</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Base class for all the Testset(s)&quot;&quot;&quot;</span>
+    <span class="n">STATUS</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">constants</span><span class="o">.</span><span class="n">PASSED</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">constants</span><span class="o">.</span><span class="n">SKIPPED</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testsetNode</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">CVAutomation</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize the Testset class object&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">CVAutomation</span><span class="o">.</span><span class="n">_log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodeInfo</span> <span class="o">=</span> <span class="n">testsetNode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_product</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_applicable_os</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_appVer</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_addProp</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_autocenter_tsid</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_controller_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tsid_status</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcThreadCount</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodeInfo</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_CONFIG_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_THREAD_COUNT_KEY</span><span class="p">,</span> <span class="n">A_DEF</span><span class="o">.</span><span class="n">DEFAULT_TC_THREADS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcUpdateQA</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodeInfo</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_CONFIG_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_UPDATEQA_KEY</span><span class="p">,</span> <span class="n">A_DEF</span><span class="o">.</span><span class="n">TC_UPDATE_QA</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testcaseQ</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">testcaseNode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodeInfo</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_INPUT_KEY</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span> <span class="o">=</span> <span class="n">CVAutomation</span>
+
+        <span class="c1"># Set the parameters from the JSON</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">product</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodeInfo</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_PRODUCT_NAME</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodeInfo</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_OS_TYPE</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">appVer</span> <span class="o">=</span> <span class="n">testsetNode</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_APP_VER</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">addProp</span> <span class="o">=</span> <span class="n">testsetNode</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_ADD_PROP</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">autocenter_tsid</span> <span class="o">=</span> <span class="n">testsetNode</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_ID</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">controller_id</span> <span class="o">=</span> <span class="n">testsetNode</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_CONTROLLER_ID</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_test_case_results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+
+<div class="viewcode-block" id="CVTestset.populate_testcase_queue"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.cvtestset.CVTestset.populate_testcase_queue">[docs]</a>    <span class="k">def</span> <span class="nf">populate_testcase_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads all testcase(s) in the input JSON and</span>
+<span class="sd">            places it into the testcase queue for this testset.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check if this testcase needs to be filtered.</span>
+        <span class="n">tcFilter</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="p">,</span> <span class="n">A_DEF</span><span class="o">.</span><span class="n">TESTCASE_LIST</span><span class="p">,</span> <span class="p">[])]</span>
+
+        <span class="k">for</span> <span class="n">testcase</span><span class="p">,</span> <span class="n">testcaseInfo</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcaseNode</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tcFilter</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">testcase</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tcFilter</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="n">f</span><span class="s2">&quot;Testcase [</span><span class="si">{testcase}</span><span class="s2">] was not selected for execution, skipping it!&quot;</span>
+                    <span class="p">)</span>
+                    <span class="k">continue</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Queuing testcase [</span><span class="si">{testcase}</span><span class="s2">] for testset [</span><span class="si">{self.name}</span><span class="s2">].&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">testcaseQ</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">testcase</span><span class="p">,</span> <span class="n">testcaseInfo</span><span class="p">),</span> <span class="n">block</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_testcase_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threadID</span><span class="p">,</span> <span class="n">q</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This is a worker thread which runs the actual testcase(s) in the testset.</span>
+<span class="sd">            It waits until something has been added into the queue.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                threadID    (str)       --  The unique ID of this thread.</span>
+
+<span class="sd">                    Example: 87b858b4-fa2c-11e7-8579-005056840332</span>
+
+<span class="sd">                q           (Queue)     --  The queue which all threads are operating on.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                tcID (str) - id of the testcase being run</span>
+
+<span class="sd">                tcinputs (OrderedDict) - the testcase inputs from the input JSON file.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="n">tcID</span><span class="p">,</span> <span class="n">tcinputs</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing testcase [</span><span class="si">{0}</span><span class="s2">] in testset [</span><span class="si">{1}</span><span class="s2">].&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tcID</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+            <span class="c1"># Set the current thread to the current testcase ID.</span>
+            <span class="n">current_thread</span><span class="p">()</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">tcID</span><span class="p">)</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Load up the requested testcase object.</span>
+
+                <span class="c1"># We must take control of the global lock</span>
+                <span class="c1"># to avoid any race condition while searching for the module.</span>
+
+                <span class="c1"># This becomes an issue when running the same testcase</span>
+                <span class="c1"># at the same time in multiple testset threads.</span>
+
+                <span class="c1"># When the testcase class is found, it&#39;s added to sys.modules.</span>
+                <span class="c1"># You must use the sys.modules if it</span>
+
+                <span class="c1"># Acquiring the lock prevents that race condition and allows finding to work.</span>
+
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+                    <span class="c1"># test_case is an instance of the TestCase class by tcID.</span>
+                    <span class="n">test_case</span> <span class="o">=</span> <span class="n">CVTestCase</span><span class="o">.</span><span class="n">loadTestcaseObject</span><span class="p">(</span><span class="n">tcID</span><span class="p">)</span>
+
+                <span class="c1"># Set some properties on the testcase.</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">tcID</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">commcell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">_commcell</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">log_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">_log_dir</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">csdb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">_csdb</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">tsName</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">inputJSONnode</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_COMMCELL_INPUT_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="p">,</span> <span class="n">A_DEF</span><span class="o">.</span><span class="n">COMMCELL_NODE</span><span class="p">)</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">jobID</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">jobID</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">update_qa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcUpdateQA</span>
+
+                <span class="c1"># Validate if all the required testcase inputs are specified</span>
+                <span class="k">for</span> <span class="n">tc_input</span> <span class="ow">in</span> <span class="n">test_case</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">tc_input</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tcinputs</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                            <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> is a required input for </span><span class="si">{1}</span><span class="s1"> test case. Please add it.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">tc_input</span><span class="p">,</span> <span class="n">tcID</span><span class="p">)</span>
+                        <span class="p">)</span>
+
+                <span class="n">test_case</span><span class="o">.</span><span class="n">tcinputs</span> <span class="o">=</span> <span class="n">tcinputs</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">autocenter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="s1">&#39;skipIfTCIDfailed&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodeInfo</span><span class="p">:</span>
+                        <span class="n">skipIfTCIDfailed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodeInfo</span><span class="p">[</span><span class="s1">&#39;skipIfTCIDfailed&#39;</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">skipIfTCIDfailed</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_test_case_results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="k">for</span> <span class="n">skipIDIterItem</span> <span class="ow">in</span> <span class="n">skipIfTCIDfailed</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">):</span>
+                                <span class="k">for</span> <span class="n">iterItem</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_case_results</span><span class="p">:</span>
+                                    <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;status&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">iterItem</span><span class="p">))</span> <span class="ow">and</span> <span class="p">(</span>
+                                            <span class="nb">str</span><span class="p">(</span><span class="n">skipIDIterItem</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="n">iterItem</span><span class="p">[</span><span class="s1">&#39;testcaseId&#39;</span><span class="p">])</span>
+                                            <span class="ow">and</span> <span class="n">iterItem</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">CVTestset</span><span class="o">.</span><span class="n">STATUS</span><span class="p">[</span><span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span><span class="p">]):</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                                            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">[TestSet : &quot;</span> <span class="o">+</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span>
+                                            <span class="s2">&quot; ; TestCase : &quot;</span> <span class="o">+</span>
+                                            <span class="n">tcID</span> <span class="o">+</span>
+                                            <span class="s2">&quot; ] = SKIPPED because test case &quot;</span> <span class="o">+</span>
+                                            <span class="nb">str</span><span class="p">(</span><span class="n">skipIDIterItem</span><span class="p">)</span> <span class="o">+</span>
+                                            <span class="s2">&quot; failed and ANSWERS_JSON_FILE_require skipIfTCIDfailed to be set</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                                        <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">SKIPPED</span>
+                    <span class="k">if</span> <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">constants</span><span class="o">.</span><span class="n">SKIPPED</span><span class="p">:</span>
+                        <span class="kn">from</span> <span class="nn">Autocenter</span> <span class="k">import</span> <span class="n">defines</span> <span class="k">as</span> <span class="n">ac_define</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">updatetc_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">autocenter_tsid</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span>
+                            <span class="n">test_case</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller_id</span><span class="p">,</span> <span class="n">ac_define</span><span class="o">.</span><span class="n">AC_RUNNING</span><span class="p">)</span>  <span class="c1"># Status 3=Running\Active</span>
+                        <span class="n">monitor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">monitortc_runtime</span><span class="p">(</span>
+                            <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">autocenter_tsid</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">test_case</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller_id</span><span class="p">)</span>
+                        <span class="k">with</span> <span class="n">monitor</span><span class="p">:</span>
+                            <span class="n">test_case</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+                        <span class="c1"># Launch the testcase</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">_update_test_results</span><span class="p">(</span>
+                    <span class="n">tcID</span><span class="p">,</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">result_string</span><span class="p">,</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ClientName&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">tsName</span>
+                <span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_case_results</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s2">&quot;testcaseId&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">tcID</span><span class="p">),</span>
+                    <span class="s2">&quot;summary&quot;</span><span class="p">:</span> <span class="n">test_case</span><span class="o">.</span><span class="n">result_string</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s2">&quot;&#39;&#39;&quot;</span><span class="p">),</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">CVTestset</span><span class="o">.</span><span class="n">STATUS</span><span class="p">[</span><span class="n">test_case</span><span class="o">.</span><span class="n">status</span><span class="p">]</span>
+                <span class="p">})</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">autocenter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span> <span class="ow">or</span> <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">constants</span><span class="o">.</span><span class="n">SKIPPED</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">tsid_status</span> <span class="o">=</span> <span class="n">ac_define</span><span class="o">.</span><span class="n">AC_FAIL</span>
+                    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">tsid_status</span> <span class="o">!=</span> <span class="n">ac_define</span><span class="o">.</span><span class="n">AC_FAIL</span> <span class="ow">and</span> <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">constants</span><span class="o">.</span><span class="n">PASSED</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">tsid_status</span> <span class="o">=</span> <span class="n">ac_define</span><span class="o">.</span><span class="n">AC_PASS</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">tsid_status</span> <span class="o">=</span> <span class="n">ac_define</span><span class="o">.</span><span class="n">AC_FAIL</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Testcase [</span><span class="si">{0}</span><span class="s2">] in testset [</span><span class="si">{1}</span><span class="s2">] [</span><span class="si">{2}</span><span class="s2">].&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">tcID</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">test_case</span><span class="o">.</span><span class="n">status</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+                <span class="c1"># This is not a testcase exception, this is exception launching.</span>
+                <span class="n">error_message</span> <span class="o">=</span> <span class="s2">&quot;Failed to run testcase with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">_update_test_results</span><span class="p">(</span>
+                    <span class="n">tcID</span><span class="p">,</span>
+                    <span class="n">constants</span><span class="o">.</span><span class="n">NO_REASON</span><span class="p">,</span>
+                    <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span><span class="p">,</span>
+                    <span class="n">error_message</span><span class="p">,</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ClientName&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">tsName</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_case_results</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s2">&quot;testcaseId&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">tcID</span><span class="p">),</span>
+                    <span class="s2">&quot;summary&quot;</span><span class="p">:</span> <span class="n">error_message</span><span class="p">,</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">CVTestset</span><span class="o">.</span><span class="n">STATUS</span><span class="p">[</span><span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span><span class="p">]</span>
+                <span class="p">})</span>
+
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_update_qa</span><span class="p">(</span>
+                    <span class="n">test_case</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">autocenter_tsid</span><span class="p">,</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">controller_id</span><span class="p">)</span>
+
+            <span class="c1"># We have finished processing 1 testcase in this testset.</span>
+            <span class="c1"># Erase the testcase name from the thread to avoid confusion.</span>
+            <span class="n">current_thread</span><span class="p">()</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">q</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+
+<div class="viewcode-block" id="CVTestset.start_testcase_threads"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.cvtestset.CVTestset.start_testcase_threads">[docs]</a>    <span class="k">def</span> <span class="nf">start_testcase_threads</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Starts n number of worker threads to process testcase(s).</span>
+<span class="sd">            Creates 1 queue for all testcases in the testset.</span>
+
+<span class="sd">            The threads will all operate on the same queue to execute a testcase.</span>
+
+<span class="sd">            _testcase_processor method handles the testcase execution.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">{0}</span><span class="s2">] testcase execution thread(s) starting for testset[</span><span class="si">{1}</span><span class="s2">]. &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcThreadCount</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+        <span class="c1"># Create 1 testcase queue for each and every testset.</span>
+        <span class="n">tcQueue</span> <span class="o">=</span> <span class="n">Queue</span><span class="p">()</span>
+        <span class="n">commonutils</span><span class="o">.</span><span class="n">threadLauncher</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tcThreadCount</span><span class="p">,</span> <span class="n">tcQueue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcase_processor</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">testcaseQ</span> <span class="o">=</span> <span class="n">tcQueue</span></div>
+
+    <span class="k">def</span> <span class="nf">_update_qa</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_case</span><span class="p">,</span> <span class="n">ts_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">controller_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the status of the Test Case run to the Quality Assurance Center (QA).</span>
+
+<span class="sd">            Gets the verison and service pack installed on the CommServ.</span>
+
+<span class="sd">            CVTestset Attributes:</span>
+
+<span class="sd">                product                 --  product / agent the test case belongs to</span>
+
+<span class="sd">                applicable_os           --  OS type, the test case is written for</span>
+
+<span class="sd">                application_version     --  version of the application the test case is written for</span>
+
+<span class="sd">                additional_properties   --  additional properties for the test case, if any</span>
+
+<span class="sd">            Product is a required attribute. Other attributes are optional.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                test_case   (object)    --  instance of the TestCase class</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if the test case is marked as SKIPPED</span>
+
+<span class="sd">                    if failed to update QA with the test case run status</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">autocenter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">Autocenter</span> <span class="k">import</span> <span class="n">defines</span> <span class="k">as</span> <span class="n">ac_define</span>
+                <span class="k">if</span> <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span> <span class="ow">or</span> <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">constants</span><span class="o">.</span><span class="n">SKIPPED</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">updatetc_status</span><span class="p">(</span>
+                        <span class="n">ts_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span>
+                            <span class="n">test_case</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="n">controller_id</span><span class="p">,</span> <span class="n">ac_define</span><span class="o">.</span><span class="n">AC_FAIL</span><span class="p">)</span>  <span class="c1"># Status 2=Failed</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">upload_runlog</span><span class="p">(</span>
+                        <span class="n">ts_id</span><span class="p">,</span> <span class="n">test_case</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">log_dir</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">updatetc_status</span><span class="p">(</span>
+                        <span class="n">ts_id</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span>
+                            <span class="n">test_case</span><span class="o">.</span><span class="n">id</span><span class="p">),</span> <span class="n">controller_id</span><span class="p">,</span> <span class="n">ac_define</span><span class="o">.</span><span class="n">AC_PASS</span><span class="p">)</span>  <span class="c1"># Status 1=Passed</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcUpdateQA</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Updating QA&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Not Updating QA&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="n">engweb</span> <span class="o">=</span> <span class="n">EngWeb</span><span class="p">()</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1"># test = vars(test_case)</span>
+
+            <span class="k">if</span> <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;PASSED&#39;</span><span class="p">:</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">elif</span> <span class="n">test_case</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;FAILED&#39;</span><span class="p">:</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Test Case marked as SKIPPED. Not updating the QA DB.&#39;</span><span class="p">)</span>
+
+            <span class="c1"># getting the IP address for the controller machine using the FQDN raises error</span>
+            <span class="c1"># while getting the addr info for machines that are not part of a domain, but are</span>
+            <span class="c1"># present only in the WORKGROUP</span>
+            <span class="c1"># we should use the hostname for such machines to get the IP Address</span>
+            <span class="n">controller</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">controller</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostbyname</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">getfqdn</span><span class="p">())</span>
+            <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">gaierror</span><span class="p">:</span>
+                <span class="n">controller</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostbyname</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">())</span>
+
+            <span class="n">test_case_run_comments</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            Automation Controller: </span><span class="si">{0}</span><span class="s2"></span>
+<span class="s2">            CommServ Name: </span><span class="si">{1}</span><span class="s2"></span>
+<span class="s2">            Web Console: </span><span class="si">{2}</span><span class="s2"></span>
+<span class="s2">            CommServ Version: </span><span class="si">{3}</span><span class="s2"></span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">controller</span><span class="p">,</span>
+                <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span> <span class="s1">&#39;commserv_name&#39;</span><span class="p">,</span> <span class="s1">&#39;None&#39;</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;commcell&#39;</span><span class="p">][</span><span class="s1">&#39;webconsoleHostname&#39;</span><span class="p">],</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">commserv_version</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Test Set Name: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Test Case ID: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">test_case</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Test Case Status: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Comments: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">test_case_run_comments</span><span class="p">)</span>
+
+            <span class="n">engweb</span><span class="o">.</span><span class="n">update_qa</span><span class="p">(</span>
+                <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CVAutomation</span><span class="o">.</span><span class="n">commserv_version</span><span class="p">)</span> <span class="o">+</span>
+                <span class="s2">&quot;_&quot;</span> <span class="o">+</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">test_case</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                <span class="n">status</span><span class="p">,</span>
+                <span class="n">test_case_run_comments</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to Update QA with test case status&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s1">&#39;Error: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">excp</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CVTestset.convert_json"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.cvtestset.CVTestset.convert_json">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">convert_json</span><span class="p">(</span><span class="n">jsonInput</span><span class="p">,</span> <span class="n">tcFilter</span><span class="o">=</span><span class="p">[],</span> <span class="n">tsFilter</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="sd">&quot;&quot;&quot;This takes the GUI / Workflow formated input JSON, reads, analyzes,</span>
+<span class="sd">            and converts to a &#39;dummy&#39; testset format, making necessary modifications.</span>
+
+<span class="sd">            If either tcFilter or tsFilter are specified, first we remove the testcase(s),</span>
+<span class="sd">            then if tsFilter is specified, we ignore any testset(s).</span>
+
+<span class="sd">            If tsFilter is specified without tcFilter,</span>
+<span class="sd">            then those testset(s) are run in their entirety.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                jsonInput   (OrderedDict)   --  json input string received from the workflow</span>
+<span class="sd">                that launches automation.</span>
+
+<span class="sd">                tcFilter    (list)          --  list of specific testcase(s) to run,</span>
+<span class="sd">                ignoring anything else in the input.</span>
+
+<span class="sd">                tsFilter    (list)          --  list of specific testset(s) to run,</span>
+<span class="sd">                ignoring anything else in the input.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                OrderedDict     -   the newly formated json output OrderedDict.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">getLog</span><span class="p">()</span>
+            <span class="n">tcInfo</span> <span class="o">=</span> <span class="n">jsonInput</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_INFO_KEY</span><span class="p">)</span>
+            <span class="n">jsonOutput</span> <span class="o">=</span> <span class="n">jsonInput</span>
+
+            <span class="c1"># Check if we are working on specific testcase(s)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tcFilter</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;A testcase filter was selected, only running following testcase(s):&quot;</span> <span class="o">+</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">linesep</span> <span class="o">+</span>
+                    <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tcFilter</span><span class="p">))</span>
+                <span class="n">checkTC</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">checkTC</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="c1"># Check if we are working on specific testset(s)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tsFilter</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;A testset filter was selected, only running following testset(s):&quot;</span> <span class="o">+</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">linesep</span> <span class="o">+</span>
+                    <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tsFilter</span><span class="p">))</span>
+                <span class="n">checkTS</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">checkTS</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="c1"># Add the testset config key, for now just the number of threads</span>
+            <span class="n">jsonOutput</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTSET_CONFIG_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_THREAD_COUNT_KEY</span><span class="p">:</span> <span class="n">A_DEF</span><span class="o">.</span><span class="n">DEFAULT_TS_THREADS</span>
+            <span class="p">}</span>
+
+            <span class="n">dummyTestsets</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">tc</span><span class="p">,</span> <span class="n">inputs</span> <span class="ow">in</span> <span class="n">tcInfo</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_INPUT_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">checkTC</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">tc</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tcFilter</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                            <span class="n">f</span><span class="s2">&quot;Testcase [</span><span class="si">{tc}</span><span class="s2">] was not selected for execution, skipping it!&quot;</span>
+                        <span class="p">)</span>
+                        <span class="k">continue</span>
+
+                <span class="c1"># Load the testcase object</span>
+                <span class="n">test_case</span> <span class="o">=</span> <span class="n">CVTestCase</span><span class="o">.</span><span class="n">loadTestcaseObject</span><span class="p">(</span><span class="n">tc</span><span class="p">)</span>
+
+                <span class="sd">&quot;&quot;&quot;Setup the testset dummy node, using the properties set inside of the CVTestCase.</span>
+<span class="sd">                    This name is used to update QA</span>
+<span class="sd">                    This name is important, it&#39;s format is PRODUCT_OS_APPLICATION_PROPERTY.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+                <span class="n">tsName</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_</span><span class="si">{1}</span><span class="s2">_</span><span class="si">{2}</span><span class="s2">_</span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">product</span><span class="p">,</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">applicable_os</span><span class="p">,</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">appVer</span><span class="p">,</span>
+                    <span class="n">test_case</span><span class="o">.</span><span class="n">addProp</span><span class="p">)</span>
+
+                <span class="c1"># Product AND OS are always set, remove the optional items from tsName</span>
+                <span class="n">tsName</span> <span class="o">=</span> <span class="n">tsName</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                    <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_ADD_PROP_NOTSET</span><span class="p">,</span> <span class="s2">&quot;&quot;</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                    <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_APP_VER_NOTSET</span><span class="p">,</span> <span class="s2">&quot;&quot;</span>
+                <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">checkTS</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">tsName</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">tsFilter</span><span class="p">]:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                            <span class="n">f</span><span class="s2">&quot;Testset [</span><span class="si">{tsName}</span><span class="s2">] was not selected for execution, skipping it!&quot;</span>
+                        <span class="p">)</span>
+                        <span class="k">continue</span>
+
+                <span class="n">dummyTestsets</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">tsName</span><span class="p">,</span> <span class="p">{</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_PRODUCT_NAME</span><span class="p">:</span> <span class="n">test_case</span><span class="o">.</span><span class="n">product</span><span class="p">})</span>
+
+                <span class="n">dummyTestsets</span><span class="p">[</span><span class="n">tsName</span><span class="p">][</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_OS_TYPE</span><span class="p">]</span> <span class="o">=</span> <span class="n">test_case</span><span class="o">.</span><span class="n">applicable_os</span>
+                <span class="n">dummyTestsets</span><span class="p">[</span><span class="n">tsName</span><span class="p">][</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_APP_VER</span><span class="p">]</span> <span class="o">=</span> <span class="n">test_case</span><span class="o">.</span><span class="n">appVer</span>
+                <span class="n">dummyTestsets</span><span class="p">[</span><span class="n">tsName</span><span class="p">][</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">TS_ADD_PROP</span><span class="p">]</span> <span class="o">=</span> <span class="n">test_case</span><span class="o">.</span><span class="n">addProp</span>
+
+                <span class="c1"># Set the testcase config.</span>
+                <span class="n">dummyTestsets</span><span class="p">[</span><span class="n">tsName</span><span class="p">][</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_CONFIG_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_UPDATEQA_KEY</span><span class="p">:</span> <span class="n">tcInfo</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_UPDATEQA_KEY</span><span class="p">],</span>
+                    <span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_THREAD_COUNT_KEY</span><span class="p">:</span> <span class="n">A_DEF</span><span class="o">.</span><span class="n">DEFAULT_TC_THREADS</span>
+                <span class="p">}</span>
+
+                <span class="c1"># Get the testcases dictionary from the testset OR create if it does not exist</span>
+                <span class="n">tcDict</span> <span class="o">=</span> <span class="n">dummyTestsets</span><span class="p">[</span><span class="n">tsName</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_INPUT_KEY</span><span class="p">,</span> <span class="p">{})</span>
+                <span class="n">tcDict</span><span class="p">[</span><span class="n">tc</span><span class="p">]</span> <span class="o">=</span> <span class="n">inputs</span>
+
+                <span class="c1"># If parallel execution is set to True, set testcase threads to number of</span>
+                <span class="c1"># cases per this testset.</span>
+                <span class="k">if</span> <span class="n">tcInfo</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_PARALLEL</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                    <span class="n">dummyTestsets</span><span class="p">[</span><span class="n">tsName</span><span class="p">][</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_CONFIG_KEY</span><span class="p">][</span>
+                        <span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_THREAD_COUNT_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">tcDict</span><span class="p">)</span>
+
+                <span class="n">dummyTestsets</span><span class="p">[</span><span class="n">tsName</span><span class="p">][</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTCASE_INPUT_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">tcDict</span>
+
+            <span class="n">jsonOutput</span><span class="p">[</span><span class="n">A_DEF</span><span class="o">.</span><span class="n">JSON_TESTSET_INPUT_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">dummyTestsets</span>
+
+            <span class="k">return</span> <span class="n">jsonOutput</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">err</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">testcaseQ</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the testcase queue for this testset&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcaseQ</span>
+
+    <span class="nd">@testcaseQ</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">testcaseQ</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the testcase queue for this testset&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testcaseQ</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of this test case.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span>
+
+    <span class="nd">@name</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the name of this test case.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">product</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the quality center product name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_product</span>
+
+    <span class="nd">@product</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">product</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">product_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the quality center product name.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_product</span> <span class="o">=</span> <span class="n">product_name</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">applicable_os</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the applicable operating system for this testset.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_applicable_os</span>
+
+    <span class="nd">@applicable_os</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">applicable_os</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">os_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the applicable operating systems for this testset.</span>
+<span class="sd">            Default value: self.os_list.WINDOWS</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_applicable_os</span> <span class="o">=</span> <span class="n">os_name</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">appVer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the quality center application version name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_appVer</span>
+
+    <span class="nd">@appVer</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">appVer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">appVer</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the quality center application version name.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_appVer</span> <span class="o">=</span> <span class="n">appVer</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">addProp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the quality center additional property name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_addProp</span>
+
+    <span class="nd">@addProp</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">addProp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">propName</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the quality center additional property name.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_addProp</span> <span class="o">=</span> <span class="n">propName</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">autocenter_tsid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the quality center additional property name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_autocenter_tsid</span>
+
+    <span class="nd">@autocenter_tsid</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">autocenter_tsid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tsid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the quality center additional property name.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_autocenter_tsid</span> <span class="o">=</span> <span class="n">tsid</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">controller_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the autocenter controller id&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_controller_id</span>
+
+    <span class="nd">@controller_id</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">controller_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">controllerid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the the autocenter controller id.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_controller_id</span> <span class="o">=</span> <span class="n">controllerid</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tsid_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the quality center additional property name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tsid_status</span>
+
+    <span class="nd">@tsid_status</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">tsid_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the quality center additional property name.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tsid_status</span> <span class="o">=</span> <span class="n">status</span>
+
+<div class="viewcode-block" id="CVTestset.get_test_case_details"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.cvtestset.CVTestset.get_test_case_details">[docs]</a>    <span class="k">def</span> <span class="nf">get_test_case_details</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns test case results&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_case_results</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
