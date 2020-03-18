@@ -1,0 +1,565 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Server.Alerts.alert_helper &mdash; Commvault Automation 11.19 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Server.Alerts.alert_helper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Server.Alerts.alert_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Main file for performing alert related operations for creation, mail parsing, cleanup of alerts.</span>
+
+<span class="sd">AlertHelper and AlertSituations are 2 classes defined in this file</span>
+
+<span class="sd">AlertHelper : Class containing utilities for various Alert Generation, Parsing Capabilities</span>
+<span class="sd">AlertSituations : Class containing functions to trigger various alert situations</span>
+
+<span class="sd">AlertHelper :</span>
+<span class="sd">    __init__() : Initializes the logger object</span>
+
+<span class="sd">    initialize_mailbox() : Initializes the mailbox object that will be used for parsing the mail and</span>
+<span class="sd">    checking for alert notification</span>
+
+<span class="sd">    get_alert_details() : Returns the alert dictionary format required by get_alert_json() in Alerts class</span>
+
+<span class="sd">    create_alert() : Creates the alert from the given alert data</span>
+
+<span class="sd">    read_alert_notification() : Parses through the mail body and checks if the Alert notification mail has been received</span>
+
+<span class="sd">    get_sender() : Yields the name of the Alert notification sender</span>
+
+<span class="sd">    create_alert_situation() : Creates the situation to trigger an alert of the created type</span>
+
+<span class="sd">    cleanup() : Performs cleanup for all the objects defined in this class</span>
+
+<span class="sd">AlertSituations:</span>
+<span class="sd">    __init__() : Initializes the logger object</span>
+
+<span class="sd">    backup_job() : Runs a backup job on a given subclient</span>
+
+<span class="sd">    backup_generated_data() : Generates test data and runs a backup job on generated data</span>
+
+<span class="sd">    job_management_data_protection() : Creates alert situation for a Job management data protection alert</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">string</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="k">import</span> <span class="n">OptionsSelector</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.mail_box</span> <span class="k">import</span> <span class="n">MailBox</span><span class="p">,</span> <span class="n">EmailSearchFilter</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">constants</span>
+
+
+<div class="viewcode-block" id="AlertHelper"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper">[docs]</a><span class="k">class</span> <span class="nc">AlertHelper</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for Alert Creation and other operations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alert_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alert_obj</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                commcell_object (object)  --  instance of the Commcell class</span>
+<span class="sd">                category (string) - Category of the alert to be created</span>
+<span class="sd">                alert_type (string) - Type of the alert to be created</span>
+<span class="sd">                alert_obj(obj) - existing alert&#39;s object for using existing alert.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object - instance of the AlertHelper class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alerts_commcell</span> <span class="o">=</span> <span class="n">commcell_object</span><span class="o">.</span><span class="n">alerts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span> <span class="o">=</span> <span class="n">commcell_object</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">alert_obj</span> <span class="ow">or</span> <span class="p">(</span><span class="n">category</span> <span class="ow">and</span> <span class="n">alert_type</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Either alert object or category&amp;type has to be provided&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">alert_obj</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span> <span class="o">=</span> <span class="n">alert_obj</span><span class="o">.</span><span class="n">alert_category</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span> <span class="o">=</span> <span class="n">alert_obj</span><span class="o">.</span><span class="n">alert_type</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alert_name</span> <span class="o">=</span> <span class="n">alert_obj</span><span class="o">.</span><span class="n">alert_name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span> <span class="o">=</span> <span class="n">alert_type</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span> <span class="o">=</span> <span class="n">category</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alert_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">search_filter</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span> <span class="s1">&#39;3&#39;</span><span class="p">,</span> <span class="s1">&#39;4&#39;</span><span class="p">,</span> <span class="s1">&#39;5&#39;</span><span class="p">,</span> <span class="s1">&#39;7&#39;</span><span class="p">,</span> <span class="s1">&#39;8&#39;</span><span class="p">,</span> <span class="s1">&#39;10&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;11&#39;</span><span class="p">,</span> <span class="s1">&#39;12&#39;</span><span class="p">,</span> <span class="s1">&#39;13&#39;</span><span class="p">,</span> <span class="s1">&#39;14&#39;</span><span class="p">,</span> <span class="s1">&#39;16&#39;</span><span class="p">,</span> <span class="s1">&#39;17&#39;</span><span class="p">,</span> <span class="s1">&#39;18&#39;</span><span class="p">,</span> <span class="s1">&#39;19&#39;</span><span class="p">,</span> <span class="s1">&#39;20&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;21&#39;</span><span class="p">,</span> <span class="s1">&#39;22&#39;</span><span class="p">,</span> <span class="s1">&#39;26&#39;</span><span class="p">,</span> <span class="s1">&#39;27&#39;</span><span class="p">,</span> <span class="s1">&#39;28&#39;</span><span class="p">,</span> <span class="s1">&#39;29&#39;</span><span class="p">,</span> <span class="s1">&#39;30&#39;</span><span class="p">,</span> <span class="s1">&#39;31&#39;</span><span class="p">,</span> <span class="s1">&#39;32&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;38&#39;</span><span class="p">,</span> <span class="s1">&#39;39&#39;</span><span class="p">,</span> <span class="s1">&#39;46&#39;</span><span class="p">,</span> <span class="s1">&#39;47&#39;</span><span class="p">,</span> <span class="s1">&#39;51&#39;</span><span class="p">,</span> <span class="s1">&#39;52&#39;</span><span class="p">,</span> <span class="s1">&#39;53&#39;</span><span class="p">,</span> <span class="s1">&#39;54&#39;</span><span class="p">,</span> <span class="s1">&#39;55&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;57&#39;</span><span class="p">,</span> <span class="s1">&#39;58&#39;</span><span class="p">,</span> <span class="s1">&#39;60&#39;</span><span class="p">,</span> <span class="s1">&#39;63&#39;</span><span class="p">,</span> <span class="s1">&#39;65&#39;</span><span class="p">,</span> <span class="s1">&#39;66&#39;</span><span class="p">,</span> <span class="s1">&#39;67&#39;</span><span class="p">,</span> <span class="s1">&#39;68&#39;</span><span class="p">,</span> <span class="s1">&#39;69&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;70&#39;</span><span class="p">,</span> <span class="s1">&#39;71&#39;</span><span class="p">,</span> <span class="s1">&#39;72&#39;</span><span class="p">,</span> <span class="s1">&#39;73&#39;</span><span class="p">,</span> <span class="s1">&#39;74&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="AlertHelper.initialize_mailbox"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.initialize_mailbox">[docs]</a>    <span class="k">def</span> <span class="nf">initialize_mailbox</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize mailbox object.</span>
+<span class="sd">           Initializes mailbox object with search parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initializing Mailbox Object&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span> <span class="o">=</span> <span class="n">MailBox</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+            <span class="c1"># Creating a search filter for the given subject</span>
+            <span class="n">subject</span> <span class="o">=</span> <span class="s1">&#39;Alert: </span><span class="si">{0}</span><span class="s1"> Type: </span><span class="si">{1}</span><span class="s1"> - </span><span class="si">{2}</span><span class="s1">   &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_name</span><span class="p">,</span>
+                                                             <span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span><span class="p">,</span>
+                                                             <span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">search_filter</span> <span class="o">=</span> <span class="n">EmailSearchFilter</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">)</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">search_filter</span><span class="o">.</span><span class="n">set_mail_sent_on</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">day</span><span class="p">,</span> <span class="n">current</span><span class="o">.</span><span class="n">month</span><span class="p">,</span> <span class="n">current</span><span class="o">.</span><span class="n">year</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">search_filter</span><span class="o">.</span><span class="n">set_sender_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_sender</span><span class="p">())</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Mailbox Initialization Failed&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AlertHelper.get_alert_details"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.get_alert_details">[docs]</a>    <span class="k">def</span> <span class="nf">get_alert_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">notif_type</span><span class="p">,</span> <span class="n">entities</span><span class="p">,</span> <span class="n">users</span><span class="p">,</span> <span class="n">criteria</span><span class="p">,</span> <span class="n">mail_recipent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">params_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates dictionary of given alert details</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                name (string)  --  Name of the alert</span>
+<span class="sd">                notif_type (list) - List of notification types to keep for the alert</span>
+<span class="sd">                entities (dict) - Entities associated with the alert</span>
+
+<span class="sd">                example dictionary :</span>
+<span class="sd">                    entities={&#39;clients&#39;: self.tcinputs[&#39;ClientName&#39;]}</span>
+
+<span class="sd">                users (list) - Users associated with the alert</span>
+<span class="sd">                criteria (int) - Criteria for the alert</span>
+<span class="sd">                mail_recipent (string) - Extra mail recipents to receive the alert notification</span>
+<span class="sd">                params_list (list) - Extra params list if required by the given criteria</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dictionary - Alert data required to create an alert</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">alert_details</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;alert_type&quot;</span><span class="p">:</span> <span class="n">constants</span><span class="o">.</span><span class="n">ALERT_CATEGORY_TYPE</span><span class="p">[</span><span class="n">string</span><span class="o">.</span><span class="n">capwords</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">string</span><span class="o">.</span><span class="n">capwords</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span><span class="p">)),</span>
+            <span class="s2">&quot;notif_type&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">constants</span><span class="o">.</span><span class="n">ALERT_NOTIFICATIONS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">capwords</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">notif_type</span><span class="p">],</span>
+            <span class="s2">&quot;notifTypeListOperationType&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">&quot;alert_severity&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">&quot;nonGalaxyUserOperationType&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">&quot;criteria&quot;</span><span class="p">:</span> <span class="n">criteria</span><span class="p">,</span>
+            <span class="s2">&quot;associationOperationType&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">&quot;entities&quot;</span><span class="p">:</span> <span class="n">entities</span><span class="p">,</span>
+            <span class="s2">&quot;userListOperationType&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">&quot;users&quot;</span><span class="p">:</span> <span class="n">users</span><span class="p">,</span>
+            <span class="s2">&quot;alert_name&quot;</span><span class="p">:</span> <span class="n">name</span>
+        <span class="p">}</span>
+        <span class="c1"># Params list may be needed for some criteria types</span>
+        <span class="c1"># Check if the criteria being passed requires a params List</span>
+
+        <span class="k">if</span> <span class="n">params_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">criteria</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params_list</span><span class="p">:</span>
+            <span class="n">alert_details</span><span class="p">[</span><span class="s2">&quot;paramsList&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">params_list</span>
+
+        <span class="k">if</span> <span class="n">mail_recipent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">alert_details</span><span class="p">[</span><span class="s2">&quot;nonGalaxyList&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;nonGalaxyUserList&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;nonGalaxyUser&quot;</span><span class="p">:</span> <span class="n">mail_recipent</span><span class="p">}]}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">alert_details</span> <span class="o">=</span> <span class="n">alert_details</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alert_name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">return</span> <span class="n">alert_details</span></div>
+
+<div class="viewcode-block" id="AlertHelper.create_alert"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.create_alert">[docs]</a>    <span class="k">def</span> <span class="nf">create_alert</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an alert from given alert data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alerts_commcell</span><span class="o">.</span><span class="n">create_alert</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_details</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Alert Creation Successful&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Alert Could not be created!&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AlertHelper.check_if_alert_mail_received"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.check_if_alert_mail_received">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_alert_mail_received</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">short_interval</span><span class="p">,</span> <span class="n">patterns</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads through mailbox to check if notification was received</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                short_interval (int)  -  Short time interval to wait for alert notification (in seconds)</span>
+<span class="sd">                patterns (list) - List containing of patterns to search for in the mail</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">max_attempts</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="n">attempt</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">got_alert_email</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Wait till Alert Notification is received&#39;</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="p">(</span><span class="n">attempt</span> <span class="o">&lt;=</span> <span class="n">max_attempts</span><span class="p">):</span>
+            <span class="c1"># Search for the generated mail</span>
+            <span class="c1"># Get Mail UIDS</span>
+            <span class="n">filtered</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span><span class="o">.</span><span class="n">_get_mail_uid_list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">search_filter</span><span class="p">,</span> <span class="n">mail_folder</span><span class="o">=</span><span class="s1">&#39;INBOX&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Attempt [</span><span class="si">%s</span><span class="s1">] Searching for mail &#39;</span><span class="p">,</span> <span class="n">attempt</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">filtered</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;No Alert mail was found. List contains 0 matching mails&#39;</span><span class="p">)</span>
+                <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">short_interval</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">uid_generated</span> <span class="o">=</span> <span class="n">filtered</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># This is the First uid and we use this to check for mail confirmation</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">got_alert_email</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span><span class="o">.</span><span class="n">check_if_mail_body_contains</span><span class="p">(</span><span class="n">mail_uid</span><span class="o">=</span><span class="n">uid_generated</span><span class="p">,</span>
+                                                                      <span class="n">pattern_list</span><span class="o">=</span><span class="n">patterns</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="n">got_alert_email</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Received Alert notification&quot;</span><span class="p">)</span>
+                        <span class="k">break</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">email_err</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Encountered an error while fetching alert : </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">email_err</span><span class="p">)))</span>
+
+        <span class="c1"># Check if Alert notification was received or not</span>
+        <span class="k">if</span> <span class="n">got_alert_email</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No alert mail was received&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Didn&#39;t receive Alert notification&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AlertHelper.get_sender"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.get_sender">[docs]</a>    <span class="k">def</span> <span class="nf">get_sender</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                string - Sender name for the alert notification mail</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">alerts_commcell</span><span class="o">.</span><span class="n">get_alert_sender</span><span class="p">()</span></div>
+
+    <span class="c1"># Validation Class</span>
+<div class="viewcode-block" id="AlertHelper.create_alert_situation"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.create_alert_situation">[docs]</a>    <span class="k">def</span> <span class="nf">create_alert_situation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create situation to trigger the alert</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                **kwargs (dict)  --  Arguments vary on situation being triggered</span>
+
+<span class="sd">            Check the alert situations function to see what all is expected in **kwargs</span>
+<span class="sd">            NOTE : For different situations the kwargs would vary</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (dict) - Creates the alert situation to trigger the alert based on the alert type and category</span>
+<span class="sd">                Returns the cache dictionary from the triggered situation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Create AlertSituation object</span>
+        <span class="n">situation_obj</span> <span class="o">=</span> <span class="n">AlertSituations</span><span class="p">(</span><span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="p">)</span>
+        <span class="n">category_type</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span><span class="p">)</span>
+        <span class="n">situation_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">alert_situations</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="p">(</span><span class="s1">&#39;Job Management&#39;</span><span class="p">,</span> <span class="s1">&#39;Data Protection&#39;</span><span class="p">):</span> <span class="n">situation_obj</span><span class="o">.</span><span class="n">job_management_data_protection</span>
+        <span class="p">}</span>
+        <span class="n">alert_situation</span> <span class="o">=</span> <span class="n">alert_situations</span><span class="p">[</span><span class="n">category_type</span><span class="p">]</span>
+        <span class="c1"># Call the alert situation function</span>
+        <span class="n">cache</span> <span class="o">=</span> <span class="n">alert_situation</span><span class="p">(</span><span class="n">situation_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cache</span></div>
+
+<div class="viewcode-block" id="AlertHelper.cleanup"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs cleanup specific to alerts, notification parsing objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Alert Cleanup</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting the Alert&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alerts_commcell</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_details</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;alert_name&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Alert deleted successfully&quot;</span><span class="p">)</span>
+        <span class="c1"># Mailbox Cleanup</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Disconnecting Mailbox&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="AlertSituations"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertSituations">[docs]</a><span class="k">class</span> <span class="nc">AlertSituations</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class  which contains all Alert triggering situation functions</span>
+
+<span class="sd">    Define different functions corresponding to different situations here</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                commcell_object (object)  --  instance of the Commcell class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span> <span class="o">=</span> <span class="n">commcell_object</span>
+
+    <span class="c1"># FUNCTIONS FOR VARIOUS CASES ARE DEFINED BELOW</span>
+<div class="viewcode-block" id="AlertSituations.backup_job"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertSituations.backup_job">[docs]</a>    <span class="k">def</span> <span class="nf">backup_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">situation_params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                situation_params (dict)  - Dictionary containing paramaters needed to trigger the alert situation</span>
+
+<span class="sd">            Expected situation_params dictionary :</span>
+<span class="sd">            {</span>
+<span class="sd">                &#39;Client&#39; : client (object),</span>
+<span class="sd">                &#39;Subclient&#39; : subclient (object),</span>
+<span class="sd">                &#39;BackupType&#39; : backuptype (string),</span>
+<span class="sd">                &#39;Size&#39; : size of data to generate (in kB) (int)</span>
+<span class="sd">            }</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Runs a backup job on the given subclient, returns the Cache</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Backup Phase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Starting Backup Phase&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Create Machine Class object&#39;</span><span class="p">)</span>
+
+        <span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="o">=</span><span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;Client&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span>
+                                 <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Read subclient content&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Subclient Content : </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;Subclient&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Starting Subclient </span><span class="si">{0}</span><span class="s1"> Backup&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">center</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">))</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;Subclient&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Started </span><span class="si">%s</span><span class="s1"> backup with Job ID : </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to run </span><span class="si">{0}</span><span class="s1"> backup job with error </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">],</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">cache</span><span class="p">[</span><span class="s1">&#39;job_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="n">cache</span><span class="p">[</span><span class="s1">&#39;client_machine&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">client_machine</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully finished </span><span class="si">%s</span><span class="s1"> backup job&#39;</span><span class="p">,</span> <span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">cache</span></div>
+
+<div class="viewcode-block" id="AlertSituations.backup_generated_data"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertSituations.backup_generated_data">[docs]</a>    <span class="k">def</span> <span class="nf">backup_generated_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">situation_params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                situation_params (dict)  - Dictionary containing paramaters needed to trigger the alert situation</span>
+
+<span class="sd">            Expected Params dictionary :</span>
+<span class="sd">            {</span>
+<span class="sd">                &#39;Client&#39; : client (object),</span>
+<span class="sd">                &#39;Subclient&#39; : subclient (object),</span>
+<span class="sd">                &#39;BackupType&#39; : backuptype (string),</span>
+<span class="sd">                &#39;Size&#39; : size of data to generate (in kB) (int)</span>
+<span class="sd">            }</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Generates test data, runs a backup job on the generated data, returns the Cache</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">options_selector</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="p">)</span>
+
+        <span class="c1"># Backup Phase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Starting Backup Phase&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Create Machine Class object&#39;</span><span class="p">)</span>
+
+        <span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="o">=</span><span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;Client&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span>
+                                 <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Read subclient content&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Subclient Content : </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;Subclient&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+        <span class="n">drive</span> <span class="o">=</span> <span class="n">options_selector</span><span class="o">.</span><span class="n">get_drive</span><span class="p">(</span><span class="n">client_machine</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">drive</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;No free space to genereate test data&quot;</span><span class="p">)</span>
+        <span class="n">test_data_path</span> <span class="o">=</span> <span class="n">drive</span> <span class="o">+</span> <span class="s1">&#39;TestData&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Add test data path to subclient content&#39;</span><span class="p">)</span>
+        <span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;Subclient&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="p">[</span><span class="n">test_data_path</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Generating test data at </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">test_data_path</span><span class="p">)</span>
+        <span class="n">client_machine</span><span class="o">.</span><span class="n">generate_test_data</span><span class="p">(</span><span class="n">test_data_path</span><span class="p">,</span> <span class="n">file_size</span><span class="o">=</span><span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;Size&#39;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;*&#39;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s1">&#39;Starting Subclient </span><span class="si">{0}</span><span class="s1"> Backup&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">])</span> <span class="o">+</span> <span class="s1">&#39;*&#39;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;Subclient&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Started </span><span class="si">%s</span><span class="s1"> backup with Job ID : </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s1">&#39;Failed to run </span><span class="si">{0}</span><span class="s1"> backup job with error </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">],</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">cache</span><span class="p">[</span><span class="s1">&#39;job_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="n">cache</span><span class="p">[</span><span class="s1">&#39;client_machine&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">client_machine</span>
+        <span class="n">cache</span><span class="p">[</span><span class="s1">&#39;test_data_path&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">test_data_path</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully finished </span><span class="si">%s</span><span class="s1"> backup job&#39;</span><span class="p">,</span> <span class="n">situation_params</span><span class="p">[</span><span class="s1">&#39;BackupType&#39;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">cache</span></div>
+
+<div class="viewcode-block" id="AlertSituations.job_management_data_protection"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertSituations.job_management_data_protection">[docs]</a>    <span class="k">def</span> <span class="nf">job_management_data_protection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">situation_params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                situation_params (dict)  -  Dictionary containing paramaters needed to trigger the alert situation</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dict - Returns the cache from the backup job</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cache</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backup_generated_data</span><span class="p">(</span><span class="n">situation_params</span><span class="o">=</span><span class="n">situation_params</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">cache</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

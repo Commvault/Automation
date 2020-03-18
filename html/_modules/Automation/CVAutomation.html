@@ -1,0 +1,1019 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Automation.CVAutomation &mdash; Commvault Automation 11.19 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>Automation.CVAutomation</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Automation.CVAutomation</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sa">r</span><span class="sd">&quot;&quot;&quot;Main controller file for Running Commvault Automation.</span>
+
+<span class="sd">This file handles the initialization of Automation, including:</span>
+
+<span class="sd">    a.  initalizing logger objects</span>
+
+<span class="sd">    b.  establishing connection to the commcell, via REST API, using Developer SDK - Python</span>
+
+<span class="sd">    c.  reading, and loading the input JSON</span>
+
+<span class="sd">    d.  get the version and service pack installed on the CommServ</span>
+
+<span class="sd">    e.  parsing through the list of all test cases to be ran</span>
+
+<span class="sd">    f.  executing the test case via organization into test sets by product\os\application\etc.</span>
+
+<span class="sd">    g.  processing the test case output</span>
+
+<span class="sd">    h.  updating test case status to DB</span>
+
+<span class="sd">    i.  updating test case status to QA</span>
+
+<span class="sd">    j.  generating email content with test case status</span>
+
+<span class="sd">    k.  disconnecting from the commcell</span>
+
+<span class="sd">    l.  ...etc...</span>
+
+
+
+<span class="sd">CVAutomation is the only class defined in this file, which handles the Automation Run for the</span>
+<span class="sd">given input JSON.  It operates as a producer\consumer Queue where threads are started and waiting</span>
+<span class="sd">for items to enter the queue.</span>
+
+
+<span class="sd">CVAutomation:</span>
+
+<span class="sd">    __init__()                  --  initialize instance of the CVAutoamtion class,</span>
+<span class="sd">    and the class attributes</span>
+
+<span class="sd">    _read_args()                --  reads the Command Line Args</span>
+
+<span class="sd">    _read_input_file()          --  reads the input json file and returns dict</span>
+
+<span class="sd">    _initialize_logger()        --  initializes CVAutomation logger object</span>
+
+<span class="sd">    _login_to_webconsole()      --  establishes a connection to the webconsole, and performs login</span>
+<span class="sd">    operation using the credentials provided</span>
+
+<span class="sd">    _get_commserv_version()     --  gets the version and service pack installed on the CommServ</span>
+
+<span class="sd">    _testset_thread_processor() --  the thread function that processes a testset</span>
+
+<span class="sd">    setup()                     --  sets up objects needed for the entire run of automation,</span>
+<span class="sd">    like commcell and csdb.</span>
+
+<span class="sd">    _start_testset_threads()    --  will start all of the threads to process a testset based on the</span>
+<span class="sd">    config in json input or default in defines.  These threads pull CVTestset objects</span>
+<span class="sd">    off CVAutomation.queue.</span>
+
+<span class="sd">    _populate_testset_queue()   --  for every testset in json input, create CVTestset object and</span>
+<span class="sd">    push into the queue which holds all testset objects, a testset thread will pull</span>
+<span class="sd">    items off the queue and process them.</span>
+
+<span class="sd">    _run_testsets_threaded()    --   starts the testset threads, populates the queue, and waits for</span>
+<span class="sd">    queue to empty</span>
+
+<span class="sd">    _update_test_results()      --  updates the test set results to local variable</span>
+
+<span class="sd">    _get_html_report()          --  returns the HTML Report</span>
+
+<span class="sd">    _send_mail()                --  sends an email to specified receivers</span>
+
+<span class="sd">    _update_results_to_db()     -- Updates the test case results to the DB</span>
+
+<span class="sd">    execute()                   --  executes the cvautomation</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">OrderedDict</span><span class="p">,</span>
+    <span class="n">defaultdict</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Queue</span>
+
+<span class="kn">from</span> <span class="nn">cvpysdk.commcell</span> <span class="k">import</span> <span class="n">Commcell</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">database_helper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">cvtestset</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">defines</span> <span class="k">as</span> <span class="n">AUTOMATION_DEFINES</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">commonutils</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.mailer</span> <span class="k">import</span> <span class="n">Mailer</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.htmlgenerator</span> <span class="k">import</span> <span class="n">HTMLReportGenerator</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="k">import</span> <span class="n">CommServDatabase</span>
+
+
+<div class="viewcode-block" id="CVAutomation"><a class="viewcode-back" href="../../source/Automation.html#Automation.CVAutomation.CVAutomation">[docs]</a><span class="k">class</span> <span class="nc">CVAutomation</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Main controller class for running Commvault Automation.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize instance of the CVAutomation class.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_test_set_results</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_automation_results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log_dir</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_test_cases_dir</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_headers</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commserv_version</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ts_queue</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_input_file</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_controller</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">_read_args</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_json</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads the Command Line arguments if the input json is not given,</span>
+<span class="sd">            or set to default value None.</span>
+
+<span class="sd">            If the input json is given in the method args, then loads that JSON into the</span>
+<span class="sd">            _inputs dict.</span>
+
+<span class="sd">            Otherwise, reads the command line args for the input JSON, and loads that.</span>
+
+<span class="sd">            Ability to give a specific testcase OR testcases to run from command line.</span>
+<span class="sd">            If inputJSON is also specified, only the specified testcase(s)</span>
+<span class="sd">            from that input json are executed.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                input_json  (str)   --  path of the JSON input file to load</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            TODO:</span>
+<span class="sd">                If --tc is supplied with no input json,</span>
+<span class="sd">                we will attempt to ask for the inputs on command line.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">input_json</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+                <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Commvault Test Automation&quot;</span><span class="p">,</span>
+                <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawTextHelpFormatter</span>
+            <span class="p">)</span>
+
+            <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+                <span class="s1">&#39;--inputJSON&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;-json&#39;</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;input_file&#39;</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Input JSON file path&#39;</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="kc">None</span>
+            <span class="p">)</span>
+
+            <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+                <span class="s1">&#39;-tc&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;--testcase&#39;</span><span class="p">,</span>
+                <span class="n">action</span><span class="o">=</span><span class="s1">&#39;append&#39;</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;tcList&#39;</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+                    <span class="s1">&#39;Specific testcase to execute.</span><span class="si">{0}</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Add this argument for EACH testcase you wish to run.</span><span class="si">{0}</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;EXAMPLE: -tc 1234 -tc 5678 -tc 9012&#39;</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">),</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;TESTCASE_ID&quot;</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="p">[]</span>
+            <span class="p">)</span>
+
+            <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+                <span class="s1">&#39;-ts&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;--testset&#39;</span><span class="p">,</span>
+                <span class="n">action</span><span class="o">=</span><span class="s1">&#39;append&#39;</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;tsList&#39;</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="p">(</span>
+                    <span class="s1">&#39;Specific testset to execute.</span><span class="si">{0}</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;Add this argument for EACH testset you wish to run.</span><span class="si">{0}</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;EXAMPLE: -ts FileSystem_WINDOWS -ts FileSystem_WINDOWS_ONEPASS&#39;</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">),</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;TESTSET_NAME&quot;</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="p">[]</span>
+            <span class="p">)</span>
+
+            <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+                <span class="s1">&#39;-c&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;--convert&#39;</span><span class="p">,</span>
+                <span class="n">action</span><span class="o">=</span><span class="s1">&#39;store_true&#39;</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;convertJson&#39;</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Convert the input json into testset format&#39;</span><span class="p">,</span>
+                <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+
+            <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+                <span class="s1">&#39;-o&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;--outputFile&#39;</span><span class="p">,</span>
+                <span class="n">dest</span><span class="o">=</span><span class="s1">&#39;outputJsonFile&#39;</span><span class="p">,</span>
+                <span class="n">help</span><span class="o">=</span><span class="s1">&#39;Full path to the output file where converted JSON will be saved.&#39;</span><span class="p">,</span>
+                <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;FULL_PATH_TO_FILE&quot;</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="kc">None</span>
+            <span class="p">)</span>
+
+            <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+            <span class="c1"># Store the arguments</span>
+            <span class="c1"># so if they increase, no need to create properties for every new argument</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_input_file</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">input_file</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">TESTCASE_LIST</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">tcList</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">TESTSET_LIST</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">tsList</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">CONVERT_INPUT</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">convertJson</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_OUT_PATH</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">outputJsonFile</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_input_file</span> <span class="o">=</span> <span class="n">input_json</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">TESTCASE_LIST</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">TESTSET_LIST</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">CONVERT_INPUT</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_OUT_PATH</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_input_file</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_read_input_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads the input json file, and returns the dictionary.</span>
+
+<span class="sd">            Checks if the file exists or not.</span>
+
+<span class="sd">            If the file exits, loads into a python dict, and returns the dict.</span>
+<span class="sd">            Otherwise, raises Exception.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dict    -   JSON loaded into a dictionary</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if JSON file not found, i.e., file does not exist at the given location</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check if input file exists</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_input_file</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;JSON File Not Found at: &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_file</span><span class="p">)</span>
+
+        <span class="c1"># Load inputs from input file</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_input_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">json_input</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">json_input</span><span class="p">,</span> <span class="n">object_pairs_hook</span><span class="o">=</span><span class="n">OrderedDict</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initialize_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize the logger for the Automation run.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Get the job ID from the JSON</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">jobID</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;jobID&#39;</span><span class="p">,</span> <span class="s1">&#39;###&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log_dir</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">LOG_DIR</span>
+            <span class="n">__</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">Logger</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_dir</span><span class="p">,</span> <span class="n">constants</span><span class="o">.</span><span class="n">AUTOMATION_LOG_FILE_NAME</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobID</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">getLog</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;</span><span class="si">%(boundary)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2"> </span><span class="si">%(boundary)s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">{</span>
+                    <span class="s1">&#39;boundary&#39;</span><span class="p">:</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">25</span><span class="p">,</span>
+                    <span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s2">&quot;Automation Execution Started&quot;</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to initialize logger with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_login_to_webconsole</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Establishes connection to the Commcell via Web Console, if commcell details are</span>
+<span class="sd">            given in the input JSON.</span>
+
+<span class="sd">            If commcell details are not present in the input dict, then exit out.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;commcell&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="n">commcell_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;commcell&#39;</span><span class="p">]</span>
+
+            <span class="n">webconsole_hostname</span> <span class="o">=</span> <span class="n">commcell_dict</span><span class="p">[</span><span class="s1">&#39;webconsoleHostname&#39;</span><span class="p">]</span>
+            <span class="n">commcell_username</span> <span class="o">=</span> <span class="n">commcell_dict</span><span class="p">[</span><span class="s1">&#39;commcellUsername&#39;</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;WebConsole Hostname: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">webconsole_hostname</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Commcell Username: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">commcell_username</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="s1">&#39;commcellPassword&#39;</span> <span class="ow">in</span> <span class="n">commcell_dict</span> <span class="ow">and</span>
+                    <span class="n">commcell_dict</span><span class="p">[</span><span class="s1">&#39;commcellPassword&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Reading the Password from the Input JSON&#39;</span><span class="p">)</span>
+                <span class="n">commcell_password</span> <span class="o">=</span> <span class="n">commcell_dict</span><span class="p">[</span><span class="s1">&#39;commcellPassword&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Commcell password is not set in input request.&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">Commcell</span><span class="p">(</span><span class="n">webconsole_hostname</span><span class="p">,</span> <span class="n">commcell_username</span><span class="p">,</span> <span class="n">commcell_password</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Logged in to the Commcell successfully.&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s1">&#39;Failed to login</span><span class="se">\n</span><span class="s1">Error: &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="n">temp</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;Operation&quot;</span><span class="p">:</span> <span class="s2">&quot;Login&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Status&quot;</span><span class="p">:</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span><span class="p">,</span>
+                <span class="s2">&quot;Reason&quot;</span><span class="p">:</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+            <span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_test_set_results</span><span class="p">[</span><span class="s2">&quot;FAILED&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_commserv_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the Version, and the Service Pack installed on the CommServ.</span>
+
+<span class="sd">            Connects to the CommServ, and returns the version string in the format:</span>
+
+<span class="sd">                vXX B80 SPXX</span>
+
+<span class="sd">                e.g.:   v11 B80 SP9</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   version info string for the CommServ</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">has_client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">):</span>
+            <span class="n">commserv_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s1">&#39;v</span><span class="si">{0}</span><span class="s1"> B80 SP</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">commserv_client</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">commserv_client</span><span class="o">.</span><span class="n">service_pack</span><span class="p">)</span>
+
+        <span class="c1"># Return the default in the defines</span>
+        <span class="k">return</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">DEFAULT_CS_VERSION</span>
+
+    <span class="k">def</span> <span class="nf">_testset_thread_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">thread_id</span><span class="p">,</span> <span class="n">testset_queue</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This is the worker thread which runs the actual testcases in the testset.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                thread_id       (str)       --  the internal unique id of this thread</span>
+
+<span class="sd">                        **(Currently unused)**</span>
+
+<span class="sd">                testset_queue   (Queue)     --  the queue which this thread should operate on</span>
+
+<span class="sd">                    The queue holds CVTestset objects for every testset in the input json file</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="c1"># Get the testset from the queue.  This is a CVTestset object.</span>
+            <span class="n">testset</span> <span class="o">=</span> <span class="n">testset_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing testset [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">testset</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">Autocenter</span> <span class="k">import</span> <span class="n">defines</span> <span class="k">as</span> <span class="n">ac_defines</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">update_ts_status</span><span class="p">(</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">autocenter_tsid</span><span class="p">,</span>
+                    <span class="n">ac_defines</span><span class="o">.</span><span class="n">AC_RUNNING</span><span class="p">,</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">controller_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">update_run_logloc</span><span class="p">(</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">autocenter_tsid</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">log</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">updatecontroller_splevel</span><span class="p">(</span><span class="n">testset</span><span class="o">.</span><span class="n">autocenter_tsid</span><span class="p">)</span>
+
+            <span class="c1"># Based on the threadcount, start n# threads to run testcases</span>
+            <span class="n">testset</span><span class="o">.</span><span class="n">start_testcase_threads</span><span class="p">()</span>
+
+            <span class="c1"># Every testset object contains 1 testcase queue,</span>
+            <span class="c1"># which will control all testcase executions</span>
+            <span class="n">testset</span><span class="o">.</span><span class="n">populate_testcase_queue</span><span class="p">()</span>
+
+            <span class="c1"># Wait for the testcases to finish for this testset.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">healthcheck_thread</span><span class="p">((</span><span class="n">testset</span><span class="o">.</span><span class="n">autocenter_tsid</span><span class="p">)):</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">testcaseQ</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">autocenter</span><span class="o">.</span><span class="n">update_ts_status</span><span class="p">(</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">autocenter_tsid</span><span class="p">,</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">tsid_status</span><span class="p">,</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">controller_id</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">testset</span><span class="o">.</span><span class="n">testcaseQ</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finished executing testset [</span><span class="si">%s</span><span class="s2">].&quot;</span><span class="p">,</span> <span class="n">testset</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">testset_queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_automation_results</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s2">&quot;featureName&quot;</span><span class="p">:</span> <span class="n">testset</span><span class="o">.</span><span class="n">product</span><span class="p">,</span>
+                <span class="s2">&quot;osName&quot;</span><span class="p">:</span> <span class="n">testset</span><span class="o">.</span><span class="n">applicable_os</span><span class="p">,</span>
+                <span class="s2">&quot;appVersionName&quot;</span><span class="p">:</span> <span class="p">(</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">appVer</span> <span class="k">if</span> <span class="n">testset</span><span class="o">.</span><span class="n">appVer</span> <span class="ow">and</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">appVer</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">constants</span><span class="o">.</span><span class="n">IGNORE_VALUES</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+                <span class="p">),</span>
+                <span class="s2">&quot;addPropName&quot;</span><span class="p">:</span> <span class="p">(</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">addProp</span> <span class="k">if</span> <span class="n">testset</span><span class="o">.</span><span class="n">addProp</span> <span class="ow">and</span>
+                    <span class="n">testset</span><span class="o">.</span><span class="n">addProp</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">constants</span><span class="o">.</span><span class="n">IGNORE_VALUES</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+                <span class="p">),</span>
+                <span class="s2">&quot;testcase&quot;</span><span class="p">:</span> <span class="n">testset</span><span class="o">.</span><span class="n">get_test_case_details</span><span class="p">()</span>
+            <span class="p">})</span>
+
+<div class="viewcode-block" id="CVAutomation.setup"><a class="viewcode-back" href="../../source/Automation.html#Automation.CVAutomation.CVAutomation.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs the required tasks for executing automation.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Input file path: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_input_file</span><span class="p">))</span>
+
+        <span class="c1"># Check if commcell object was initialized; do Commcell specific operations here.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">:</span>
+            <span class="c1"># Create CS DB object</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span> <span class="o">=</span> <span class="n">CommServDatabase</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+
+            <span class="c1"># get the commserv version</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commserv_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_commserv_version</span><span class="p">()</span>
+
+            <span class="c1"># Set global csdb object</span>
+            <span class="n">database_helper</span><span class="o">.</span><span class="n">set_csdb</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_start_testset_threads</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Start n number of testset threads.</span>
+<span class="sd">            Either the THREADS flag in testsetConfig JSON input defines how many will run OR the</span>
+<span class="sd">                defines file.</span>
+
+<span class="sd">            All threads operate on a single queue per this CVAutomation object.</span>
+
+<span class="sd">            _testset_thread_processor handles the testset execution as the threaded function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_TESTSET_CONFIG_KEY</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">:</span>
+            <span class="n">thread_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_TESTSET_CONFIG_KEY</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_THREAD_COUNT_KEY</span><span class="p">,</span>
+                    <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">DEFAULT_TS_THREADS</span>
+                <span class="p">)</span>
+            <span class="p">)</span>  <span class="c1"># Default to single thread.</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">thread_count</span> <span class="o">=</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">DEFAULT_TS_THREADS</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;[</span><span class="si">%s</span><span class="s2">] testset execution thread(s) starting. &quot;</span><span class="p">,</span> <span class="n">thread_count</span><span class="p">)</span>
+
+        <span class="n">testset_queue</span> <span class="o">=</span> <span class="n">Queue</span><span class="p">()</span>
+        <span class="n">commonutils</span><span class="o">.</span><span class="n">threadLauncher</span><span class="p">(</span><span class="n">thread_count</span><span class="p">,</span> <span class="n">testset_queue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testset_thread_processor</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ts_queue</span> <span class="o">=</span> <span class="n">testset_queue</span>
+
+    <span class="k">def</span> <span class="nf">_populate_testset_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parses through the list of testsets in the JSON input file and creates</span>
+<span class="sd">            cvtestset.CVTestset objects.</span>
+<span class="sd">            Those objects are then added to the queue.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Check if any testset needs to be filtered,</span>
+        <span class="c1"># covert to lower to handle different user inputs</span>
+        <span class="n">testset_filter</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">TESTSET_LIST</span><span class="p">,</span> <span class="p">[])]</span>
+
+        <span class="k">for</span> <span class="n">testset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_TESTSET_INPUT_KEY</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">testset_filter</span> <span class="ow">and</span> <span class="n">testset</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">testset_filter</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Testset [</span><span class="si">%s</span><span class="s2">] was not selected for execution, skipping it!&quot;</span><span class="p">,</span>
+                    <span class="n">testset</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Get the JSON node for this testset.</span>
+            <span class="n">testset_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_TESTSET_INPUT_KEY</span><span class="p">][</span><span class="n">testset</span><span class="p">]</span>
+            <span class="n">testset</span> <span class="o">=</span> <span class="n">cvtestset</span><span class="o">.</span><span class="n">CVTestset</span><span class="p">(</span><span class="n">testset_node</span><span class="p">,</span> <span class="n">testset</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+            <span class="c1"># Add required inputs to the testset which we may need access to later</span>
+            <span class="nb">setattr</span><span class="p">(</span>
+                <span class="n">testset</span><span class="p">,</span>
+                <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">COMMCELL_NODE</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_COMMCELL_INPUT_KEY</span><span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Queuing automation for testset [</span><span class="si">%s</span><span class="s2">].&quot;</span><span class="p">,</span> <span class="n">testset</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ts_queue</span><span class="o">.</span><span class="n">put</span><span class="p">((</span><span class="n">testset</span><span class="p">),</span> <span class="n">block</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_run_testsets_threaded</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parses through the list of testsets to be executed in the input JSON file.</span>
+<span class="sd">            Launches n number of threads as defined in the input file OR defines.</span>
+
+<span class="sd">            These threads operate on a single queue which is part of self.</span>
+
+<span class="sd">            After all threads are launched,</span>
+<span class="sd">            create cvtestset.CVTestset object and push into the queue.</span>
+
+<span class="sd">            Wait for the queue to complete.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Fire the threads which will run testsets. It will operate on a global Queue.</span>
+        <span class="c1"># The number of threads is determined in the defines OR input file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_testset_threads</span><span class="p">()</span>
+
+        <span class="c1"># Push the threads into the global testset queue.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_populate_testset_queue</span><span class="p">()</span>
+
+        <span class="c1"># Wait for the global testset queue to empty</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ts_queue</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finished processing ALL testset(s).&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_update_test_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tc_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">summary</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">test_set_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the Test Case Results to instance variable.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                tc_id           (str)   --  test case id</span>
+
+<span class="sd">                name            (str)   --  test case name</span>
+
+<span class="sd">                status          (str)   --  test case status</span>
+
+<span class="sd">                summary         (str)   --  test case summary</span>
+
+<span class="sd">                client_name     (str)   --  name of the client on which the test case was run</span>
+
+<span class="sd">                test_set_name   (str)   --  name of the testset</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    If thread lock cannot be obtained</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">client_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">:</span>
+                        <span class="n">client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_name</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">client_name</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">NO_REASON</span>
+
+                <span class="c1"># Get the testcase details page url if commcell object is set</span>
+                <span class="n">test_case_url</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">:</span>
+                    <span class="n">test_case_url</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">TESTCASE_REPORT_URL</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s2">&quot;commcell&quot;</span><span class="p">][</span><span class="s2">&quot;webconsoleHostname&quot;</span><span class="p">],</span> <span class="n">tc_id</span><span class="p">)</span>
+
+                <span class="n">test_case_results</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;Test Case ID&quot;</span><span class="p">:</span> <span class="n">tc_id</span><span class="p">,</span>
+                    <span class="s2">&quot;Test Case Name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;Client Name&quot;</span><span class="p">:</span> <span class="n">client_name</span><span class="p">,</span>
+                    <span class="s2">&quot;Test Case URL&quot;</span><span class="p">:</span> <span class="n">test_case_url</span><span class="p">,</span>
+                    <span class="s2">&quot;Status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+                    <span class="s2">&quot;Summary&quot;</span><span class="p">:</span> <span class="n">summary</span>
+                <span class="p">}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_test_set_results</span><span class="p">[</span><span class="n">test_set_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">test_case_results</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_get_html_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">no_results</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generates the html report</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                no_results   (bool)  -- if set returns no results html report</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (str)   --  html report</span>
+
+<span class="sd">            Raises Exception:</span>
+<span class="sd">                if failed to generate html report</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Create test result table headers list (S.No will be included by default)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">test_headers</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="s1">&#39;Test Case ID&#39;</span><span class="p">,</span> <span class="s1">&#39;Test Case Name&#39;</span><span class="p">,</span> <span class="s1">&#39;Client Name&#39;</span><span class="p">,</span> <span class="s1">&#39;Status&#39;</span><span class="p">,</span> <span class="s1">&#39;Summary&#39;</span>
+            <span class="p">]</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcell&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcell&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcellUsername&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                        <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcell&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcellPassword&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">test_headers</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Operation&#39;</span><span class="p">,</span> <span class="s1">&#39;Status&#39;</span><span class="p">,</span> <span class="s1">&#39;Reason&#39;</span><span class="p">]</span>
+
+            <span class="c1"># Create HTML Table</span>
+            <span class="n">html</span> <span class="o">=</span> <span class="n">HTMLReportGenerator</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">no_results</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">html</span><span class="o">.</span><span class="n">get_no_results_html</span><span class="p">()</span>
+
+            <span class="n">summary_details</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+
+            <span class="n">summary_details</span><span class="p">[</span><span class="s1">&#39;StartTime&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span>
+                <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span><span class="p">))</span>
+            <span class="n">summary_details</span><span class="p">[</span><span class="s1">&#39;EndTime&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span>
+                <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span><span class="p">))</span>
+            <span class="n">summary_details</span><span class="p">[</span><span class="s1">&#39;LogsLocation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_log_dir</span>
+
+            <span class="n">log_file_path</span> <span class="o">=</span> <span class="s2">&quot;#&quot;</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;WINDOWS&quot;</span><span class="p">:</span>
+                <span class="n">log_file_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">get_unc_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_log_dir</span><span class="p">)</span>
+
+            <span class="n">summary_details</span><span class="p">[</span><span class="s1">&#39;Logs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">log_file_path</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">:</span>
+                <span class="n">summary_details</span><span class="p">[</span><span class="s1">&#39;Commcell&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_name</span>
+                <span class="n">summary_details</span><span class="p">[</span><span class="s1">&#39;Service Pack&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;SP</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_version</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">summary_details</span><span class="p">[</span><span class="s1">&#39;Commcell&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">NO_REASON</span>
+                <span class="n">summary_details</span><span class="p">[</span><span class="s1">&#39;Service Pack&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">NO_REASON</span>
+
+            <span class="n">summary_details</span><span class="p">[</span><span class="s1">&#39;Controller&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">machine_name</span>
+
+            <span class="n">html</span><span class="o">.</span><span class="n">add_summary</span><span class="p">(</span><span class="n">summary_details</span><span class="p">)</span>
+
+            <span class="n">html</span><span class="o">.</span><span class="n">create_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_headers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_set_results</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully generated Test case results&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Return HTML as string</span>
+            <span class="n">email_content</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">get_html</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">email_content</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="n">error_message</span> <span class="o">=</span> <span class="s2">&quot;Failed to generate HTML report with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">error_message</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">error_message</span>
+
+    <span class="k">def</span> <span class="nf">__update_receivers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the final set of recievers after parsing the testcase status&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fail_only_receivers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s2">&quot;email&quot;</span><span class="p">][</span><span class="s2">&quot;notifyFailOnly&quot;</span><span class="p">]</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fail_only_receivers</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;&#39;notifyFailOnly&#39; key is not found skipping...&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">except</span> <span class="ne">AssertionError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;&#39;notifyFailOnly&#39; key in input JSON should be an Array&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">for</span> <span class="n">testcase</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_test_set_results</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">testcase</span><span class="p">[</span><span class="s2">&quot;Status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s2">&quot;email&quot;</span><span class="p">][</span><span class="s1">&#39;receiver&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{self._inputs[&#39;email&#39;][&#39;receiver&#39;]}</span><span class="s2">;{&#39;;&#39;.join(fail_only_receivers)}&quot;</span>
+                <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">_send_mail</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sends an email to specified users.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_set_results</span><span class="p">:</span>
+            <span class="n">email_content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_html_report</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No Test results were found.&quot;</span><span class="p">)</span>
+            <span class="n">email_content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_html_report</span><span class="p">(</span><span class="n">no_results</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__update_receivers</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s1">&#39;email&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;subject&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="p">]:</span>
+                <span class="n">subject</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="p">][</span><span class="s1">&#39;subject&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">product_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s2">&quot;testsets&quot;</span><span class="p">][</span><span class="n">set_</span><span class="p">][</span><span class="s2">&quot;TESTSET_PRODUCT_NAME&quot;</span><span class="p">]</span>
+                                <span class="k">for</span> <span class="n">set_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s2">&quot;testsets&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+
+                <span class="n">subject</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">EMAIL_SUBJECT</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">product_list</span><span class="p">)</span>
+
+            <span class="n">suite_status</span> <span class="o">=</span> <span class="s1">&#39; [STATUS:SUCCESS]&#39;</span>
+            <span class="k">for</span> <span class="n">testcase</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_test_set_results</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="n">testcase</span><span class="p">[</span><span class="s2">&quot;Status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span>
+                    <span class="n">suite_status</span> <span class="o">=</span> <span class="s1">&#39; [STATUS:FAILED]&#39;</span>
+                    <span class="k">break</span>
+
+            <span class="n">subject</span> <span class="o">=</span> <span class="n">subject</span> <span class="o">+</span> <span class="n">suite_status</span>
+            <span class="n">mailer</span> <span class="o">=</span> <span class="n">Mailer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;email&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+            <span class="n">mailer</span><span class="o">.</span><span class="n">mail</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">email_content</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Email is not specified. Printing output to console&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">email_content</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_init_autocenter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Intentionally left blank</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">acobject</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">AUTOCENTER_INPUT_TAG</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing Autocenter based on input file.&quot;</span><span class="p">)</span>
+                <span class="kn">from</span> <span class="nn">Autocenter</span> <span class="k">import</span> <span class="n">Autocenter</span> <span class="k">as</span> <span class="n">AC</span>
+                <span class="n">acobject</span> <span class="o">=</span> <span class="n">AC</span><span class="o">.</span><span class="n">Autocenter</span><span class="p">(</span>
+                    <span class="n">commcell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span>
+                    <span class="n">user_input</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully initialized Autocenter.&quot;</span><span class="p">)</span>
+
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">AUTOCENTER_INPUT_TAG</span><span class="p">,</span> <span class="n">acobject</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">AUTOCENTER_INPUT_TAG</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="CVAutomation.execute"><a class="viewcode-back" href="../../source/Automation.html#Automation.CVAutomation.CVAutomation.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_json_file_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Starts the CVAutomation execution.&quot;&quot;&quot;</span>
+        <span class="c1"># Initialization steps - We must parse inputs BEFORE anything else.  DO not change this.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_read_args</span><span class="p">(</span><span class="n">input_json_file_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialize_logger</span><span class="p">()</span>
+
+        <span class="c1"># add email receivers value to Mailer.RECEIVERS</span>
+        <span class="k">if</span> <span class="s1">&#39;email&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">:</span>
+            <span class="n">Mailer</span><span class="o">.</span><span class="n">RECEIVERS</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;email&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;receiver&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Check if we are running in testcase OR testset mode &amp; what filters should be applied</span>
+        <span class="n">tc_filter</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">TESTCASE_LIST</span><span class="p">)</span>
+        <span class="n">ts_filter</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">TESTSET_LIST</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_TESTSET_CONFIG_KEY</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span> <span class="ow">or</span>
+                <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_TESTSET_INPUT_KEY</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">):</span>
+
+            <span class="c1"># Build dummy testsets for the requested testcase(s) and reform the JSON.</span>
+            <span class="c1"># We must filter them here because conversion loads testcases and</span>
+            <span class="c1"># perhaps we&#39;re filtering a testcase which fails to load.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span> <span class="o">=</span> <span class="n">cvtestset</span><span class="o">.</span><span class="n">CVTestset</span><span class="o">.</span><span class="n">convert_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">,</span> <span class="n">tc_filter</span><span class="p">,</span> <span class="n">ts_filter</span><span class="p">)</span>
+
+            <span class="c1"># Check if the user wants to convert the JSON and save it.</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">CONVERT_INPUT</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_OUT_PATH</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">JSON_OUT_PATH</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Print the conversion to command line</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">))</span>
+
+        <span class="c1"># Main execution Steps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_login_to_webconsole</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcell&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcell&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcellUsername&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                    <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcell&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;commcellPassword&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_send_mail</span><span class="p">()</span>
+                <span class="k">return</span>
+
+        <span class="c1"># Autocenter will be initialized based on input JSON requesting it.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_autocenter</span><span class="p">()</span>
+
+        <span class="c1"># Setup the run with common required parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup</span><span class="p">()</span>
+
+        <span class="c1"># Launch automation if this is NOT a convert operation.  Keep them separate.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">AUTOMATION_DEFINES</span><span class="o">.</span><span class="n">CONVERT_INPUT</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_run_testsets_threaded</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+            <span class="c1"># Final Step to send report</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_mail</span><span class="p">()</span>
+
+            <span class="c1"># Updates tst results to db</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_results_to_db</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;</span><span class="si">%(boundary)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2"> </span><span class="si">%(boundary)s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s1">&#39;boundary&#39;</span><span class="p">:</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">24</span><span class="p">,</span>
+                <span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="s2">&quot;Automation Execution Finished &quot;</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">80</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">lock</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the global lock&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">commserv_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the cs version.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commserv_version</span>
+
+    <span class="nd">@commserv_version</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">commserv_version</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the cs version.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commserv_version</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">jobID</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the workflow main job id.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span>
+
+    <span class="nd">@jobID</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">jobID</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the workflow main job id.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_job_id</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">controller</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the controller machine object&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_controller</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_controller</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_controller</span>
+
+    <span class="k">def</span> <span class="nf">_update_results_to_db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the test case results to the DB &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobID</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobID</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job id is not set in the request. Skip updating results to db.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">results_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;jobId&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobID</span><span class="p">,</span>
+            <span class="s2">&quot;startTime&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_time</span><span class="p">,</span>
+            <span class="s2">&quot;endTime&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end_time</span><span class="p">,</span>
+            <span class="s2">&quot;servicePack&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_version</span><span class="p">,</span>
+            <span class="s2">&quot;testset&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_automation_results</span>
+        <span class="p">}</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="s2">&quot;Automation/UpdateResults&quot;</span><span class="p">,</span> <span class="n">results_dict</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;errorCode&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully Updated results into DB.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">error_message</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;errorMessage&#39;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Failed to update results into DB.</span><span class="se">\n</span><span class="s2"> </span><span class="si">{error_message}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Failed to update results into DB.</span><span class="se">\n</span><span class="s2"> </span><span class="si">{error_message}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Updating results to DB failed!.</span><span class="se">\n</span><span class="s2"> </span><span class="si">{response.text}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Updating results to DB failed! </span><span class="se">\n</span><span class="s2"> Response: </span><span class="si">{response.text}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># If no arguments are passed print help message</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;-h&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Create CVAuto object</span>
+    <span class="n">CVAUTOMATION</span> <span class="o">=</span> <span class="n">CVAutomation</span><span class="p">()</span>
+
+    <span class="n">CVAUTOMATION</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

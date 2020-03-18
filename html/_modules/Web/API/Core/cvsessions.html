@@ -1,0 +1,473 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Web.API.Core.cvsessions &mdash; Commvault Automation 11.19 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Web.API.Core.cvsessions</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Web.API.Core.cvsessions</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Contains the session management classes for the Commvault&#39;s WebApplications</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">ABC</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+
+<span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils.config</span> <span class="k">import</span> <span class="n">get_config</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.logger</span> <span class="k">import</span> <span class="n">get_log</span>
+<span class="kn">from</span> <span class="nn">Web.Common.exceptions</span> <span class="k">import</span> <span class="n">CVWebAPIException</span>
+<span class="kn">from</span> <span class="nn">Web.WebConsole.Store</span> <span class="k">import</span> <span class="n">storeapp</span>
+
+<span class="n">_CONSTANTS</span> <span class="o">=</span> <span class="n">get_config</span><span class="p">()</span>
+<span class="n">_STORE_CONST</span> <span class="o">=</span> <span class="n">storeapp</span><span class="o">.</span><span class="n">get_store_config</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">_RequestSessionWrapper</span><span class="p">:</span>
+
+    <span class="n">PATCH_METHODS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;get&quot;</span><span class="p">,</span> <span class="s2">&quot;post&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_session</span> <span class="o">=</span> <span class="n">session</span>
+
+    <span class="k">def</span> <span class="nf">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="n">session</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="s2">&quot;_session&quot;</span><span class="p">)</span>
+        <span class="n">method</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">_RequestSessionWrapper</span><span class="o">.</span><span class="n">PATCH_METHODS</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">partial</span><span class="p">(</span>
+                <span class="n">method</span><span class="p">,</span>
+                <span class="n">verify</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">API</span><span class="o">.</span><span class="n">VERIFY_SSL_CERTIFICATE</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">method</span>
+
+
+<div class="viewcode-block" id="CVSession"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.CVSession">[docs]</a><span class="k">class</span> <span class="nc">CVSession</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;Base class for all the commvault web based endpoints&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">protocol</span><span class="o">=</span><span class="s2">&quot;http&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            machine (str): Machine name</span>
+<span class="sd">            port (int): port number</span>
+<span class="sd">            protocol (str): http or https, service prefix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">machine</span> <span class="o">=</span> <span class="n">machine</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protocol</span> <span class="o">=</span> <span class="n">protocol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_session</span> <span class="o">=</span> <span class="n">_RequestSessionWrapper</span><span class="p">(</span><span class="n">requests</span><span class="o">.</span><span class="n">session</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">://</span><span class="si">%s</span><span class="s2">:</span><span class="si">%s</span><span class="s2">/&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">protocol</span><span class="p">,</span> <span class="n">machine</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_LOG</span> <span class="o">=</span> <span class="n">get_log</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+        <span class="n">CVSession</span><span class="o">.</span><span class="n">logout_silently</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">base_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Base URL&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">session</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">:</span>  <span class="c1"># Purposefully not hinting the wrapper</span>
+        <span class="sd">&quot;&quot;&quot;Get web session&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span>
+
+<div class="viewcode-block" id="CVSession.login"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.CVSession.login">[docs]</a>    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add the authentication logic here&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="CVSession.logout"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.CVSession.logout">[docs]</a>    <span class="k">def</span> <span class="nf">logout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Close the session created on python client</span>
+
+<span class="sd">        Please note that extending class must logout from the</span>
+<span class="sd">        corresponding webserver to free the server side session.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="CVSession.logout_silently"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.CVSession.logout_silently">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">logout_silently</span><span class="p">(</span><span class="n">cv_session</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Logout silently without raising exception</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cv_session (CVSession):</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">cv_session</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">cv_session</span><span class="o">.</span><span class="n">logout</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">get_log</span><span class="p">()</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Error during logout; </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="CVSession.set_proxy"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.CVSession.set_proxy">[docs]</a>    <span class="k">def</span> <span class="nf">set_proxy</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">machine</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">HttpProxy</span><span class="o">.</span><span class="n">MACHINE_NAME</span><span class="p">,</span>
+            <span class="n">port</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">HttpProxy</span><span class="o">.</span><span class="n">PORT</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the proxy</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            machine (str): HTTP Proxy server name</span>
+<span class="sd">            port (int): HTTP Proxy port number</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">machine</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span> <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">port</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">proxies</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+                <span class="s2">&quot;http&quot;</span><span class="p">:</span> <span class="s2">&quot;http://</span><span class="si">%s</span><span class="s2">:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">machine</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+            <span class="p">})</span></div></div>
+
+
+<div class="viewcode-block" id="WebConsole"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.WebConsole">[docs]</a><span class="k">class</span> <span class="nc">WebConsole</span><span class="p">(</span><span class="n">CVSession</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is the base class of all the proxy APIs exposed via webconsole</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">machine</span><span class="p">,</span>
+                 <span class="n">port</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+                 <span class="n">protocol</span><span class="o">=</span><span class="s2">&quot;http&quot;</span><span class="p">,</span>
+                 <span class="n">username</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">ADMIN_USERNAME</span><span class="p">,</span>
+                 <span class="n">password</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">ADMIN_PASSWORD</span><span class="p">,</span>
+                 <span class="n">proxy_machine</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">HttpProxy</span><span class="o">.</span><span class="n">MACHINE_NAME</span><span class="p">,</span>
+                 <span class="n">proxy_port</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">HttpProxy</span><span class="o">.</span><span class="n">PORT</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">machine</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">protocol</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_username</span> <span class="o">=</span> <span class="n">username</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_password</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_proxy_machine</span> <span class="o">=</span> <span class="n">proxy_machine</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_proxy_port</span> <span class="o">=</span> <span class="n">proxy_port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_csrf</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__webconsole_url</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">base_url</span> <span class="o">+</span> <span class="s2">&quot;webconsole/&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__url_sso_disabled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__webconsole_url</span> <span class="o">+</span> <span class="s1">&#39;/login/index.jsp?disableSSO&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_session</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_password</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_init_session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_proxy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_proxy_machine</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proxy_port</span><span class="p">)</span>
+            <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__url_sso_disabled</span><span class="p">)</span>
+            <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csrf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrf</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVWebAPIException</span><span class="p">(</span>
+                <span class="s2">&quot;Unable to Initialize session&quot;</span>
+            <span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">base_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">webconsole_url</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">webconsole_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__webconsole_url</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">csrf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get CSRF token&quot;&quot;&quot;</span>
+        <span class="n">csrf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">cookies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;csrf&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">csrf</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">csrf</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVWebAPIException</span><span class="p">(</span><span class="s2">&quot;Unable to acquire CSRF token&quot;</span><span class="p">)</span>
+
+    <span class="nd">@csrf</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">csrf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the CSRF token on the session&quot;&quot;&quot;</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">cookies</span><span class="p">[</span><span class="s2">&quot;csrf&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">cookies</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;csrf&quot;</span><span class="p">,</span> <span class="n">token</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;X-CSRF-Token&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrf</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">jsessionid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the JSESSION ID used by session&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">cookies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;JSESSIONID&quot;</span><span class="p">)</span>
+
+    <span class="nd">@jsessionid</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">jsessionid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">id_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the session ID on the session&quot;&quot;&quot;</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">cookies</span><span class="p">[</span><span class="s2">&quot;JSESSIONID&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">cookies</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;JSESSIONID&quot;</span><span class="p">,</span> <span class="n">id_</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WebConsole.login"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.WebConsole.login">[docs]</a>    <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">username</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">ADMIN_USERNAME</span><span class="p">,</span>
+              <span class="n">password</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">ADMIN_PASSWORD</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Login to webconsole</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            username (str): username to login with</span>
+<span class="sd">            password (str): password to login with</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__webconsole_url</span> <span class="o">+</span> <span class="s2">&quot;doLogin.do?csrf=&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrf</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_LOG</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;API - Trying to login to [POST </span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="n">url</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                <span class="n">url</span><span class="p">,</span>
+                <span class="n">data</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span>
+                    <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">password</span><span class="o">.</span><span class="n">encode</span><span class="p">()),</span>
+                    <span class="s2">&quot;csrf&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">csrf</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="s2">&quot;error&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVWebAPIException</span><span class="p">(</span><span class="s2">&quot;Login failed&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span></div>
+
+<div class="viewcode-block" id="WebConsole.logout"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.WebConsole.logout">[docs]</a>    <span class="k">def</span> <span class="nf">logout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Logout from webconsole&quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__webconsole_url</span> <span class="o">+</span> <span class="s2">&quot;server/doLogout&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">logout</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVWebAPIException</span><span class="p">(</span><span class="s2">&quot;Logout error&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span></div></div>
+
+
+<div class="viewcode-block" id="Store"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.Store">[docs]</a><span class="k">class</span> <span class="nc">Store</span><span class="p">(</span><span class="n">WebConsole</span><span class="p">):</span>
+
+<div class="viewcode-block" id="Store.login"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.Store.login">[docs]</a>    <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+              <span class="n">wc_user</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">ADMIN_USERNAME</span><span class="p">,</span>
+              <span class="n">wc_pass</span><span class="o">=</span><span class="n">_CONSTANTS</span><span class="o">.</span><span class="n">ADMIN_PASSWORD</span><span class="p">,</span>
+              <span class="n">store_uname</span><span class="o">=</span><span class="n">_STORE_CONST</span><span class="o">.</span><span class="n">PREMIUM_USERNAME</span><span class="p">,</span>
+              <span class="n">store_pwd</span><span class="o">=</span><span class="n">_STORE_CONST</span><span class="o">.</span><span class="n">PREMIUM_USERNAME</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Login to Store&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="n">wc_user</span><span class="p">,</span> <span class="n">wc_pass</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{self.base_url}</span><span class="s2">softwarestore/loginframe/appstoreLogin.do&quot;</span>
+        <span class="n">resp_txt</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_LOG</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;API - Logging in to Store with url [POST </span><span class="si">{url}</span><span class="s2">]&quot;</span><span class="p">)</span>
+            <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+                <span class="n">url</span><span class="p">,</span>
+                <span class="n">data</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">store_uname</span><span class="p">,</span>
+                    <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">store_pwd</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="n">resp_txt</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">text</span>
+            <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="k">assert</span> <span class="s2">&quot;error&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">resp_txt</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">msg</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVWebAPIException</span><span class="p">(</span><span class="s2">&quot;Login failed&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">resp_txt</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">msg</span></div></div>
+
+
+<div class="viewcode-block" id="WebConsoleCustomReportsAPI"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.WebConsoleCustomReportsAPI">[docs]</a><span class="k">class</span> <span class="nc">WebConsoleCustomReportsAPI</span><span class="p">(</span><span class="n">WebConsole</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This class maintains the Custom Reports specific session</span>
+<span class="sd">    operations for APIs exposed via WebConsole proxy&quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">base_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">base_url</span> <span class="o">+</span> <span class="s2">&quot;proxy/cr/&quot;</span></div>
+
+
+<div class="viewcode-block" id="CustomReportsEngine"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.CustomReportsEngine">[docs]</a><span class="k">class</span> <span class="nc">CustomReportsEngine</span><span class="p">(</span><span class="n">CVSession</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class manages the session information to interact with</span>
+<span class="sd">    CustomReportsEngine REST webservice</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qsdk_token</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_qsdk</span> <span class="o">=</span> <span class="n">qsdk_token</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_qsdk</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CustomReportsEngine.login"><a class="viewcode-back" href="../../../../source/Web.API.Core.html#Web.API.Core.cvsessions.CustomReportsEngine.login">[docs]</a>    <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qsdk_token</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            qsdk_token (str): QSDK Token string to connect to CRE WebApp</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Cookie2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">qsdk_token</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

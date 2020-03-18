@@ -1,0 +1,574 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>AutomationUtils.script_generator &mdash; Commvault Automation 11.19 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>AutomationUtils.script_generator</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for AutomationUtils.script_generator</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper File to generate the PowerShell / UNIX Shell script to be executed on the remote client.</span>
+
+<span class="sd">    #.  This file takes the raw script path as the value for the **script** attribute</span>
+
+<span class="sd">    #.  Substitutes the values in the script, with the values given by the user</span>
+
+<span class="sd">    #.  Appends the footer script (for PowerShell Scripts only)</span>
+
+<span class="sd">    #.  Returns / Writes the final script to a temp file, based on the options selected by the User</span>
+
+<span class="sd">    #.  Machine class takes care of executing the final script on the client</span>
+
+
+<span class="sd">Any variable in the PowerShell / Shell script should be in the format:</span>
+
+<span class="sd">    **##Automation--VARIABLE_NAME--##**</span>
+
+
+<span class="sd">For PowerShell scripts, the main function name should be in this format:</span>
+
+<span class="sd">    Function FUNCTION_NAME() {</span>
+
+<span class="sd">        Do Something...</span>
+
+<span class="sd">    }</span>
+
+<span class="sd">, and should be present at top of the PowerShell script file.</span>
+
+<span class="sd">PowerShell ``Function`` keyword should always be used in this format only for the main function</span>
+<span class="sd">that should be executed from the script, and not like ``function``.</span>
+
+
+<span class="sd">Usage</span>
+<span class="sd">=====</span>
+
+<span class="sd">- Initialize object of the ScriptGenerator class with the machine name, and credentials file path:</span>
+
+<span class="sd">    &gt;&gt;&gt; script_generator = ScriptGenerator(machine_name, credentials_file)</span>
+
+<span class="sd">If Machine name, and Credentials file are set to None, default value `$null` will be set</span>
+
+
+<span class="sd">- Provide the path of the raw script, i.e., set the attribute `script` to the path of the raw file:</span>
+
+<span class="sd">    &gt;&gt;&gt; script_generator.script = PATH_OF_THE_RAW_SCRIPT_FILE</span>
+
+<span class="sd">- Call the method `run()` with the dictionary consisting of the values to be substituted</span>
+
+<span class="sd">    -   To return the contents of the script:</span>
+
+<span class="sd">        &gt;&gt;&gt; script_generator.run(</span>
+<span class="sd">                data={</span>
+<span class="sd">                    &#39;argument1&#39;: &#39;value1&#39;,</span>
+<span class="sd">                    &#39;argument2&#39;: &#39;value2&#39;</span>
+<span class="sd">                },</span>
+<span class="sd">                return_script=True</span>
+<span class="sd">            )</span>
+
+<span class="sd">    -   To write the script into a file, and return path of the file:</span>
+
+<span class="sd">        &gt;&gt;&gt; script_generator.run(</span>
+<span class="sd">                data={</span>
+<span class="sd">                    &#39;argument1&#39;: &#39;value1&#39;,</span>
+<span class="sd">                    &#39;argument2&#39;: &#39;value2&#39;</span>
+<span class="sd">                },</span>
+<span class="sd">                return_script=False</span>
+<span class="sd">            )</span>
+
+<span class="sd">    -   To further select columns from the output of the Invoke-Command cmdlet  (For Windows)</span>
+
+<span class="sd">        &gt;&gt;&gt; script_generator.run(</span>
+<span class="sd">                data={</span>
+<span class="sd">                    &#39;argument1&#39;: &#39;value1&#39;,</span>
+<span class="sd">                    &#39;argument2&#39;: &#39;value2&#39;</span>
+<span class="sd">                },</span>
+<span class="sd">                select_columns=[column1, column2]</span>
+<span class="sd">            )</span>
+
+<span class="sd">**Note**: Key in the dictionary should be the same name as the argument in the Script.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">AUTOMATION_DIRECTORY</span>
+
+
+<div class="viewcode-block" id="ScriptGenerator"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.script_generator.ScriptGenerator">[docs]</a><span class="k">class</span> <span class="nc">ScriptGenerator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generates the PowerShell / UNIX Shell script to be executed on the remote client.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">credentials_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the instance of the ScriptGenerator class.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                machine_name        (str)   --  name of the machine to run the script remotely on</span>
+<span class="sd">                    default: None</span>
+
+<span class="sd">                credentials_file    (str)   --  path of the machine credentials file</span>
+<span class="sd">                    default: None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">credentials_file</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span> <span class="o">=</span> <span class="s1">&#39;$null&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">credentials_file</span> <span class="o">=</span> <span class="s1">&#39;$null&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">credentials_file</span> <span class="o">=</span> <span class="n">credentials_file</span>
+
+            <span class="k">if</span> <span class="n">machine_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span> <span class="o">=</span> <span class="s1">&#39;$null&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span> <span class="o">=</span> <span class="n">machine_name</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extension</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_script</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_script_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_final_script</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">If ($ComputerName -eq $null) {</span>
+<span class="s2">    </span><span class="si">%(function_name)s</span><span class="s2"></span>
+<span class="s2">} Else {</span>
+<span class="s2">    Set-Item WSMan:\localhost\Client\Trustedhosts -Value $ComputerName -Concatenate -Force</span>
+<span class="s2">    $Credentials = Import-Clixml $CredentialsFile</span>
+<span class="s2">    Invoke-Command -ComputerName $ComputerName -Credential $Credentials -ScriptBlock ${function:</span><span class="si">%(function_name)s</span><span class="s2">} -HideComputerName</span><span class="si">%(select_columns)s</span><span class="s2"></span>
+<span class="s2">}</span>
+
+<span class="s2">&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_write_temp_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">script</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes the Final Script generated after substituting the values to a file with the</span>
+<span class="sd">            same name as the original file under the Automation/ directory path, and</span>
+<span class="sd">            returns the Full Path of this final script file.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                script  (str)   --  string consisting of the script to be written to the file</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   full path of the file to which the script has been written</span>
+
+<span class="sd">                    e.g.;</span>
+
+<span class="sd">                        for Windows PowerShell Script:</span>
+<span class="sd">                            -   script_generator.script = &quot;MakeDir.ps1&quot;</span>
+
+<span class="sd">                            output:</span>
+
+<span class="sd">                                ../ContentStore/Automation/ID_MakeDir.ps1</span>
+
+
+<span class="sd">                            -   script_generator.script = &quot;RemoveDir.ps1&quot;</span>
+
+<span class="sd">                            output:</span>
+
+<span class="sd">                                ../ContentStore/Automation/ID_RemoveDir.ps1</span>
+
+
+<span class="sd">                        for UNIX Shell Script:</span>
+<span class="sd">                            -   script_generator.script = &quot;DirectoryExists.sh&quot;</span>
+
+<span class="sd">                            output:</span>
+
+<span class="sd">                                ../ContentStore/Automation/ID_DirectoryExists.sh</span>
+
+
+<span class="sd">                            -   script_generator.script = &quot;RegistryExists.sh&quot;</span>
+
+<span class="sd">                            output:</span>
+
+<span class="sd">                                ../ContentStore/Automation/ID_RegistryExists.sh</span>
+
+<span class="sd">                    where,</span>
+<span class="sd">                        **ID**:    is the unique id of the ScriptGenerator class instance</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># combine the id and the script name to generate a unique script name</span>
+        <span class="c1"># there could be cases, where 2 Automation runs or 2 test cases be launched in parallel</span>
+        <span class="c1"># and they both do same operations on the same machine at the same time, where this</span>
+        <span class="c1"># script could be overwritten</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">AUTOMATION_DIRECTORY</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">_</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">script_name</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_obj</span><span class="p">:</span>
+            <span class="n">f_obj</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">script</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">script</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the script currently loaded into the instance of this class.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_script</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">script_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of the script file currently loaded into the instance of this class.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_script_name</span>
+
+    <span class="nd">@script</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">script_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checks if the script path given is valid or not.</span>
+
+<span class="sd">            Reads the script, and loads its contents to the `script` attribute of this class.</span>
+
+<span class="sd">            And sets the attribute `extension` with the extension of the given script.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">script_path</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Script is not a valid file&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_script_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">script_path</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">script_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_obj</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_script</span> <span class="o">=</span> <span class="n">f_obj</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8-sig&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">extension</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">script_path</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">final_script</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the value of the final script attribute(Footer script for PowerShll scripts).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_final_script</span>
+
+<div class="viewcode-block" id="ScriptGenerator.get_args"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.script_generator.ScriptGenerator.get_args">[docs]</a>    <span class="k">def</span> <span class="nf">get_args</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gets the function name from the script, and generates the args dict.&quot;&quot;&quot;</span>
+        <span class="n">function</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Function (\w*)&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">script</span><span class="p">)</span>
+        <span class="n">function_name</span> <span class="o">=</span> <span class="n">function</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;function_name&#39;</span><span class="p">:</span> <span class="n">function_name</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">del</span> <span class="n">function</span>
+        <span class="k">del</span> <span class="n">function_name</span></div>
+
+<div class="viewcode-block" id="ScriptGenerator.generate_script"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.script_generator.ScriptGenerator.generate_script">[docs]</a>    <span class="k">def</span> <span class="nf">generate_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">add_final_script</span><span class="p">,</span> <span class="n">select_columns</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generates the script to be executed on the client after adding the Arguments:</span>
+
+<span class="sd">                $ComputerName</span>
+
+<span class="sd">                $CredentialsFile</span>
+
+<span class="sd">            to the script, and the Footer script if the add_final_script flag is set to True.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                add_final_script    (bool)  --  boolean flag to specify whether the footer part</span>
+<span class="sd">                must be added to the script or not</span>
+
+<span class="sd">                    **Only applicable for PowerShell scripts for Windows**</span>
+
+<span class="sd">                select_columns      (list)  --  list of columns to be further selected from the</span>
+<span class="sd">                output of the **Invoke-Command** cmdlet</span>
+
+<span class="sd">                    **Only applicable for PowerShell scripts for Windows**</span>
+
+<span class="sd">                    default:    None</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   script content after adding the arguments, and the footer script</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span> <span class="o">==</span> <span class="s1">&#39;$null&#39;</span><span class="p">:</span>
+            <span class="n">computer_name</span> <span class="o">=</span> <span class="s1">&#39;$ComputerName = </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">computer_name</span> <span class="o">=</span> <span class="s1">&#39;$ComputerName = &quot;</span><span class="si">{0}</span><span class="s1">&quot;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">machine_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">credentials_file</span> <span class="o">==</span> <span class="s1">&#39;$null&#39;</span><span class="p">:</span>
+            <span class="n">credentials_file</span> <span class="o">=</span> <span class="s1">&#39;$CredentialsFile = </span><span class="si">{0}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">credentials_file</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">credentials_file</span> <span class="o">=</span> <span class="s1">&#39;$CredentialsFile = &quot;</span><span class="si">{0}</span><span class="s1">&quot;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">credentials_file</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">select_columns</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;select_columns&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot; | Select </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">select_columns</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="s1">&#39;select_columns&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="n">final_script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_script</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span>
+        <span class="n">script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">script</span>
+
+        <span class="n">script</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}{1}</span><span class="se">\n</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">computer_name</span><span class="p">,</span> <span class="n">credentials_file</span><span class="p">,</span> <span class="n">script</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">add_final_script</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">script</span><span class="p">,</span> <span class="n">final_script</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">script</span></div>
+
+<div class="viewcode-block" id="ScriptGenerator.substitute_arguments"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.script_generator.ScriptGenerator.substitute_arguments">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">substitute_arguments</span><span class="p">(</span><span class="n">script</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parses through the final script.</span>
+
+<span class="sd">            Gets the list of all arguments to be substituted in the script.</span>
+
+<span class="sd">            Substitutes the value of the argument with the value given in the `data` dict.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                script  (str)   --  raw script consisting of the arguments to be substituted</span>
+
+<span class="sd">                data    (dict)  --  dictionary consisting of the</span>
+<span class="sd">                Script Arguments as key, and its value to be substituted</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   final script with the values set for the Script Arguments</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any argument in the script is missing in the `data` dict</span>
+
+<span class="sd">                    if the type of the value is not supported</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">arguments_list</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;##Automation--([\w_]*)--##&#39;</span><span class="p">,</span> <span class="n">script</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">argument</span> <span class="ow">in</span> <span class="n">arguments_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">argument</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Argument: &quot;</span><span class="si">{0}</span><span class="s1">&quot; is not present in the data dict&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">argument</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">argument</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="n">argument</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="s1">&#39;$true&#39;</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="s1">&#39;$false&#39;</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">argument</span><span class="p">],</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">argument</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="n">data</span><span class="p">[</span><span class="n">argument</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="s1">&#39;None&#39;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Data type of the value is not yet supported&#39;</span><span class="p">)</span>
+
+                <span class="n">script</span> <span class="o">=</span> <span class="n">script</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;##Automation--</span><span class="si">{0}</span><span class="s1">--##&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">argument</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">script</span></div>
+
+<div class="viewcode-block" id="ScriptGenerator.run"><a class="viewcode-back" href="../../source/AutomationUtils.html#AutomationUtils.script_generator.ScriptGenerator.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">return_script</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">add_final_script</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">select_columns</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generates and Returns the final script / path of the final script</span>
+<span class="sd">            based on the user inputs.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                data                (dict)  --  dictionary consisting of the variables in</span>
+<span class="sd">                the script as its keys, and their data is it&#39;s value</span>
+
+<span class="sd">                return_script       (bool)  --  boolean flag specifying whether to return the</span>
+<span class="sd">                contents of the final script as a string OR write the script to a file,</span>
+<span class="sd">                and return the file path</span>
+
+<span class="sd">                    default:    False</span>
+
+<span class="sd">                add_final_script    (bool)  --  boolean flag to specify whether the footer part</span>
+<span class="sd">                must be added to the script or not</span>
+
+<span class="sd">                    **Only applicable for PowerShell scripts for Windows**</span>
+
+<span class="sd">                    default:    True</span>
+
+<span class="sd">                select_columns      (list)  --  list of columns to be further selected from the</span>
+<span class="sd">                output of the **Invoke-Command** cmdlet</span>
+
+<span class="sd">                    **Only applicable for PowerShell scripts for Windows**</span>
+
+<span class="sd">                    default:    None</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str     -   string value consisting of either the script contents / full path of</span>
+<span class="sd">                the script file</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if an argument is missing in the **data** dict</span>
+
+<span class="sd">                    if type of the value in the **data** dict is not supported</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">extension</span> <span class="o">==</span> <span class="s1">&#39;.ps1&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_args</span><span class="p">()</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_script</span><span class="p">(</span><span class="n">add_final_script</span><span class="p">,</span> <span class="n">select_columns</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">script</span>
+
+        <span class="n">script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">substitute_arguments</span><span class="p">(</span><span class="n">script</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">return_script</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">script</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_temp_script</span><span class="p">(</span><span class="n">script</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
