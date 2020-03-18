@@ -15,8 +15,9 @@ To get started, please see the [full documentation for this library](https://com
 
 ## About Commvault
 
-.. image:: https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Commvault_logo.svg/320px-Commvault_logo.svg.png
-    :align: center
+![alt text][logo]
+
+[logo]: https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/Commvault_logo.svg/320px-Commvault_logo.svg.png "Commvault"
 
 
 [Commvault](https://www.commvault.com/)
