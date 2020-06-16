@@ -1,0 +1,304 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Web.AdminConsole.Databases.Instances.add_cloud_db_instance &mdash; Commvault Automation 11.20 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../../" src="../../../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Web.AdminConsole.Databases.Instances.add_cloud_db_instance</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Web.AdminConsole.Databases.Instances.add_cloud_db_instance</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This file contains _NewCloudDBInstance class which inherits from Modal Panel.</span>
+<span class="sd">This is specific to cloud DBs and implements private methods to set the common inputs like</span>
+<span class="sd">vendor name, DB engine, cloud account, backup plan when creating a cloud database instance</span>
+<span class="sd">for DynamoDB, Redshift, RDS, DocumentDB.</span>
+<span class="sd">This file will also contain classes specific to each cloud DB type which</span>
+<span class="sd">implements methods to add cloud DB instances.</span>
+
+<span class="sd">Perform the following steps when trying to add support for a new cloud database:</span>
+<span class="sd">    1. Create a class for the new agent and inherit from _NewCloudDBInstance</span>
+<span class="sd">    2. Implement the vendor_name() and cloud_db_engine() in the class</span>
+<span class="sd">        to return the values specific to the agent</span>
+<span class="sd">    3. Define a method in the class to create instance for the specific agent</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">from</span> <span class="nn">Web.Common.page_object</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PageService</span><span class="p">,</span>
+    <span class="n">WebAction</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">Web.AdminConsole.Components.panel</span> <span class="kn">import</span> <span class="n">ModalPanel</span>
+<span class="kn">from</span> <span class="nn">Web.AdminConsole.adminconsole</span> <span class="kn">import</span> <span class="n">AdminConsole</span>
+
+
+<span class="k">class</span> <span class="nc">_NewCloudDBInstance</span><span class="p">(</span><span class="n">ModalPanel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class to set common options while creating cloud DB instances&quot;&quot;&quot;</span>
+    <span class="nd">@property</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">vendor_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Override this method and implement it as a variable</span>
+<span class="sd">        whose value needs to be set for vendor name&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_select_vendor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Selects vendor&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dropdown</span><span class="o">.</span><span class="n">select_drop_down_values</span><span class="p">(</span>
+            <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">vendor_name</span><span class="p">],</span>
+            <span class="n">drop_down_id</span><span class="o">=</span><span class="s1">&#39;addServerContent_isteven-multi-select_#8657&#39;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">cloud_db_engine</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Override this method and implement it as a variable</span>
+<span class="sd">                whose value needs to be set for Cloud DB engine&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_database_engine</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Selects the cloud database engine&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dropdown</span><span class="o">.</span><span class="n">select_drop_down_values</span><span class="p">(</span>
+            <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">cloud_db_engine</span><span class="p">],</span>
+            <span class="n">drop_down_id</span><span class="o">=</span><span class="s1">&#39;cv-cloud-db-engine-select_isteven-multi-select_#0323&#39;</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_cloud_account</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cloud_account</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the cloud account</span>
+<span class="sd">        Args:</span>
+<span class="sd">            cloud_account   (str) : The cloud account that needs to be used for</span>
+<span class="sd">                                    configuring instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dropdown</span><span class="o">.</span><span class="n">select_drop_down_values</span><span class="p">(</span>
+            <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="n">cloud_account</span><span class="p">],</span>
+            <span class="n">drop_down_id</span><span class="o">=</span><span class="s1">&#39;addCloudDatabase_isteven-multi-select_#5611&#39;</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_set_plan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the plan</span>
+<span class="sd">        Args:</span>
+<span class="sd">            name    (str)  :    The name of the plan</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dropdown</span><span class="o">.</span><span class="n">select_drop_down_values</span><span class="p">(</span>
+            <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="n">name</span><span class="p">],</span>
+            <span class="n">drop_down_id</span><span class="o">=</span><span class="s1">&#39;planSummaryDropdown&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="DynamoDBInstance"><a class="viewcode-back" href="../../../../../source/Web.AdminConsole.Databases.Instances.html#Web.AdminConsole.Databases.Instances.add_cloud_db_instance.DynamoDBInstance">[docs]</a><span class="k">class</span> <span class="nc">DynamoDBInstance</span><span class="p">(</span><span class="n">_NewCloudDBInstance</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for creating Dynamodb instance&quot;&quot;&quot;</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">vendor_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns the vendor&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_admin_console</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;label.vendor.amazon&#39;</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cloud_db_engine</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns the database engine type&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_admin_console</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;label.dynamodb&#39;</span><span class="p">]</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">create_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cloud_account</span><span class="p">,</span> <span class="n">plan</span><span class="p">,</span> <span class="n">adjust_read_capacity</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates DynamoDB instance</span>
+<span class="sd">        Args:</span>
+<span class="sd">            cloud_account   (str) : The cloud account that needs to be used for</span>
+<span class="sd">                                    configuring instance</span>
+
+<span class="sd">            plan            (str):  The name of the plan</span>
+
+<span class="sd">            adjust_read_capacity(int)   :   The value that needs to be set for</span>
+<span class="sd">                                        adjust read capacity parameter</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_select_vendor</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_database_engine</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_cloud_account</span><span class="p">(</span><span class="n">cloud_account</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_plan</span><span class="p">(</span><span class="n">plan</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">adjust_read_capacity</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_admin_console</span><span class="o">.</span><span class="n">fill_form_by_id</span><span class="p">(</span><span class="s1">&#39;capacity&#39;</span><span class="p">,</span> <span class="n">adjust_read_capacity</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

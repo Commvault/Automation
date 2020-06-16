@@ -1,0 +1,565 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>dynamicindex.content_analyzer_helper &mdash; Commvault Automation 11.20 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>dynamicindex.content_analyzer_helper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for dynamicindex.content_analyzer_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;&quot;helper class for content analyzer related operations</span>
+
+<span class="sd">    ContentAnalyzerHelper:</span>
+
+<span class="sd">        __init__(testcase)                    --  Initialize the ContentAnalyzerHelper object</span>
+
+<span class="sd">        install_content_analyzer()            --  Install content analyzer on Fresh machine</span>
+
+<span class="sd">        check_all_python_process()            --  Checks whether all python process is up and running on CA client</span>
+
+<span class="sd">        generate_entity_config()              --  generates the entity caconfig value for the given input</span>
+
+<span class="sd">        check_extracted_entity_with_src()     --  cross verifies whether extracted entities are part of source data</span>
+
+<span class="sd">        get_latest_extractingat_solr()        --  gets the latest extracting at value from solr for given subclient list</span>
+
+<span class="sd">        get_latest_forward_time_db()          --  gets latest forward ref time value from CS db for given subclient list</span>
+
+<span class="sd">        monitor_offline_entity_extraction()   --  monitors the offline CI&#39;ed docs entity extraction job progress</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.deployment.install</span> <span class="kn">import</span> <span class="n">Install</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.deployment</span> <span class="kn">import</span> <span class="n">deploymentconstants</span> <span class="k">as</span> <span class="n">install_constants</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.deployment.download</span> <span class="kn">import</span> <span class="n">Download</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.deployment.deploymentconstants</span> <span class="kn">import</span> <span class="n">DownloadOptions</span> <span class="k">as</span> <span class="n">download_constants</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.deployment.deploymentconstants</span> <span class="kn">import</span> <span class="n">DownloadPackages</span> <span class="k">as</span> <span class="n">pkg_constants</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">dynamicindex.utils</span> <span class="kn">import</span> <span class="n">constants</span> <span class="k">as</span> <span class="n">dynamic_constants</span>
+<span class="kn">from</span> <span class="nn">dynamicindex.utils.search_engine_util</span> <span class="kn">import</span> <span class="n">SearchEngineHelper</span>
+
+
+<div class="viewcode-block" id="ContentAnalyzerHelper"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper">[docs]</a><span class="k">class</span> <span class="nc">ContentAnalyzerHelper</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot; contains helper class for content analyzer related operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tc_object</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span> <span class="o">=</span> <span class="n">tc_object</span><span class="o">.</span><span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span> <span class="o">=</span> <span class="n">tc_object</span><span class="o">.</span><span class="n">csdb</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">tc_object</span><span class="o">.</span><span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ca_process_name</span> <span class="o">=</span> <span class="s2">&quot;python&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tc_object</span> <span class="o">=</span> <span class="n">tc_object</span>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.monitor_offline_entity_extraction"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.monitor_offline_entity_extraction">[docs]</a>    <span class="k">def</span> <span class="nf">monitor_offline_entity_extraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_ids</span><span class="p">,</span> <span class="n">extracting_times</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Monitors the entity extraction job progress for offline cie&#39;d docs in search engine</span>
+
+<span class="sd">                Args:</span>
+
+<span class="sd">                    subclient_ids        (list)         --  list of subclient ids</span>
+
+<span class="sd">                    extracting_times     (Nested list)  -- Extractingat times for subclient from solr</span>
+
+<span class="sd">                    Example : [[{&#39;apid&#39;: 5999, &#39;extractingat&#39;: &#39;2020-02-18T10:13:54.035Z&#39;}]]</span>
+
+<span class="sd">                    timeout              (int)          -- Maximum timeout value for this function in Mins</span>
+<span class="sd">                                                                default : 60Mins</span>
+
+<span class="sd">                Return:</span>
+<span class="sd">                    None</span>
+
+<span class="sd">                Exception:</span>
+
+<span class="sd">                         if unable to find job stats</span>
+
+<span class="sd">                         if timeout exceeds</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Going to monitor the Entity Extraction job for offline CI&#39;ed documents&quot;</span><span class="p">)</span>
+        <span class="n">job_time</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">finished_subclient</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">total_subclient</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">extracting_times</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">job_time</span> <span class="o">&lt;=</span> <span class="n">timeout</span><span class="p">:</span>
+            <span class="n">finished_subclient</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">forward_times</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_latest_forward_time_db</span><span class="p">(</span>
+                <span class="n">subclient_ids</span><span class="o">=</span><span class="n">subclient_ids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Response json from CS DB : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">forward_times</span><span class="p">)</span>
+            <span class="n">solr_date_time_format</span> <span class="o">=</span> <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">T%H:%M:%SZ&#39;</span>
+            <span class="n">cs_date_time_format</span> <span class="o">=</span> <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">T%H:%M:%SZ&#39;</span>
+            <span class="k">for</span> <span class="n">subclient</span> <span class="ow">in</span> <span class="n">extracting_times</span><span class="p">:</span>
+                <span class="n">solr_subclient</span> <span class="o">=</span> <span class="n">subclient</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">mod_solr_subclient</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">solr_subclient</span><span class="p">[</span><span class="s1">&#39;extractingat&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;Z&#39;</span>
+                <span class="n">solr_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">mod_solr_subclient</span><span class="p">,</span> <span class="n">solr_date_time_format</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">forward_times</span><span class="p">:</span>
+                    <span class="n">cs_subclient</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">cs_subclient</span><span class="p">[</span><span class="s1">&#39;apid&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">solr_subclient</span><span class="p">[</span><span class="s1">&#39;apid&#39;</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking job stats for subclient id :</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cs_subclient</span><span class="p">[</span><span class="s1">&#39;apid&#39;</span><span class="p">])</span>
+                        <span class="n">cs_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cs_subclient</span><span class="p">[</span><span class="s1">&#39;forwardreftime&#39;</span><span class="p">]),</span> <span class="n">cs_date_time_format</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">cs_time</span> <span class="o">==</span> <span class="n">solr_time</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Entity extraction completed for subclient : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cs_subclient</span><span class="p">[</span><span class="s1">&#39;apid&#39;</span><span class="p">])</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Forward reference time set in DB is : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cs_time</span><span class="p">)</span>
+                            <span class="n">finished_subclient</span> <span class="o">=</span> <span class="n">finished_subclient</span> <span class="o">+</span> <span class="mi">1</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Entity Extraction not completed for subclient : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cs_subclient</span><span class="p">[</span><span class="s1">&#39;apid&#39;</span><span class="p">])</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Solr extracting time : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">solr_time</span><span class="p">)</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CS forward reference time : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cs_time</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">finished_subclient</span> <span class="o">==</span> <span class="n">total_subclient</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Entity extraction completed for all subclients in [</span><span class="si">%s</span><span class="s2">] mins&quot;</span><span class="p">,</span> <span class="n">job_time</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+            <span class="n">job_time</span> <span class="o">=</span> <span class="n">job_time</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">finished_subclient</span> <span class="o">!=</span> <span class="n">total_subclient</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Operation Timed-out with entity extraction job. Please check&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.get_latest_extractingat_solr"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.get_latest_extractingat_solr">[docs]</a>    <span class="k">def</span> <span class="nf">get_latest_extractingat_solr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_ids</span><span class="p">,</span> <span class="n">solr_url</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; gets the latest extracting at value for given subclient list from solr</span>
+
+<span class="sd">                Args:</span>
+<span class="sd">                    subclient_ids        (list)   --  list of subclient ids</span>
+
+<span class="sd">                    solr_url             (str)    -- Solr url</span>
+<span class="sd">                        Example : &quot;http://&lt;searchengine_machinename&gt;:&lt;port no&gt;/solr&quot;</span>
+
+<span class="sd">                Return:</span>
+<span class="sd">                    dics : containing subclient and it&#39;s corresponding extractingat value from solr</span>
+
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if unable to find subclient docs in solr</span>
+
+<span class="sd">                    if response is not success</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">engine_helper</span> <span class="o">=</span> <span class="n">SearchEngineHelper</span><span class="p">(</span><span class="n">tc_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tc_object</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">subclient</span> <span class="ow">in</span> <span class="n">subclient_ids</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Going to get latest extractingat from solr for subclient : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">subclient</span><span class="p">)</span>
+            <span class="n">new_solr_url</span> <span class="o">=</span> <span class="n">solr_url</span> <span class="o">+</span> <span class="s2">&quot;/collection1/select?q=apid:</span><span class="si">{0}</span><span class="s2">&amp;sort=extractingat desc&amp;rows=1&quot;</span> \
+                <span class="s2">&quot;&amp;fl=extractingat,apid&amp;wt=json&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient</span><span class="p">)</span>
+            <span class="n">solr_response</span> <span class="o">=</span> <span class="n">engine_helper</span><span class="o">.</span><span class="n">execute_search_engine_query</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">new_solr_url</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">solr_response</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;No response from solr&quot;</span><span class="p">)</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">solr_response</span><span class="p">[</span><span class="s1">&#39;docs&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">response</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.get_latest_forward_time_db"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.get_latest_forward_time_db">[docs]</a>    <span class="k">def</span> <span class="nf">get_latest_forward_time_db</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_ids</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; gets the latest extracting at value for given subclient list from CS db</span>
+
+<span class="sd">                Args:</span>
+<span class="sd">                    subclient_ids        (list)   --  list of subclient ids</span>
+
+<span class="sd">                Return:</span>
+<span class="sd">                    dics : containing subclient and it&#39;s corresponding forwardreftime value from db</span>
+
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if unable to find subclient docs in db</span>
+
+<span class="sd">                    if response is not success</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">subclient</span> <span class="ow">in</span> <span class="n">subclient_ids</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Going to get latest extractingat from db for subclient : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">subclient</span><span class="p">)</span>
+            <span class="n">_query</span> <span class="o">=</span> <span class="s2">&quot;select dbo.GetSolrDateString (min( forwardreftime )) as forwardreftime from EntityProcessor &quot;</span> \
+                     <span class="s2">&quot;where EntityRulerId in ( select EntityRulerId from EntitySelection &quot;</span> \
+                     <span class="s2">&quot;where SubclientID in (</span><span class="si">{0}</span><span class="s2">) and enabled=1)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Querying CS DB : &quot;</span> <span class="o">+</span> <span class="n">_query</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">_query</span><span class="p">)</span>
+            <span class="n">fwd_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">fwd_time</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to get forward ref time for subclient&quot;</span><span class="p">)</span>
+            <span class="n">fwd_times</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;apid&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">subclient</span><span class="p">),</span> <span class="s1">&#39;forwardreftime&#39;</span><span class="p">:</span> <span class="n">fwd_time</span><span class="p">[</span><span class="mi">0</span><span class="p">]}]</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fwd_times</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">response</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.check_extracted_entity_with_src"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.check_extracted_entity_with_src">[docs]</a>    <span class="k">def</span> <span class="nf">check_extracted_entity_with_src</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">solr_response</span><span class="p">,</span> <span class="n">entity_keys</span><span class="p">,</span> <span class="n">source_data</span><span class="p">,</span> <span class="n">expected_entity</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Checks whether extracted entities are part of source data</span>
+
+<span class="sd">                       Args:</span>
+<span class="sd">                           solr_response        (dict)   --  Solr query response</span>
+
+<span class="sd">                           entity_keys          (list)   -- list of entity keys to validate</span>
+
+<span class="sd">                           source_data          (str)    -- Source data content</span>
+
+<span class="sd">                           expected_entity      (dict)   -- dict of expected entities</span>
+
+<span class="sd">                       Return:</span>
+<span class="sd">                           None:</span>
+
+<span class="sd">                       Exception:</span>
+
+<span class="sd">                           if unable to find entity key in document</span>
+
+<span class="sd">                           if extracted entity data doesn&#39;t match with source data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">expected_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">actual_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">expected_entity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">expected_entity</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">expected_entity</span><span class="p">[</span><span class="n">value</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+                    <span class="n">expected_count</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">expected_entity</span><span class="p">[</span><span class="n">value</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">expected_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="n">solr_response</span><span class="p">[</span><span class="s1">&#39;docs&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">entity_key</span> <span class="ow">in</span> <span class="n">entity_keys</span><span class="p">:</span>
+                <span class="n">entity_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">entity_key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;entity_&quot;</span><span class="p">):</span>
+                    <span class="n">entity_name</span> <span class="o">=</span> <span class="s2">&quot;entity_&quot;</span> <span class="o">+</span> <span class="n">entity_key</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">entity_name</span> <span class="o">=</span> <span class="n">entity_key</span>
+                <span class="k">if</span> <span class="n">entity_name</span> <span class="ow">in</span> <span class="n">doc</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Found the entity in the document: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">entity_name</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">doc</span><span class="p">[</span><span class="n">entity_name</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">doc</span><span class="p">[</span><span class="n">entity_name</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                        <span class="n">entity_extracted</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="n">entity_name</span><span class="p">]</span>
+                        <span class="k">for</span> <span class="n">entity_value</span> <span class="ow">in</span> <span class="n">entity_extracted</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">source_data</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">entity_value</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                                <span class="k">if</span> <span class="n">expected_entity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Source contains Entity value : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">doc</span><span class="p">[</span><span class="n">entity_name</span><span class="p">])</span>
+                                <span class="k">else</span><span class="p">:</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Expected Entity check for key : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">entity_name</span><span class="p">)</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Expected result : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">expected_entity</span><span class="p">[</span><span class="n">entity_name</span><span class="p">])</span>
+                                    <span class="k">if</span> <span class="n">entity_name</span> <span class="ow">in</span> <span class="n">expected_entity</span> <span class="ow">and</span> <span class="n">entity_value</span> <span class="ow">in</span> <span class="n">expected_entity</span><span class="p">[</span><span class="n">entity_name</span><span class="p">]:</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Expected entity matched : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">entity_value</span><span class="p">)</span>
+                                        <span class="n">actual_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                                    <span class="k">else</span><span class="p">:</span>
+                                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Expected entity Mismatched : &quot;</span> <span class="o">+</span> <span class="n">entity_value</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Source doesn&#39;t contain Entity value : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">entity_value</span><span class="p">)</span>
+                                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Source doesn&#39;t contain Entity value : &quot;</span> <span class="o">+</span> <span class="n">entity_value</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Entities extracted contains NoneType or Empty. Please check&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Expected entity is not found in Document : &quot;</span> <span class="o">+</span> <span class="n">entity_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">actual_count</span> <span class="o">!=</span> <span class="n">expected_count</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Actual </span><span class="si">{</span><span class="n">actual_count</span><span class="si">}</span><span class="s2"> vs Expected </span><span class="si">{</span><span class="n">expected_count</span><span class="si">}</span><span class="s2"> entity count not matched. Please check&quot;</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Entity validation with source data succeeded&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.generate_entity_config"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.generate_entity_config">[docs]</a>    <span class="k">def</span> <span class="nf">generate_entity_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_fields</span><span class="p">,</span> <span class="n">rer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ner</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">derived</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Generates the entity extraction caconfig value for the given input of regex entity list</span>
+<span class="sd">                Args:</span>
+
+<span class="sd">                    entity_fields (list) -- field name to extract entity from</span>
+
+<span class="sd">                    rer  (list)          -- entity id&#39;s of RER</span>
+
+<span class="sd">                    ner  (list)          -- entity id&#39;s of NER</span>
+
+<span class="sd">                    derived  (list)      -- entity id&#39;s of DE</span>
+
+<span class="sd">                Return:</span>
+<span class="sd">                    str  -- caconfig attribute value</span>
+
+<span class="sd">                Exception:</span>
+<span class="sd">                    if unable to form request</span>
+
+<span class="sd">                    if input is not list</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+                <span class="nb">isinstance</span><span class="p">(</span><span class="n">rer</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ner</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">derived</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span>
+                <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity_fields</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid input. specify input params as list&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">rer</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">ner</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ner</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">derived</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">derived</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">entity_extraction_json_value</span> <span class="o">=</span> <span class="p">[</span><span class="n">rer</span><span class="p">,</span> <span class="n">ner</span><span class="p">,</span> <span class="n">derived</span><span class="p">,</span> <span class="n">entity_fields</span><span class="p">]</span>
+        <span class="n">caconfig</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">&quot;task&quot;</span><span class="p">:</span> <span class="n">dynamic_constants</span><span class="o">.</span><span class="n">ENTITY_EXTRACTION_JSON_PROP</span><span class="p">[</span><span class="n">x</span><span class="p">],</span>
+                     <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="n">entity_extraction_json_value</span><span class="p">[</span><span class="n">x</span><span class="p">]}</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span>
+                    <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">ENTITY_EXTRACTION_JSON_PROP</span><span class="p">))]</span>
+        <span class="n">caconfig</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">caconfig</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generated Entity config Json : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">caconfig</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">caconfig</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.check_all_python_process"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.check_all_python_process">[docs]</a>    <span class="k">def</span> <span class="nf">check_all_python_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_obj</span><span class="p">,</span> <span class="n">process_count</span><span class="o">=</span><span class="mi">17</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Checks whether all default python process is up and running on CA client</span>
+<span class="sd">                Args:</span>
+<span class="sd">                    client_obj  (obj)    --  Object of client</span>
+
+<span class="sd">                    process_count (int)  --  count of python process to cross check</span>
+
+<span class="sd">                Return:</span>
+<span class="sd">                    None:</span>
+
+<span class="sd">                Exception:</span>
+<span class="sd">                    if unable to find python process</span>
+
+<span class="sd">                    if total python process running is not equal to 17</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;(Get-Process | where-object{$_.ProcessName -eq </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2">}).Count&quot;</span>
+               <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">ca_process_name</span><span class="p">)</span>
+        <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;UNIX&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;This is the unix machine&quot;</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;ps -ef | grep -w </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2"> | grep -v grep | wc -l&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">ca_process_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Command Formed : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span>
+        <span class="n">total_process_running</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Python Process Expected count :  Actual count -- </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="n">process_count</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; : &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">total_process_running</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">total_process_running</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">total_process_running</span><span class="o">.</span><span class="n">output</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Python process is not up on CA client.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Python client is not running on CA client&quot;</span><span class="p">)</span>
+        <span class="c1"># 1-Handler + 1-Publisher + 10-Generic client + 5-CI clients</span>
+        <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">total_process_running</span><span class="o">.</span><span class="n">output</span><span class="p">)</span> <span class="o">==</span> <span class="n">process_count</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;All 17 python process is up and running fine.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Few python process didn&#39;t come up on CA client. Please check&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.install_content_analyzer"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.install_content_analyzer">[docs]</a>    <span class="k">def</span> <span class="nf">install_content_analyzer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine_name</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="s2">&quot;Windows&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; installs the content analyzer package on given machine name</span>
+<span class="sd">                Args:</span>
+<span class="sd">                    machine_name (str)    --  Name of the machine</span>
+
+<span class="sd">                    user_name    (str)    --  Username to access machine</span>
+
+<span class="sd">                    password     (str)    --  Password to access machine</span>
+
+<span class="sd">                    platform     (str)    --  platform type for machine (Default:Windows)</span>
+
+<span class="sd">                Return:</span>
+<span class="sd">                    None:</span>
+
+<span class="sd">                Exception:</span>
+<span class="sd">                    if failed to install package</span>
+
+<span class="sd">                    if failed to download package on CS</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">is_unix_platform</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">platform</span> <span class="o">==</span> <span class="s2">&quot;Windows&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting platform type as Windows&quot;</span><span class="p">)</span>
+            <span class="n">os_list</span> <span class="o">=</span> <span class="n">pkg_constants</span><span class="o">.</span><span class="n">WINDOWS_64</span><span class="o">.</span><span class="n">value</span>
+            <span class="n">feature_list</span> <span class="o">=</span> <span class="n">install_constants</span><span class="o">.</span><span class="n">WindowsDownloadFeatures</span><span class="o">.</span><span class="n">CONTENT_ANALYZER</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">elif</span> <span class="n">platform</span> <span class="o">==</span> <span class="s2">&quot;Unix&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting platform type as Unix&quot;</span><span class="p">)</span>
+            <span class="n">is_unix_platform</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">os_list</span> <span class="o">=</span> <span class="n">pkg_constants</span><span class="o">.</span><span class="n">UNIX_LINUX64</span><span class="o">.</span><span class="n">value</span>
+            <span class="n">feature_list</span> <span class="o">=</span> <span class="n">install_constants</span><span class="o">.</span><span class="n">UnixDownloadFeatures</span><span class="o">.</span><span class="n">CONTENT_ANALYZER</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unsupported platform type provided&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Download the latest updates for the current service pack level on commcell : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_version</span><span class="p">)</span>
+        <span class="n">download_obj</span> <span class="o">=</span> <span class="n">Download</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="n">job_obj</span> <span class="o">=</span> <span class="n">download_obj</span><span class="o">.</span><span class="n">download_software</span><span class="p">(</span>
+            <span class="n">options</span><span class="o">=</span><span class="n">download_constants</span><span class="o">.</span><span class="n">SERVICEPACK_AND_HOTFIXES</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="n">os_list</span><span class="o">=</span><span class="p">[</span><span class="n">os_list</span><span class="p">],</span>
+            <span class="n">service_pack</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_version</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Invoked the download software job with id : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Going to Monitor this download job for completion&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">90</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Downloading s/w package on CS failed. Please check logs&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Download s/w on CS failed&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Download job finished&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Going to do install software(Content Analyzer) on VM client : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">machine_name</span><span class="p">)</span>
+        <span class="n">install_obj</span> <span class="o">=</span> <span class="n">Install</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">password</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">password</span><span class="p">)</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">password</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Decoded password for input json : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_unix_platform</span><span class="p">:</span>
+            <span class="n">job_obj</span> <span class="o">=</span> <span class="n">install_obj</span><span class="o">.</span><span class="n">install_software</span><span class="p">(</span>
+                <span class="n">client_computers</span><span class="o">=</span><span class="p">[</span><span class="n">machine_name</span><span class="p">],</span>
+                <span class="n">unix_features</span><span class="o">=</span><span class="p">[</span><span class="n">feature_list</span><span class="p">],</span>
+                <span class="n">username</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span>
+                <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">job_obj</span> <span class="o">=</span> <span class="n">install_obj</span><span class="o">.</span><span class="n">install_software</span><span class="p">(</span>
+                <span class="n">client_computers</span><span class="o">=</span><span class="p">[</span><span class="n">machine_name</span><span class="p">],</span>
+                <span class="n">windows_features</span><span class="o">=</span><span class="p">[</span><span class="n">feature_list</span><span class="p">],</span>
+                <span class="n">username</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span>
+                <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Invoked the install software job with id : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Going to Monitor this install job for completion&quot;</span><span class="p">)</span>
+        <span class="c1"># Monitor job for 1hr 15mins as CA package includes installation of Anaconda packages</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">90</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Installing content analyzer package on vm failed. Please check logs&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Push installation of CA package failed&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Content analyzer package installed successfully on VM client&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Sleeping for 3 minutes for the python process to be up&#39;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">180</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

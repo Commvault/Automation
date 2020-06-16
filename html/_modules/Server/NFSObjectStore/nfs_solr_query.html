@@ -1,0 +1,583 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Server.NFSObjectStore.nfs_solr_query &mdash; Commvault Automation 11.20 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Server.NFSObjectStore.nfs_solr_query</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Server.NFSObjectStore.nfs_solr_query</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;File for performing NFS server related operations in Commcell</span>
+
+<span class="sd">ObjectstoreSolrHelper is the only class defined in this.</span>
+
+<span class="sd">ObjectstoreSolrHelper: Provides methods which are relevant to</span>
+<span class="sd">                       NFS index related operations</span>
+
+<span class="sd">ObjectstoreSolrHelper:</span>
+<span class="sd">    __init__()                       --  initialize instance of the</span>
+<span class="sd">    ObjectstoreSolrHelper class</span>
+
+<span class="sd">    create_solr_query()             --  creates solr query for given NFS index core</span>
+
+<span class="sd">    create_url_and_get_response()   --  Helper method to get results from a url</span>
+
+<span class="sd">    check_if_error_in_response()    --  Method to check if response has error</span>
+
+<span class="sd">    check_is_visisble()             --  check for is_visible flag set to given value for files</span>
+
+<span class="sd">    collect_index_details()         -- collect_index_details</span>
+
+<span class="sd">    collect_archfile_details()      -- collects archfile Ids for given list of files</span>
+
+<span class="sd">    validate_deleted_items_index()  -- validates deleted files details are cleared in latest core</span>
+
+<span class="sd">    validate_is_pruned()            -- validates is_pruned flag for given file names</span>
+
+<span class="sd">    validate_afiles_after_synthfull() -- validates afiles are prunable and archfile Ids are carried</span>
+<span class="sd">    forward correctly</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">Application.Exchange.SolrSearchHelper</span> <span class="kn">import</span> <span class="n">SolrSearchHelper</span>
+<span class="kn">from</span> <span class="nn">dynamicindex.Datacube.dcube_solr_helper</span> <span class="kn">import</span> <span class="n">SolrHelper</span> <span class="k">as</span> <span class="n">dCubeSolrHelper</span>
+<span class="kn">from</span> <span class="nn">Application.Exchange.ExchangeMailbox.solr_helper</span> <span class="kn">import</span> <span class="n">SolrHelper</span>
+
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper">[docs]</a><span class="k">class</span> <span class="nc">ObjectstoreSolrHelper</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Base class to execute solr related operations &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tc_obj</span><span class="p">,</span> <span class="n">index_server_cloud</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize instance of the ObjectstoreSolrHelper class..</span>
+<span class="sd">            Args:</span>
+<span class="sd">                tc_obj (obj)    -- test case object</span>
+
+<span class="sd">                index_server_cloud (str)    --  name of solr cloud server used in objectstore</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object - instance of the ObjectstoreClientUtils class</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurs in Initialize</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">solr_search_obj</span> <span class="o">=</span> <span class="n">SolrSearchHelper</span><span class="p">(</span><span class="n">tc_obj</span><span class="p">)</span>
+        <span class="n">clientnames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">solr_search_obj</span><span class="o">.</span><span class="n">get_index_server_client_names</span><span class="p">(</span><span class="n">index_server_cloud</span><span class="p">)</span>
+
+        <span class="c1"># get base URL</span>
+        <span class="n">dcube_helper_obj</span> <span class="o">=</span> <span class="n">dCubeSolrHelper</span><span class="p">(</span><span class="n">tc_obj</span><span class="p">)</span>
+        <span class="n">base_client</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">clientnames</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">dcube_helper_obj</span><span class="o">.</span><span class="n">get_solr_baseurl</span><span class="p">(</span><span class="n">base_client</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nfs_index_cores</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;extent&#39;</span><span class="p">:</span> <span class="s1">&#39;nfsindexextent&#39;</span><span class="p">,</span>
+                                <span class="s1">&#39;version&#39;</span><span class="p">:</span> <span class="s1">&#39;nfsindexversion&#39;</span><span class="p">,</span>
+                                <span class="s1">&#39;latest&#39;</span><span class="p">:</span> <span class="s1">&#39;nfsindexlatest&#39;</span><span class="p">}</span>
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper.create_solr_query"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper.create_solr_query">[docs]</a>    <span class="k">def</span> <span class="nf">create_solr_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_core</span><span class="p">,</span> <span class="n">select_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">attr_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">op_params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;creates solr query for given NFS index core</span>
+<span class="sd">            Args:</span>
+<span class="sd">                index_core(str)     --  NFS index core to query the search</span>
+
+<span class="sd">                select_dict(dict)   --  dictionary containing select query</span>
+
+<span class="sd">                 attr_list (list)   -- attribute list</span>
+
+<span class="sd">                op_params(dictionary)       --  Other params and values for solr query</span>
+<span class="sd">                                                (Ex: start, rows)</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                The solr url based on params</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating solr URL&quot;</span><span class="p">)</span>
+            <span class="n">search_query</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;q=&#39;</span>
+            <span class="n">simple_search</span><span class="o">=</span><span class="mi">0</span>
+            <span class="k">if</span> <span class="n">select_dict</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">select_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                        <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s1">&#39;</span>
+                        <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                            <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39; OR </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+                        <span class="n">search_query</span> <span class="o">+=</span> <span class="s2">&quot; AND &quot;</span>
+                    <span class="k">elif</span> <span class="n">key</span><span class="o">==</span><span class="s2">&quot;keyword&quot;</span><span class="p">:</span>
+                        <span class="n">search_query</span> <span class="o">+=</span> <span class="s2">&quot;(&quot;</span><span class="o">+</span><span class="n">value</span><span class="o">+</span><span class="s2">&quot;)&quot;</span>
+                        <span class="n">simple_search</span><span class="o">=</span><span class="mi">1</span>
+                        <span class="k">break</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">search_query</span> <span class="o">=</span> <span class="n">search_query</span> <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s1"> AND &#39;</span>
+
+            <span class="k">if</span> <span class="n">simple_search</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                <span class="n">search_query</span> <span class="o">=</span> <span class="n">search_query</span><span class="p">[:</span><span class="o">-</span><span class="mi">5</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Search query: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">search_query</span><span class="p">)</span>
+            <span class="n">field_query</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">attr_list</span><span class="p">:</span>
+                <span class="n">field_query</span> <span class="o">=</span> <span class="s2">&quot;&amp;fl=&quot;</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">attr_list</span><span class="p">:</span>
+                    <span class="n">field_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="si">}</span><span class="s1">,&#39;</span>
+                <span class="n">field_query</span> <span class="o">=</span> <span class="n">field_query</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Field query formed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">field_query</span><span class="p">)</span>
+            <span class="n">ex_query</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">op_params</span><span class="p">:</span>
+                <span class="n">op_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;wt&#39;</span><span class="p">:</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="s2">&quot;rows&quot;</span><span class="p">:</span> <span class="s2">&quot;50&quot;</span><span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">op_params</span><span class="p">[</span><span class="s1">&#39;wt&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;json&quot;</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">op_params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">ex_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&amp;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ex_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&amp;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Optional parameters are: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">ex_query</span><span class="p">)</span>
+
+            <span class="n">final_url</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">&#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nfs_index_cores</span><span class="p">[</span><span class="n">index_core</span><span class="p">]</span><span class="si">}</span><span class="s1">/&#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;select?&#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">search_query</span><span class="si">}</span><span class="s1">&#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">field_query</span><span class="si">}</span><span class="s1">&#39;</span>
+                         <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">ex_query</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">final_url</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception while creating solr query: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper.create_url_and_get_response"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper.create_url_and_get_response">[docs]</a>    <span class="k">def</span> <span class="nf">create_url_and_get_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                    <span class="n">index_core</span><span class="p">,</span>
+                                    <span class="n">select_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                    <span class="n">attr_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                    <span class="n">op_params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Helper method to get results from a url</span>
+<span class="sd">            Args:</span>
+<span class="sd">                index_core(str)     --  NFS index core to query the search</span>
+
+<span class="sd">                select_dict(dict)   --  dictionary containing select query</span>
+
+<span class="sd">                attr_list (list)   -- attribute list</span>
+
+<span class="sd">                op_params(dictionary)       --  Other params and values for solr query</span>
+<span class="sd">                                                (Ex: start, rows)</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                The solr url based on params</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">index_core</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nfs_index_cores</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> core is not valid. available cores:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">index_core</span><span class="p">,</span>
+                                                                             <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nfs_index_cores</span><span class="o">.</span><span class="n">keys</span><span class="p">())))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">solr_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_solr_query</span><span class="p">(</span><span class="n">index_core</span><span class="p">,</span> <span class="n">select_dict</span><span class="o">=</span><span class="n">select_dict</span><span class="p">,</span>
+                                              <span class="n">attr_list</span><span class="o">=</span><span class="n">attr_list</span><span class="p">,</span> <span class="n">op_params</span><span class="o">=</span><span class="n">op_params</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;URL formed from the details provided is: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">solr_url</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">solr_url</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_if_error_in_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;response&#39;</span><span class="p">][</span><span class="s1">&#39;docs&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper.check_if_error_in_response"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper.check_if_error_in_response">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_error_in_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to check if response has error</span>
+<span class="sd">            Args:</span>
+<span class="sd">                response(obj)         --  Response Object</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if response was error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error in calling solr URL. Reason </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">response</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;error&quot;</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error in the solr URL. Reason </span><span class="si">%s</span><span class="s2"> &quot;</span> <span class="o">%</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;error&quot;</span><span class="p">][</span><span class="s2">&quot;msg&quot;</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="n">excp</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper.check_is_visisble"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper.check_is_visisble">[docs]</a>    <span class="k">def</span> <span class="nf">check_is_visisble</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">files_list</span><span class="p">,</span> <span class="n">index_core</span><span class="p">,</span> <span class="n">application_id</span><span class="p">,</span> <span class="n">is_visible</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;check for is_visible flag set to given value for files</span>
+<span class="sd">            Args:</span>
+<span class="sd">                files_list(list)   -- list of file names for which is_visible flag need</span>
+<span class="sd">                                      to be check</span>
+
+<span class="sd">                index_core(str)     --  NFS index core to query the search</span>
+
+<span class="sd">                application_id(int)   --  application id of objectstore</span>
+
+<span class="sd">                is_visible (bool)   -- is_visible flag value to be checked</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                True - Success</span>
+<span class="sd">                False - on failure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">select_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ApplicationId&#39;</span><span class="p">:</span> <span class="n">application_id</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;verifying is_visible flag in index server&quot;</span><span class="p">)</span>
+        <span class="n">index_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_url_and_get_response</span><span class="p">(</span><span class="n">index_core</span><span class="p">,</span> <span class="n">select_dict</span><span class="o">=</span><span class="n">select_dict</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">index_details</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;FileName&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">files_list</span> <span class="ow">and</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;IsVisible&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">is_visible</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;IsVisible is not set to </span><span class="si">%s</span><span class="s2"> for file </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">is_visible</span><span class="p">,</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;FileName&#39;</span><span class="p">]))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;{</span><span class="si">%s</span><span class="s2">}&quot;</span> <span class="o">%</span> <span class="n">item</span><span class="p">)</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">status</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;IsVisible flag check failed. query results&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;IsVisible flag to </span><span class="si">%s</span><span class="s2"> verified successfully&quot;</span> <span class="o">%</span> <span class="n">is_visible</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">status</span></div>
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper.collect_index_details"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper.collect_index_details">[docs]</a>    <span class="k">def</span> <span class="nf">collect_index_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">application_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Helper method to get results from a url</span>
+<span class="sd">            Args:</span>
+<span class="sd">             application_id(int)   --  application id of objectstore</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dictionaries of latest and extent core details with</span>
+<span class="sd">                filename and contentid as key respectively</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">latest_core_details</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">extent_core_details</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">select_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ApplicationId&#39;</span><span class="p">:</span> <span class="n">application_id</span><span class="p">}</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_url_and_get_response</span><span class="p">(</span><span class="s2">&quot;latest&quot;</span><span class="p">,</span> <span class="n">select_dict</span><span class="o">=</span><span class="n">select_dict</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">latest_core_details</span><span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="s1">&#39;FileName&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">item</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_url_and_get_response</span><span class="p">(</span><span class="s2">&quot;extent&quot;</span><span class="p">,</span> <span class="n">select_dict</span><span class="o">=</span><span class="n">select_dict</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+            <span class="n">extent_core_details</span><span class="p">[</span><span class="n">item</span><span class="p">[</span><span class="s1">&#39;contentid&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">item</span>
+
+        <span class="k">return</span> <span class="n">latest_core_details</span><span class="p">,</span> <span class="n">extent_core_details</span></div>
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper.collect_archfile_details"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper.collect_archfile_details">[docs]</a>    <span class="k">def</span> <span class="nf">collect_archfile_details</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">application_id</span><span class="p">,</span> <span class="n">req_files_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;collects archfile Ids for given list of files</span>
+<span class="sd">            Args:</span>
+<span class="sd">                application_id(int)   --  application id of objectstore</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dictionary of archfile details {&#39;filename&#39;:[list of archfiles]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">latest_core_details</span><span class="p">,</span> <span class="n">extent_core_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_index_details</span><span class="p">(</span><span class="n">application_id</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;found index details latestcore:</span><span class="si">%s</span><span class="s2">, extentcore:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                      <span class="p">(</span><span class="n">latest_core_details</span><span class="p">,</span> <span class="n">extent_core_details</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;note down archfileId for given files </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">req_files_list</span><span class="p">)</span>
+        <span class="n">arch_file_map</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">files_intersection</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">req_files_list</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">latest_core_details</span><span class="o">.</span><span class="n">keys</span><span class="p">())))</span>
+
+        <span class="c1"># as we cannot sort given file name string we have to compare two list which are unordered</span>
+        <span class="n">common_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">req_files_list</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">files_intersection</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;intersection of required files and all files in latest core </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">files_intersection</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">common_files</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">req_files_list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;latest core index details not found for all given files&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">req_files_list</span><span class="p">:</span>
+            <span class="n">content_id_temp</span> <span class="o">=</span> <span class="n">latest_core_details</span><span class="p">[</span><span class="n">file_name</span><span class="p">][</span><span class="s1">&#39;contentid&#39;</span><span class="p">]</span>
+            <span class="n">content_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">extent_core_details</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">if</span> <span class="n">content_id_temp</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">content_ids</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;no contentID found for filename </span><span class="si">%s</span><span class="s2"> and contentID </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">content_id_temp</span><span class="p">))</span>
+
+            <span class="n">arch_file_map</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">content_id</span> <span class="ow">in</span> <span class="n">content_ids</span><span class="p">:</span>
+                <span class="n">arch_file_id</span> <span class="o">=</span> <span class="n">extent_core_details</span><span class="p">[</span><span class="n">content_id</span><span class="p">][</span><span class="s1">&#39;AchiveFileId&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">arch_file_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">arch_file_map</span><span class="p">[</span><span class="n">file_name</span><span class="p">]:</span>
+                    <span class="n">arch_file_map</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arch_file_id</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">arch_file_map</span></div>
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper.validate_deleted_items_index"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper.validate_deleted_items_index">[docs]</a>    <span class="k">def</span> <span class="nf">validate_deleted_items_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deleted_files_list</span><span class="p">,</span> <span class="n">application_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;validates deleted files details are cleared in latest core</span>
+<span class="sd">            Args:</span>
+<span class="sd">                deleted_files_list(list)   -- list of file names for which</span>
+<span class="sd">                                              index details to be cleared</span>
+
+<span class="sd">                application_id(int)   --  application id of objectstore</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">select_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ApplicationId&#39;</span><span class="p">:</span> <span class="n">application_id</span><span class="p">}</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_url_and_get_response</span><span class="p">(</span><span class="s2">&quot;latest&quot;</span><span class="p">,</span> <span class="n">select_dict</span><span class="o">=</span><span class="n">select_dict</span><span class="p">)</span>
+        <span class="n">file_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">file_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">&#39;FileName&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">file_names</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">deleted_files_list</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;deleted files details are not cleared in latest core&quot;</span>
+                               <span class="s2">&quot;latest core output </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">results</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;deleted files details are cleared in latest core&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper.validate_is_pruned"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper.validate_is_pruned">[docs]</a>    <span class="k">def</span> <span class="nf">validate_is_pruned</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deleted_files</span><span class="p">,</span> <span class="n">app_id</span><span class="p">,</span> <span class="n">is_pruned</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;validates is_pruned flag for given file names</span>
+<span class="sd">            Args:</span>
+<span class="sd">                deleted_files(list)   -- list of file names for which</span>
+<span class="sd">                                         index details to be cleared</span>
+
+<span class="sd">                app_id(int)   --  application id of objectstore</span>
+
+<span class="sd">                is_pruned(bool) -- value of isPruned field</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">latest_core</span><span class="p">,</span> <span class="n">extent_core</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_index_details</span><span class="p">(</span><span class="n">app_id</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">deleted_files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">latest_core</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">file_name</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;file details </span><span class="si">%s</span><span class="s2"> not found in latest core&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">latest_core</span><span class="p">[</span><span class="n">file_name</span><span class="p">][</span><span class="s1">&#39;IsPruned&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">is_pruned</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;IsPruned is not marked to </span><span class="si">%s</span><span class="s2">. Item:{</span><span class="si">%s</span><span class="s2">}&quot;</span> <span class="o">%</span>
+                                   <span class="p">(</span><span class="n">is_pruned</span><span class="p">,</span> <span class="n">latest_core</span><span class="p">[</span><span class="n">file_name</span><span class="p">]))</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">status</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;IsPruned flag check failed. query results </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">latest_core</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;IsPruned flag verified successfully&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ObjectstoreSolrHelper.validate_afiles_after_synthfull"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_solr_query.ObjectstoreSolrHelper.validate_afiles_after_synthfull">[docs]</a>    <span class="k">def</span> <span class="nf">validate_afiles_after_synthfull</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                        <span class="n">tc_obj</span><span class="p">,</span>
+                                        <span class="n">afiles_before_synthfull</span><span class="p">,</span>
+                                        <span class="n">afiles_after_synthfull</span><span class="p">,</span>
+                                        <span class="n">deleted_files</span><span class="p">,</span>
+                                        <span class="n">non_deleted_files</span><span class="p">,</span>
+                                        <span class="n">deleted_afiles</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;validates afiles are prunable and archfile Ids are carried forward correctly</span>
+<span class="sd">            Args:</span>
+<span class="sd">                tc_obj (obj)    --  testcase object which contain csdb instance</span>
+
+<span class="sd">                afiles_before_synthfull (dict) -- filename and archfile ID</span>
+<span class="sd">                        details before running synthfull Job</span>
+
+<span class="sd">                afiles_after_synthfull (dict) -- filename and archfile ID</span>
+<span class="sd">                        details after running synthfull Job</span>
+
+<span class="sd">                deleted_files (list) -- list of filenames deleted</span>
+
+<span class="sd">                non_deleted_files(list) -- list of filenames not deleted</span>
+
+<span class="sd">                deleted_afiles (list)   -- afiles which are part of delted files</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check if old afiles are reflected in ArchFileSpaceReclamation table</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select * from ArchFileSpaceReclamation&quot;</span>
+        <span class="n">tc_obj</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">tc_obj</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ArchFileSpaceReclamation results </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">results</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">results</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;no prunable afiles found in ArchFileSpaceReclamation table&quot;</span><span class="p">)</span>
+
+        <span class="n">prunable_afiles_from_db</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;archfileIds from ArchFileSpaceReclamation table {</span><span class="si">%s</span><span class="s2">}&quot;</span> <span class="o">%</span>
+                      <span class="n">prunable_afiles_from_db</span><span class="p">)</span>
+        <span class="n">deleted_afiles</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">deleted_afiles</span><span class="p">))</span>
+        <span class="n">afiles_inersection</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">prunable_afiles_from_db</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">deleted_afiles</span><span class="p">))</span>
+        <span class="n">afiles_inersection</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">deleted_afiles</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">deleted_afiles</span> <span class="o">==</span> <span class="n">afiles_inersection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;all expected afiles {</span><span class="si">%s</span><span class="s2">} found in&quot;</span>
+                          <span class="s2">&quot;ArchFileSpaceReclamation table&quot;</span> <span class="o">%</span> <span class="n">deleted_afiles</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;all expected afiles {</span><span class="si">%s</span><span class="s2">} not found in&quot;</span>
+                          <span class="s2">&quot;ArchFileSpaceReclamation table&quot;</span> <span class="o">%</span> <span class="n">deleted_afiles</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;validate archFileId is not changed for deleted items&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">deleted_files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">afiles_before_synthfull</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span> <span class="o">!=</span> <span class="n">afiles_after_synthfull</span><span class="p">[</span><span class="n">file_name</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;deleted file </span><span class="si">%s</span><span class="s2"> having new afileId&quot;</span> <span class="o">%</span> <span class="n">file_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;validation of archFileId for deleted items is successful&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;validate archFileId is changed for non deleted items&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">non_deleted_files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">afiles_before_synthfull</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span> <span class="ow">in</span> <span class="n">deleted_afiles</span> <span class="ow">and</span> \
+                    <span class="n">afiles_before_synthfull</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span> <span class="o">==</span> <span class="n">afiles_after_synthfull</span><span class="p">[</span><span class="n">file_name</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;non deleted file having deleted afileId.&quot;</span>
+                                <span class="s2">&quot;{</span><span class="si">%s</span><span class="s2">}:{</span><span class="si">%s</span><span class="s2">}&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">afiles_before_synthfull</span><span class="p">[</span><span class="n">file_name</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;validation of archFileId for non deleted items is successful&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

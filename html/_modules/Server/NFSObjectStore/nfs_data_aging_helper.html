@@ -1,0 +1,634 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Server.NFSObjectStore.nfs_data_aging_helper &mdash; Commvault Automation 11.20 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Server.NFSObjectStore.nfs_data_aging_helper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Server.NFSObjectStore.nfs_data_aging_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;File for performing NFS server related operations in Commcell</span>
+
+<span class="sd">NfsDataAgingHelper is the only class defined in this.</span>
+
+<span class="sd">NfsDataAgingHelper: Provides methods which are relevant to NFS data aging tests</span>
+
+<span class="sd">NfsDataAgingHelper:</span>
+<span class="sd">    __init__()                       --  initialize instance of the</span>
+<span class="sd">    NfsDataAgingHelper class</span>
+
+<span class="sd">    create_synthetic_full_schedule() -- create synthetic full job for given client to</span>
+<span class="sd">    run immediately</span>
+
+<span class="sd">    run_synthetic_full()             -- create synthetic full job for given client</span>
+<span class="sd">    to run immediately and wait for job to complete</span>
+
+<span class="sd">    create_files_wait_for_job_complete() -- create files on given objectstore and wait</span>
+<span class="sd">    for 3dfs backup job to complete</span>
+
+<span class="sd">    delete_files_in_objectstore()    -- deletes half of the files from the given</span>
+<span class="sd">    list randomly</span>
+
+<span class="sd">    add_consider_retention_days_as_mins() -- Adds consider retention days reg</span>
+<span class="sd">    key on index server</span>
+
+<span class="sd">    remove_consider_retention_days_as_mins() -- removes consider retention days</span>
+<span class="sd">    reg key on index server</span>
+
+<span class="sd">    update_archfile_space_reclamation() -- updates commserve db to delete</span>
+<span class="sd">    pruned afiles immediately</span>
+
+<span class="sd">    validate_afiles_cleared()       -- validates afiles are cleared after data aging</span>
+
+<span class="sd">    validate_nfs_pruner_thread()    -- validates NFS pruner thread runs and update</span>
+<span class="sd">    index for delted items</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="kn">from</span> <span class="nn">cvpysdk.policies.schedule_policies</span> <span class="kn">import</span> <span class="n">SchedulePolicies</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="kn">import</span> <span class="n">OptionsSelector</span>
+<span class="kn">from</span> <span class="nn">Server.JobManager.jobmanager_helper</span> <span class="kn">import</span> <span class="n">JobManager</span>
+<span class="kn">from</span> <span class="nn">Server.NFSObjectStore.NFSObjectStoreConstants</span> <span class="kn">import</span> <span class="n">NFS_PRUNER_MM_KEY</span>
+
+
+<div class="viewcode-block" id="NfsDataAgingHelper"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper">[docs]</a><span class="k">class</span> <span class="nc">NfsDataAgingHelper</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Base class to execute NFS data aging related operations &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell</span><span class="p">,</span> <span class="n">index_server_client_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize instance of the NfsDataAgingHelper class..</span>
+<span class="sd">            Args:</span>
+<span class="sd">                commcell (obj)    -- instance of commcell</span>
+
+<span class="sd">                index_server_client_name (str)  --  client name of index server</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                object - instance of the ObjectstoreClientUtils class</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurs in Initialize</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schedule_policy</span> <span class="o">=</span> <span class="n">SchedulePolicies</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_server_machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">index_server_client_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">utils</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.create_synthetic_full_schedule"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.create_synthetic_full_schedule">[docs]</a>    <span class="k">def</span> <span class="nf">create_synthetic_full_schedule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">policy_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;create synthetic full job for given client to run immediately</span>
+<span class="sd">            Args:</span>
+<span class="sd">                client_name (str)    -- client name to be associated with schedule</span>
+
+<span class="sd">                policy_name (str)    --  policy name to be used for schedule</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Instance of Schedule_Policy</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurs in creating schedule policy</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">associations</span> <span class="o">=</span> <span class="p">[{</span><span class="s1">&#39;clientName&#39;</span><span class="p">:</span> <span class="n">client_name</span><span class="p">}]</span>
+        <span class="n">schedule</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span>
+                <span class="s1">&#39;pattern&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;freq_type&#39;</span><span class="p">:</span> <span class="s1">&#39;one_time&#39;</span><span class="p">,</span>
+                    <span class="s2">&quot;active_start_date&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%m/</span><span class="si">%d</span><span class="s1">/%Y&#39;</span><span class="p">),</span>
+                    <span class="s2">&quot;active_start_time&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%H:%M&#39;</span><span class="p">)</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;options&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;backupLevel&#39;</span><span class="p">:</span> <span class="s1">&#39;Synthetic_full&#39;</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">]</span>
+        <span class="n">agent_type</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span><span class="s2">&quot;appGroupName&quot;</span><span class="p">:</span> <span class="s2">&quot;Protected Files&quot;</span><span class="p">},</span>
+            <span class="p">{</span><span class="s2">&quot;appGroupName&quot;</span><span class="p">:</span> <span class="s2">&quot;Archived Files&quot;</span><span class="p">}</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;creating schedule policy </span><span class="si">%s</span><span class="s2"> to run immediately&quot;</span><span class="p">,</span> <span class="n">policy_name</span><span class="p">)</span>
+        <span class="n">schedule_policy_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule_policy</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">policy_name</span><span class="p">,</span>
+                                                       <span class="s2">&quot;Data Protection&quot;</span><span class="p">,</span>
+                                                       <span class="n">associations</span><span class="p">,</span>
+                                                       <span class="n">schedule</span><span class="p">,</span>
+                                                       <span class="n">agent_type</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">schedule_policy_obj</span></div>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.run_synthetic_full"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.run_synthetic_full">[docs]</a>    <span class="k">def</span> <span class="nf">run_synthetic_full</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">policy_name</span><span class="o">=</span><span class="s2">&quot;synth_full_objectstore&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;create synthetic full job for given client to run immediately and wait for</span>
+<span class="sd">           job to complete</span>
+<span class="sd">            Args:</span>
+<span class="sd">                client_name (str)    -- client name to be associated with schedule</span>
+
+<span class="sd">                policy_name (str)    --  policy name to be used for schedule</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurs in running synthfull job</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">schedule_policy_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_synthetic_full_schedule</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">policy_name</span><span class="p">)</span>
+
+        <span class="c1"># check for backup Job complete</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;checking Synth Full Job for objectstore client&quot;</span><span class="p">)</span>
+        <span class="n">jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">active_jobs</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">client_name</span><span class="p">,</span>
+                                                        <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;job_type&#39;</span><span class="p">:</span> <span class="s1">&#39;Synthetic Full&#39;</span><span class="p">})</span>
+        <span class="n">max_try</span> <span class="o">=</span> <span class="mi">30</span>
+        <span class="n">job_triggered</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">attempt</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">max_try</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">job_triggered</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">jobs</span><span class="p">):</span>
+                <span class="n">job_triggered</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;SynthFull Job is not yet running for objectstore client&quot;</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+                <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="n">jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">active_jobs</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">client_name</span><span class="p">,</span>
+                                                            <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;job_type&#39;</span><span class="p">:</span> <span class="s1">&#39;3DFS Backup&#39;</span><span class="p">})</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job_triggered</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;SynthFull job is not triggered for objectstore&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">jobs</span><span class="o">.</span><span class="n">keys</span><span class="p">()][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span> <span class="o">=</span> <span class="n">JobManager</span><span class="p">(</span><span class="n">_job</span><span class="o">=</span><span class="n">job</span><span class="p">,</span> <span class="n">commcell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;waiting for job </span><span class="si">%s</span><span class="s2"> for client </span><span class="si">%s</span><span class="s2"> to complete&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">client_name</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span><span class="o">.</span><span class="n">wait_for_state</span><span class="p">(</span><span class="n">expected_state</span><span class="o">=</span><span class="s1">&#39;completed&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;SynthFull Job </span><span class="si">%s</span><span class="s2"> is completed&quot;</span><span class="p">,</span> <span class="n">job</span><span class="p">)</span>
+
+        <span class="c1"># delete schedule after run</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;deleting schedule policy id: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">schedule_policy_obj</span><span class="o">.</span><span class="n">schedule_policy_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schedule_policy</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">schedule_policy_obj</span><span class="o">.</span><span class="n">schedule_policy_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.create_files_wait_for_job_complete"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.create_files_wait_for_job_complete">[docs]</a>    <span class="k">def</span> <span class="nf">create_files_wait_for_job_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                           <span class="n">files_create</span><span class="p">,</span>
+                                           <span class="n">machine_obj</span><span class="p">,</span>
+                                           <span class="n">test_path</span><span class="p">,</span>
+                                           <span class="n">objectstore_client_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;create files on given objectstore and wait for 3dfs backup job to complete</span>
+<span class="sd">            Args:</span>
+<span class="sd">                files_create (list)  -- List of file names to create files</span>
+
+<span class="sd">                machine_obj (obj)    --  machine object of client where objectstore</span>
+<span class="sd">                                         is mounted</span>
+
+<span class="sd">                test_path   (str)    --  test path where files need to be created</span>
+<span class="sd">                                         (also where objectstore is mounted)</span>
+
+<span class="sd">                objectstore_client_name (str) -- name of objectstore client</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurs in creating file</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;creating test files </span><span class="si">%s</span><span class="s2"> on path </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">files_create</span><span class="p">,</span> <span class="n">test_path</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">test_path</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;creating test path </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">test_path</span><span class="p">)</span>
+            <span class="n">machine_obj</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">test_path</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">files_create</span><span class="p">:</span>
+            <span class="n">file_path</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">test_path</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="n">machine_obj</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">file_size</span><span class="o">=</span><span class="mi">1024</span><span class="o">*</span><span class="mi">1024</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;test files created successfully&quot;</span><span class="p">)</span>
+
+        <span class="c1"># check for backup Job complete</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;checking backup Jobs for objectstore client&quot;</span><span class="p">)</span>
+        <span class="n">jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">active_jobs</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">objectstore_client_name</span><span class="p">,</span>
+                                                        <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;job_type&#39;</span><span class="p">:</span> <span class="s1">&#39;3DFS Backup&#39;</span><span class="p">})</span>
+        <span class="n">max_try</span> <span class="o">=</span> <span class="mi">30</span>
+        <span class="n">job_triggered</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">attempt</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">max_try</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">job_triggered</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">jobs</span><span class="p">):</span>
+                <span class="n">job_triggered</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;backup Job is not yet running for objectstore client&quot;</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+                <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="n">jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">active_jobs</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">objectstore_client_name</span><span class="p">,</span>
+                                                            <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;job_type&#39;</span><span class="p">:</span> <span class="s1">&#39;3DFS Backup&#39;</span><span class="p">})</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;active jobs </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">jobs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job_triggered</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;backup job is not triggered for objectstore&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="p">[</span><span class="n">key</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">jobs</span><span class="o">.</span><span class="n">keys</span><span class="p">()][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span> <span class="o">=</span> <span class="n">JobManager</span><span class="p">(</span><span class="n">_job</span><span class="o">=</span><span class="n">job</span><span class="p">,</span> <span class="n">commcell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;waiting for job </span><span class="si">%s</span><span class="s2"> for client </span><span class="si">%s</span><span class="s2"> to complete&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">job</span><span class="p">,</span> <span class="n">objectstore_client_name</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span><span class="o">.</span><span class="n">wait_for_state</span><span class="p">(</span><span class="n">expected_state</span><span class="o">=</span><span class="s1">&#39;completed&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;backup Job </span><span class="si">%s</span><span class="s2"> is completed&quot;</span><span class="p">,</span> <span class="n">job</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.delete_files_in_objectstore"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.delete_files_in_objectstore">[docs]</a>    <span class="k">def</span> <span class="nf">delete_files_in_objectstore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">test_path</span><span class="p">,</span> <span class="n">files_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;deletes half of the files from the given list randomly</span>
+<span class="sd">            Args:</span>
+<span class="sd">                machine_obj (obj)    --  machine object of client where objectstore</span>
+<span class="sd">                                         is mounted</span>
+
+<span class="sd">                test_path   (str)    --  test path where files need to be created</span>
+<span class="sd">                                         (also where objectstore is mounted)</span>
+
+<span class="sd">                files_list (list)    --    List of file names to present in test path</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurs in deleting files</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">deleted_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">index_of_files_to_be_deleted</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">files_list</span><span class="p">)),</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">files_list</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Index of files to be deleted </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">index_of_files_to_be_deleted</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">index_of_files_to_be_deleted</span><span class="p">:</span>
+            <span class="n">file_path</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">test_path</span><span class="p">,</span> <span class="n">files_list</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+            <span class="n">machine_obj</span><span class="o">.</span><span class="n">delete_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="n">deleted_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">files_list</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">deleted_files</span></div>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.add_consider_retention_days_as_mins"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.add_consider_retention_days_as_mins">[docs]</a>    <span class="k">def</span> <span class="nf">add_consider_retention_days_as_mins</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds consider retention days reg key on index server</span>
+<span class="sd">             Args:</span>
+
+<span class="sd">             Returns:</span>
+<span class="sd">                 None</span>
+
+<span class="sd">             Raises:</span>
+<span class="sd">                 Exception:</span>
+<span class="sd">                     if any error occurs in adding reg key</span>
+<span class="sd">         &quot;&quot;&quot;</span>
+        <span class="c1"># check if reg is already exist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_server_machine_obj</span><span class="o">.</span><span class="n">create_registry</span><span class="p">(</span><span class="s1">&#39;DM2WebSearchServer&#39;</span><span class="p">,</span>
+                                                      <span class="s1">&#39;ConsiderRetentionDaysAsMinutes&#39;</span><span class="p">,</span>
+                                                      <span class="s1">&#39;true&#39;</span><span class="p">)</span></div>
+
+        <span class="c1"># TODO: restart data cube service</span>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.remove_consider_retention_days_as_mins"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.remove_consider_retention_days_as_mins">[docs]</a>    <span class="k">def</span> <span class="nf">remove_consider_retention_days_as_mins</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;removes consider retention days reg key on index server</span>
+<span class="sd">             Args:</span>
+
+<span class="sd">             Returns:</span>
+<span class="sd">                 None</span>
+
+<span class="sd">             Raises:</span>
+<span class="sd">                 Exception:</span>
+<span class="sd">                     if any error occurs in deleting reg key</span>
+<span class="sd">         &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_server_machine_obj</span><span class="o">.</span><span class="n">remove_registry</span><span class="p">(</span><span class="s1">&#39;DM2WebSearchServer&#39;</span><span class="p">,</span>
+                                                      <span class="s1">&#39;ConsiderRetentionDaysAsMinutes&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.update_archfile_space_reclamation"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.update_archfile_space_reclamation">[docs]</a>    <span class="k">def</span> <span class="nf">update_archfile_space_reclamation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; updates commserve db to delete pruned afiles immediately</span>
+<span class="sd">             Args:</span>
+
+<span class="sd">             Returns:</span>
+<span class="sd">                 None</span>
+
+<span class="sd">             Raises:</span>
+<span class="sd">                 Exception:</span>
+<span class="sd">                     if any error occurs in updating CS DB</span>
+<span class="sd">         &quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;UPDATE ArchFileSpaceReclamation SET CreationTime = &quot;</span>
+                 <span class="s2">&quot;CreationTime - (90 * 24 * 60 * 60)&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">update_commserve_db</span><span class="p">(</span><span class="n">query</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.validate_afiles_cleared"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.validate_afiles_cleared">[docs]</a>    <span class="k">def</span> <span class="nf">validate_afiles_cleared</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tc_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;validates afiles are cleared after data aging</span>
+<span class="sd">            Args:</span>
+<span class="sd">                tc_obj (obj)    --  testcase object which contain csdb instance</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurs in deleting files</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check archfile is cleared ArchFileSpaceReclamation table</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select * from ArchFileSpaceReclamation&quot;</span>
+        <span class="n">tc_obj</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">tc_obj</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ArchFileSpaceReclamation results </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">results</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;no afiles found in ArchFileSpaceReclamation table&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;prunable afiles are not cleared in CS DB&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.validate_nfs_pruner_thread"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.validate_nfs_pruner_thread">[docs]</a>    <span class="k">def</span> <span class="nf">validate_nfs_pruner_thread</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                   <span class="n">tc_obj</span><span class="p">,</span>
+                                   <span class="n">deleted_files</span><span class="p">,</span>
+                                   <span class="n">app_id</span><span class="p">,</span>
+                                   <span class="n">max_try</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; validates NFS pruner thread runs and update index for delted items</span>
+<span class="sd">            Args:</span>
+<span class="sd">                tc_obj (obj)    --  testcase object which contain csdb instance</span>
+
+<span class="sd">                deleted_files (list) -- list of filenames deleted</span>
+
+<span class="sd">                app_id (int)    -- application id of test objectstore</span>
+
+<span class="sd">                max_try (int)   -- max attempt to check for is_visible is set to false</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurs in validation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;validate nfs pruner thread&quot;</span><span class="p">)</span>
+        <span class="n">commcell_machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+
+        <span class="n">attempt</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">while</span> <span class="n">attempt</span> <span class="o">&lt;</span> <span class="n">max_try</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">status</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">commcell_machine_obj</span><span class="o">.</span><span class="n">check_registry_exists</span><span class="p">(</span><span class="s2">&quot;MediaManager&quot;</span><span class="p">,</span>
+                                                          <span class="n">NFS_PRUNER_MM_KEY</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;deleting MM registry in CS to run pruning Job&quot;</span><span class="p">)</span>
+                <span class="n">commcell_machine_obj</span><span class="o">.</span><span class="n">remove_registry</span><span class="p">(</span><span class="s2">&quot;MediaManager&quot;</span><span class="p">,</span>
+                                                     <span class="n">NFS_PRUNER_MM_KEY</span><span class="p">)</span>
+
+            <span class="c1"># wait for pruner thread to run</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;check for is_visible flag set to false for deleted items&quot;</span><span class="p">)</span>
+            <span class="n">ret_val</span> <span class="o">=</span> <span class="n">tc_obj</span><span class="o">.</span><span class="n">nfs_solr_helper</span><span class="o">.</span><span class="n">check_is_visisble</span><span class="p">(</span><span class="n">deleted_files</span><span class="p">,</span>
+                                                               <span class="s1">&#39;latest&#39;</span><span class="p">,</span>
+                                                               <span class="n">app_id</span><span class="p">,</span>
+                                                               <span class="kc">False</span><span class="p">)</span>
+
+            <span class="c1"># if is_visible is set to false means pruner thread ran successfully</span>
+            <span class="c1"># else give it one more try</span>
+            <span class="k">if</span> <span class="n">ret_val</span><span class="p">:</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">status</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;NFS pruner thread run successfully and &quot;</span>
+                          <span class="s2">&quot;is_visible flag is set to false for deleted items&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;is_visisble flag is not set to false for deleted items&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.get_files_checksum"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.get_files_checksum">[docs]</a>    <span class="k">def</span> <span class="nf">get_files_checksum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">test_path</span><span class="p">,</span> <span class="n">file_names</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; gets md5sum for the given list of files</span>
+<span class="sd">            Args:</span>
+<span class="sd">                machine_obj (obj)    --  machine object for given test files</span>
+
+<span class="sd">                test_path (list)     --  directory where test files are present</span>
+
+<span class="sd">                file_names (int)    --  list of files in the directory to get the md5sum</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dictionary with filename as key and value as md5sum checksum of the file</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if any error occurs in getting md5sum checksum</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">md5sum_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;collecting md5 checksum for given files&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">file_names</span><span class="p">:</span>
+            <span class="n">file_path</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">test_path</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+            <span class="n">md5sum</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">_get_file_hash</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="n">md5sum_dict</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">md5sum</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;md5 checksum for given files </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">md5sum_dict</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">md5sum_dict</span></div>
+
+<div class="viewcode-block" id="NfsDataAgingHelper.compare_checksum"><a class="viewcode-back" href="../../../source/Server.NFSObjectStore.html#Server.NFSObjectStore.nfs_data_aging_helper.NfsDataAgingHelper.compare_checksum">[docs]</a>    <span class="k">def</span> <span class="nf">compare_checksum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">checksum_before_delete</span><span class="p">,</span> <span class="n">checksum_after_delete</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; compares checksum for given files before and after delete</span>
+<span class="sd">            Args:</span>
+<span class="sd">                checksum_before_delete (dict)    --  dict with filename and checksum</span>
+
+<span class="sd">                checksum_after_delete (dict)    --  dict with filename and checksum</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                dictionary with filename as key and value as md5sum checksum of the file</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    when checksum of files doesn&#39;t match</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">for</span> <span class="n">file_name</span> <span class="ow">in</span> <span class="n">checksum_after_delete</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">checksum_before_delete</span><span class="p">[</span><span class="n">file_name</span><span class="p">]</span> <span class="o">!=</span> <span class="n">checksum_after_delete</span><span class="p">[</span><span class="n">file_name</span><span class="p">]:</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;checksum didn&#39;t match for file </span><span class="si">%s</span><span class="s2"> &quot;</span>
+                               <span class="s2">&quot;checksum before delte:</span><span class="si">%s</span><span class="s2"> after delete:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                               <span class="p">(</span><span class="n">file_name</span><span class="p">,</span>
+                                <span class="n">checksum_before_delete</span><span class="p">[</span><span class="n">file_name</span><span class="p">],</span>
+                                <span class="n">checksum_after_delete</span><span class="p">[</span><span class="n">file_name</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">status</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;checksum of non deleted files didn&#39;t match after data aging&quot;</span>
+                            <span class="s2">&quot;checksum before:</span><span class="si">%s</span><span class="s2"> after:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span><span class="p">(</span><span class="n">checksum_before_delete</span><span class="p">,</span>
+                                                            <span class="n">checksum_after_delete</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;validation of checksum for non deleted items is successful&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

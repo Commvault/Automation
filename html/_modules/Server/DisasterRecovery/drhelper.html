@@ -1,0 +1,725 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Server.DisasterRecovery.drhelper &mdash; Commvault Automation 11.20 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Server.DisasterRecovery.drhelper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Server.DisasterRecovery.drhelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># pylint: disable=W1202</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for performing DR operations</span>
+
+<span class="sd">DRHelper is the only class defined in this file</span>
+
+<span class="sd">DRHelper: Helper class to perform DR operations</span>
+
+<span class="sd">DRHelper:</span>
+
+<span class="sd">    __init__()                      --  initializes DR helper object</span>
+
+<span class="sd">    killrunningdrjobs               --  Kills already running DR jobs</span>
+
+<span class="sd">    trigger_dr_backup               --  triggers DR backup job</span>
+
+<span class="sd">    create_script                   --  creates batch file on windows or shell file on unix.</span>
+
+<span class="sd">    check_entity_existence          --  checks the exitence of the entity on the commcell.</span>
+
+<span class="sd">    create_dr_entities              --  creates disk library and dr storage policy.</span>
+
+<span class="sd">    dr_entities_cleanup             --  removes the disklibrary and dr policy created by create_dr_entities method</span>
+
+<span class="sd">    restore_db_with_csrecovery_assistant    --  restores databases using CSRecoveryAssistant tool</span>
+
+<span class="sd">    download_from_cvcloud           --   downloads the set folder from cvcloud.</span>
+
+<span class="sd">    download_from_third_party_cloud --  downloads given set folder from third party cloud.</span>
+
+<span class="sd">    get_latest_folder_network_dr_path -- Get the Latest DR Folder from a network DR Path</span>
+
+<span class="sd">    get_cs_dump_in_path		        -- Gets the CS Dump from a given Path</span>
+
+<span class="sd">    set_er_directory                -- Sets the ER Staging Directory for the provided Path</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.disasterrecovery</span> <span class="kn">import</span> <span class="n">DisasterRecovery</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.storage</span> <span class="kn">import</span> <span class="n">DiskLibraries</span><span class="p">,</span> <span class="n">DiskLibrary</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.policies.storage_policies</span> <span class="kn">import</span> <span class="n">StoragePolicies</span><span class="p">,</span> <span class="n">StoragePolicy</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.backupset</span> <span class="kn">import</span> <span class="n">Backupsets</span><span class="p">,</span> <span class="n">Backupset</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.subclient</span> <span class="kn">import</span> <span class="n">Subclients</span><span class="p">,</span> <span class="n">Subclient</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.job</span> <span class="kn">import</span> <span class="n">Job</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.client</span> <span class="kn">import</span> <span class="n">Client</span>
+<span class="kn">from</span> <span class="nn">Server.JobManager.jobmanager_helper</span> <span class="kn">import</span> <span class="n">JobManager</span>
+<span class="kn">from</span> <span class="nn">Server.DisasterRecovery.drmanagement_helper</span> <span class="kn">import</span> <span class="n">DRManagementHelper</span>
+<span class="kn">from</span> <span class="nn">Server.DisasterRecovery.drmanagement_helper</span> <span class="kn">import</span> <span class="n">DRCommvaultCloudManagement</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">config</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="kn">import</span> <span class="n">CVEntities</span><span class="p">,</span> <span class="n">OptionsSelector</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="kn">import</span> <span class="n">WINDOWS_TMP_DIR</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="kn">import</span> <span class="n">UNIX_TMP_DIR</span>
+<span class="kn">from</span> <span class="nn">MediaAgents.mediaagentconstants</span> <span class="kn">import</span> <span class="n">CLOUD_SERVER_TYPES</span>
+
+
+<div class="viewcode-block" id="DRHelper"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper">[docs]</a><span class="k">class</span> <span class="nc">DRHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to perform DR operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes instance of the DRHelper class</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                commcell_object     (object)        --      commcell object</span>
+
+<span class="sd">            NOTE:</span>
+<span class="sd">                cs_machine_uname and cs_machine_password are required for performing CS Recovery operations.</span>
+<span class="sd">                which can be provided in config.json under &#39;Schedule&#39; key</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">commcell_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dr</span> <span class="o">=</span> <span class="n">DisasterRecovery</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">management</span> <span class="o">=</span> <span class="n">DRManagementHelper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">util</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_cloud_management</span> <span class="o">=</span> <span class="n">DRCommvaultCloudManagement</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span> <span class="o">=</span> <span class="n">JobManager</span><span class="p">(</span><span class="n">commcell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csclient</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_json</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Schedule</span><span class="o">.</span><span class="n">cs_machine_uname</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_client</span><span class="o">.</span><span class="n">client_hostname</span><span class="p">,</span>
+                                          <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Schedule</span><span class="o">.</span><span class="n">cs_machine_uname</span><span class="p">,</span>
+                                          <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Schedule</span><span class="o">.</span><span class="n">cs_machine_password</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">csclient</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dr_entities</span> <span class="o">=</span> <span class="n">CVEntities</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">install_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csclient</span><span class="o">.</span><span class="n">install_directory</span>
+
+<div class="viewcode-block" id="DRHelper.trigger_dr_backup"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.trigger_dr_backup">[docs]</a>    <span class="k">def</span> <span class="nf">trigger_dr_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backup_type</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exclude_dbs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">client_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                          <span class="n">advance_job_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">wait_for_completion</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Triggers a disaster recovery backup.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                 backup_type     (str)       --          type of the backup to trigger.</span>
+<span class="sd">                    default: &#39;full&#39;</span>
+
+<span class="sd">                    values:</span>
+
+<span class="sd">                    &quot;full&quot;</span>
+<span class="sd">                    &quot;differential&quot;</span>
+
+<span class="sd">                compression     (bool)      --          True/False, compression to be enabled or not</span>
+<span class="sd">                    default: True</span>
+
+<span class="sd">                exclude_dbs     (list)      --          databases to be excluded during DR backup.</span>
+<span class="sd">                    default: None</span>
+
+<span class="sd">                    values:</span>
+
+<span class="sd">                    &#39;appstudio&#39;</span>
+<span class="sd">                    &#39;history&#39;</span>
+<span class="sd">                    &#39;cvcloud&#39;</span>
+<span class="sd">                    &#39;workflow&#39;</span>
+<span class="sd">                    &#39;dm2&#39;</span>
+
+<span class="sd">                client_list     (list)      --          log of the clients that need to be backed up.</span>
+<span class="sd">                    default: None</span>
+
+<span class="sd">                advance_job_options     (dict)  --      advance job options to be included.</span>
+
+<span class="sd">                    values:</span>
+
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;priority&quot;: 66,</span>
+<span class="sd">                        &quot;start_in_suspended_state&quot;: False,</span>
+<span class="sd">                        &quot;start_when_activity_is_low&quot;: False,</span>
+<span class="sd">                        &quot;use_default_priority&quot;: True,</span>
+<span class="sd">                        &quot;enable_total_running_time&quot;: False,</span>
+<span class="sd">                        &quot;total_running_time&quot;: 3600,</span>
+<span class="sd">                        &quot;enable_number_of_retries&quot;: False,</span>
+<span class="sd">                        &quot;kill_running_job_when_total_running_time_expires&quot;: False,</span>
+<span class="sd">                        &quot;number_of_retries&quot;: 0,</span>
+<span class="sd">                        &quot;job_description&quot;: &quot;&quot;</span>
+<span class="sd">                    }</span>
+
+<span class="sd">                 wait_for_completion     (bool)  --      waits for the completion of the job.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                job object</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    when job doesn&#39;t reach expected state.</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">exclude_dbs</span> <span class="ow">or</span> <span class="n">client_list</span> <span class="ow">or</span> <span class="n">advance_job_options</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dr</span><span class="o">.</span><span class="n">advbackup</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dr</span><span class="o">.</span><span class="n">client_list</span> <span class="o">=</span> <span class="n">client_list</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dr</span><span class="o">.</span><span class="n">advanced_job_options</span> <span class="o">=</span> <span class="n">advance_job_options</span>
+            <span class="n">database_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;appstudio&#39;</span><span class="p">,</span> <span class="s1">&#39;history&#39;</span><span class="p">,</span> <span class="s1">&#39;cvcloud&#39;</span><span class="p">,</span> <span class="s1">&#39;workflow&#39;</span><span class="p">,</span> <span class="s1">&#39;dm2&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">exclude_dbs</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">db_name</span> <span class="ow">in</span> <span class="n">exclude_dbs</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">db_name</span> <span class="ow">in</span> <span class="n">database_names</span><span class="p">:</span>
+                        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dr</span><span class="p">,</span> <span class="s1">&#39;is_&#39;</span> <span class="o">+</span> <span class="n">db_name</span> <span class="o">+</span> <span class="s1">&#39;_db_enabled&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Please pass the valid db names&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dr</span><span class="o">.</span><span class="n">backup_type</span> <span class="o">=</span> <span class="n">backup_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dr</span><span class="o">.</span><span class="n">is_compression_enabled</span> <span class="o">=</span> <span class="n">compression</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Triggering a </span><span class="si">{0}</span><span class="s1"> dr backup&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">))</span>
+        <span class="n">job_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dr</span><span class="o">.</span><span class="n">disaster_recovery_backup</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">job_obj</span>
+        <span class="k">if</span> <span class="n">wait_for_completion</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span><span class="o">.</span><span class="n">wait_for_state</span><span class="p">(</span><span class="n">expected_state</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;completed&#39;</span><span class="p">,</span> <span class="s1">&#39;pending&#39;</span><span class="p">,</span> <span class="s1">&#39;completed w/ one or more errors&#39;</span><span class="p">],</span>
+                                            <span class="n">retry_interval</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span> <span class="n">time_limit</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;failed&#39;</span><span class="p">,</span> <span class="s1">&#39;pending&#39;</span><span class="p">,</span> <span class="s1">&#39;queued&#39;</span><span class="p">,</span>
+                                                       <span class="s1">&#39;completed w/ one or more errors&#39;</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;job is in </span><span class="si">{0}</span><span class="s2"> state job id </span><span class="si">{1}</span><span class="s2">, delay reason = </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_manager</span><span class="o">.</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">job_obj</span></div>
+
+<div class="viewcode-block" id="DRHelper.kill_running_drjobs"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.kill_running_drjobs">[docs]</a>    <span class="k">def</span> <span class="nf">kill_running_drjobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Kill already running DR jobs&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Checking for running dr jobs&#39;</span><span class="p">)</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select jobId from JMAdminJobInfoTable where opType = 11&quot;</span>
+            <span class="n">jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">exec_commserv_query</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">jobs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;DR job </span><span class="si">{0}</span><span class="s2"> is already running, kill and continue automation&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">runningjob</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span> <span class="n">job</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to create job object for&quot;</span>
+                                       <span class="s2">&quot; job </span><span class="si">{0}</span><span class="s2"> and exception is </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">err</span><span class="p">))</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">runningjob</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                            <span class="s2">&quot;Failed to kill the job </span><span class="si">{}</span><span class="s2"> and exception is </span><span class="si">{}</span><span class="s2"> &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">job</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">err</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;there are no running dr jobs&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to kill the job </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DRHelper.create_script"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.create_script">[docs]</a>    <span class="k">def</span> <span class="nf">create_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;creates script with content passed, using machine class object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            content           (str)   --  content that is to be written to file</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            path     (str)       --        Script path</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception(Exception_Code, Exception_Message):</span>
+<span class="sd">                if failed to create file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">current_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span> <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">_%H-%M-%S&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;windows&#39;</span><span class="p">:</span>
+            <span class="n">pre_scan_script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span>
+                <span class="n">WINDOWS_TMP_DIR</span><span class="p">,</span>
+                <span class="s1">&#39;temp&#39;</span> <span class="o">+</span> <span class="n">current_time</span> <span class="o">+</span> <span class="s2">&quot;.bat&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pre_scan_script</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span>
+                <span class="n">UNIX_TMP_DIR</span><span class="p">,</span>
+                <span class="s1">&#39;temp&#39;</span> <span class="o">+</span> <span class="n">current_time</span> <span class="o">+</span> <span class="s2">&quot;.sh&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">check_file_exists</span><span class="p">(</span><span class="n">pre_scan_script</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;deleting existing pre scan script </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pre_scan_script</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">delete_file</span><span class="p">(</span><span class="n">pre_scan_script</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;creating pre scan command file </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pre_scan_script</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">create_file</span><span class="p">(</span><span class="n">pre_scan_script</span><span class="p">,</span> <span class="n">content</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;unix&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">change_file_permissions</span><span class="p">(</span><span class="n">pre_scan_script</span><span class="p">,</span> <span class="s1">&#39;777&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pre_scan_script</span></div>
+
+<div class="viewcode-block" id="DRHelper.check_entity_existence"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.check_entity_existence">[docs]</a>    <span class="k">def</span> <span class="nf">check_entity_existence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entity_type</span><span class="p">,</span> <span class="n">entity_object</span><span class="p">,</span> <span class="n">hardcheck</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        checks the existence of the entity on commcell.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                entity_type     (str)      --           type of the entity</span>
+
+<span class="sd">                values:</span>
+<span class="sd">                &#39;policy&#39;</span>
+<span class="sd">                &#39;library&#39;</span>
+<span class="sd">                &#39;backupset&#39;</span>
+<span class="sd">                &#39;subclient&#39;</span>
+
+<span class="sd">                entity_object       (object/str)    --      object or name of the entity to be checked.</span>
+
+<span class="sd">                hardcheck           (bool)          --      True/False, To raise exception or To return bool value</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                 bool</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    when invalid arguments are passed</span>
+
+<span class="sd">                    when hardcheck=true, and entity doesn&#39;t exist on the commcell</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">class_object</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity_object</span><span class="p">,</span> <span class="p">(</span><span class="n">DiskLibrary</span><span class="p">,</span> <span class="n">StoragePolicy</span><span class="p">,</span> <span class="n">Backupset</span><span class="p">,</span> <span class="n">Subclient</span><span class="p">,</span> <span class="nb">str</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity_object</span><span class="p">,</span> <span class="n">DiskLibrary</span><span class="p">)</span> <span class="ow">or</span> <span class="n">entity_type</span> <span class="o">==</span> <span class="s1">&#39;library&#39;</span><span class="p">:</span>
+                <span class="n">class_object</span> <span class="o">=</span> <span class="n">DiskLibraries</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity_object</span><span class="p">,</span> <span class="n">StoragePolicy</span><span class="p">)</span> <span class="ow">or</span> <span class="n">entity_type</span> <span class="o">==</span> <span class="s1">&#39;policy&#39;</span><span class="p">:</span>
+                <span class="n">class_object</span> <span class="o">=</span> <span class="n">StoragePolicies</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity_object</span><span class="p">,</span> <span class="n">Backupset</span><span class="p">)</span> <span class="ow">or</span> <span class="n">entity_type</span> <span class="o">==</span> <span class="s1">&#39;backupset&#39;</span><span class="p">:</span>
+                <span class="n">class_object</span> <span class="o">=</span> <span class="n">Backupsets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity_object</span><span class="p">,</span> <span class="n">Subclient</span><span class="p">)</span> <span class="ow">or</span> <span class="n">entity_type</span> <span class="o">==</span> <span class="s1">&#39;subclient&#39;</span><span class="p">:</span>
+                <span class="n">class_object</span> <span class="o">=</span> <span class="n">Subclients</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;please pass the valid arguments&#39;</span><span class="p">)</span>
+        <span class="n">class_object</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entity_object</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">class_object</span><span class="p">,</span> <span class="s1">&#39;has_&#39;</span> <span class="o">+</span> <span class="n">entity_type</span><span class="p">)(</span><span class="n">entity_object</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">class_object</span><span class="p">,</span> <span class="s1">&#39;has_&#39;</span> <span class="o">+</span> <span class="n">entity_type</span><span class="p">)(</span><span class="n">entity_object</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">hardcheck</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> entity is not available&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity_object</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> entity is not available&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entity_object</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="DRHelper.dr_prerequisites"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.dr_prerequisites">[docs]</a>    <span class="k">def</span> <span class="nf">dr_prerequisites</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">         creates disklibrary and DR storage policy.</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                 properties of created entities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Checking for the existence of CommServeDR policy&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_entity_existence</span><span class="p">(</span><span class="s1">&#39;policy&#39;</span><span class="p">,</span> <span class="n">StoragePolicy</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span> <span class="n">storage_policy_name</span><span class="o">=</span><span class="s1">&#39;CommServeDR&#39;</span><span class="p">),</span> <span class="n">hardcheck</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+            <span class="n">entity_properties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dr_entities</span><span class="o">.</span><span class="n">create</span><span class="p">({</span>
+                <span class="s1">&#39;disklibrary&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;storagepolicy&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;dr_sp&#39;</span><span class="p">:</span> <span class="kc">True</span>
+                <span class="p">}</span>
+            <span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Have to handle the scenario when there is no CommserveDR policy...</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CommserveDR policy doesn&#39;t exist&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">entity_properties</span></div>
+
+<div class="viewcode-block" id="DRHelper.dr_prerequisites_cleanup"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.dr_prerequisites_cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">dr_prerequisites_cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        removes the disklibrary and dr storage policy which got created using dr_prerequisites() method.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Cleaning up created DR entities..&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dr_entities</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="DRHelper.restore_db_with_csrecovery_assistant"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.restore_db_with_csrecovery_assistant">[docs]</a>    <span class="k">def</span> <span class="nf">restore_db_with_csrecovery_assistant</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dbdumplocation</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;staging&quot;</span><span class="p">,</span>
+                                             <span class="n">start_services_after_recovery</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Restores CS using CSRecoveryAssistant.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                 dbdumplocation     (str)       --      db dump location.</span>
+
+<span class="sd">                 operation          (str)       --      type of the operation.</span>
+
+<span class="sd">                    value:</span>
+<span class="sd">                    &#39;staging&#39;</span>
+<span class="sd">                    &#39;recovery&#39;</span>
+
+<span class="sd">                start_services_after_recovery   (bool)  --  start the services post recovery or not.</span>
+
+<span class="sd">                 options            (dict)      --      other additional parameters that can be passed</span>
+<span class="sd">                                                        to CSRecovery tool</span>
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if failed to restore the CS.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s1">&#39;CSRecoveryAssistant.exe&#39;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s1">&#39; -operation </span><span class="si">%s</span><span class="s1"> &#39;</span> <span class="o">%</span> <span class="n">operation</span>
+        <span class="k">if</span> <span class="s1">&#39;skipdump&#39;</span> <span class="ow">in</span> <span class="n">options</span> <span class="ow">and</span> <span class="n">options</span><span class="p">[</span><span class="s1">&#39;skipdump&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s1">&#39;-skipdump &#39;</span>
+        <span class="k">if</span> <span class="n">dbdumplocation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot;-dbdumplocation </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">dbdumplocation</span>
+        <span class="k">if</span> <span class="s1">&#39;dbfilelocation&#39;</span> <span class="ow">in</span> <span class="n">options</span> <span class="ow">and</span> <span class="n">options</span><span class="p">[</span><span class="s1">&#39;dbfilelocation&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot;-dbfilelocation </span><span class="si">%s</span><span class="s2"> &quot;</span> <span class="o">%</span> <span class="n">options</span><span class="p">[</span><span class="s1">&#39;dbfilelocation&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;licensepath&#39;</span> <span class="ow">in</span> <span class="n">options</span> <span class="ow">and</span> <span class="n">options</span><span class="p">[</span><span class="s1">&#39;licensepath&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot;-license &#39;</span><span class="si">%s</span><span class="s2">&#39; &quot;</span> <span class="o">%</span> <span class="n">options</span><span class="p">[</span><span class="s1">&#39;licensepath&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;tononcluster&#39;</span> <span class="ow">in</span> <span class="n">options</span> <span class="ow">and</span> <span class="n">options</span><span class="p">[</span><span class="s1">&#39;tononcluster&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot;-tononcluster &quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;tocluster&#39;</span> <span class="ow">in</span> <span class="n">options</span> <span class="ow">and</span> <span class="n">options</span><span class="p">[</span><span class="s1">&#39;tocluster&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s2">&quot;-tocluster &quot;</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">echo </span><span class="si">%e</span><span class="s1">rrorlevel%&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Command used for DB restore </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span>
+        <span class="n">script_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_script</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Stopping and disabling the services on </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">))</span>
+        <span class="n">stop_service_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">install_path</span><span class="p">,</span> <span class="s2">&quot;Base&quot;</span><span class="p">,</span> <span class="s2">&quot;GxAdmin.exe&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&#39; &#39;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; -console -stopsvcgrp ALL -disable -timeout 400 -kill&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">stop_service_output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;failed to stop the services&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;waiting for the exit code of CSRecoveryAssistant...&#39;</span><span class="p">)</span>
+        <span class="n">csrecovery_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">script_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">1&#39;</span> <span class="ow">in</span> <span class="n">csrecovery_output</span><span class="o">.</span><span class="n">formatted_output</span> <span class="ow">or</span> <span class="n">csrecovery_output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error while restoring DataBases,&quot;</span>
+                            <span class="s2">&quot;process returned exit code = </span><span class="si">{0}</span><span class="s2">,&quot;</span>
+                            <span class="s2">&quot; cmd stdout = </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">csrecovery_output</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfuly Restored DB Files on CS&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">start_services_after_recovery</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;starting the services on cs&#39;</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">install_path</span><span class="p">,</span> <span class="s2">&quot;Base&quot;</span><span class="p">,</span> <span class="s2">&quot;GxAdmin.exe&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                    <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&#39; &#39;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; -console -startsvcgrp ALL -force 400&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;fail&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Services not started sucessfully, error </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Services started successfully&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DRHelper.download_from_cvcloud"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.download_from_cvcloud">[docs]</a>    <span class="k">def</span> <span class="nf">download_from_cvcloud</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">company_name</span><span class="p">,</span> <span class="n">set_folder_name</span><span class="p">,</span> <span class="n">destination_path</span><span class="p">,</span> <span class="n">commcell_id</span><span class="p">,</span>
+                              <span class="n">chunk_size</span><span class="o">=</span><span class="mi">1000000</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Downloads given set folder from cvcloud to destination folder.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                company_name        (str)   -   name of the company.</span>
+
+<span class="sd">                commcell_id         (str)   -   hexadecimal id of the commcell</span>
+
+<span class="sd">                set_folder_name     (str)   -   set folder name.</span>
+
+<span class="sd">                destination_path    (str)   -   destination path for downloads.</span>
+
+<span class="sd">                chunk_size          (int)   -   chunk size of the file.</span>
+<span class="sd">                    default: 1000000</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    if path doesn&#39;t exist</span>
+<span class="sd">                    if set folder doesn&#39;t exist in cvcloud</span>
+<span class="sd">                    if failed to download the file.</span>
+
+<span class="sd">            NOTE: if commcell_id is None then id of the current commcell will be retrieved from</span>
+<span class="sd">            hexadecimal_id_of_the_commcell()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;commcell id is </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">commcell_id</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_cloud_management</span><span class="o">.</span><span class="n">company_name</span> <span class="o">=</span> <span class="n">company_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cv_cloud_management</span><span class="o">.</span><span class="n">source_commcell_id</span> <span class="o">=</span> <span class="n">commcell_id</span>
+        <span class="n">set_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_cloud_management</span><span class="o">.</span><span class="n">get_set_id_of_a_set_folder</span><span class="p">(</span><span class="n">set_folder_name</span><span class="p">)</span>
+        <span class="n">file_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_cloud_management</span><span class="o">.</span><span class="n">get_file_names_of_a_set_folder</span><span class="p">(</span><span class="n">set_folder_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;List of files in the set folder </span><span class="si">{1}</span><span class="s1">, </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_names</span><span class="p">,</span> <span class="n">set_folder_name</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">destination_path</span><span class="p">):</span>
+            <span class="n">file_names</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">file_names</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Downloading file </span><span class="si">{0}</span><span class="s1"> .....&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file</span><span class="p">))</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_cloud_management</span><span class="o">.</span><span class="n">get_dump_data</span><span class="p">(</span><span class="n">set_id</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">destination_path</span><span class="p">,</span> <span class="n">file</span><span class="p">),</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">):</span>
+                        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> file downloaded to </span><span class="si">{1}</span><span class="s1"> directory successfully&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">destination_path</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> path doesn&#39;t&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">destination_path</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="DRHelper.download_from_third_party_cloud"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.download_from_third_party_cloud">[docs]</a>    <span class="k">def</span> <span class="nf">download_from_third_party_cloud</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vendor_name</span><span class="p">,</span> <span class="n">loginname</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span>
+                                        <span class="n">mountpath</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">destination_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        downloads given set folder from third party cloud.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                vendor_name     (str)   --      name of the vendor</span>
+
+<span class="sd">                    NOTE: please refer CLOUD_SERVER_TYPES in mediaagentconstants.py for supported vendor names</span>
+
+<span class="sd">                loginname       (str)   --      login name</span>
+
+<span class="sd">                password        (str)   --      password</span>
+
+<span class="sd">                mountpath       (str)   --      name of the mountpath</span>
+
+<span class="sd">                source_path     (str)   --      source_path</span>
+<span class="sd">                    format: &#39;DR/&lt;commcel_name&gt;/&lt;set_folder_name&gt;&#39;</span>
+
+<span class="sd">                destination_path  (str) --      destination path for the download</span>
+
+<span class="sd">            NOTE: please refer https://documentation.commvault.com/commvault/v11/article?p=97863.htm</span>
+<span class="sd">                for more details on format of loginname, moutpath</span>
+
+<span class="sd">            NOTE: Below functionality make use of CloudTestTool.exe which is under Base folder to download dumps</span>
+<span class="sd">             from various cloud vendors</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    when un-supported cloud vendor name is passed.</span>
+<span class="sd">                    when destination directory is not found.</span>
+<span class="sd">                    when format of loginName is incorrect</span>
+<span class="sd">                    when failed to execute the download_cmd</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">vendor_name</span> <span class="ow">in</span> <span class="n">CLOUD_SERVER_TYPES</span><span class="p">:</span>
+            <span class="n">cloud_server_type</span> <span class="o">=</span> <span class="n">CLOUD_SERVER_TYPES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">vendor_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Please pass the valid cloud vendor name&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">directory_path</span><span class="o">=</span><span class="n">destination_path</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;directory not found </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">destination_path</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">vendor_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;amazon s3&#39;</span><span class="p">,</span> <span class="s1">&#39;google cloud storage&#39;</span><span class="p">):</span>
+            <span class="n">cloud_creds</span> <span class="o">=</span> <span class="n">loginname</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;//&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cloud_creds</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">download_cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">install_path</span><span class="p">,</span> <span class="s2">&quot;Base&quot;</span><span class="p">,</span> <span class="s2">&quot;CloudTestTool.exe&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                    <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&#39; &#39;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; -h </span><span class="si">{0}</span><span class="s2"> -u </span><span class="si">{1}</span><span class="s2"> -p </span><span class="si">{2}</span><span class="s2"> -b </span><span class="si">{3}</span><span class="s2"> -o download -S </span><span class="si">{4}</span><span class="s2"> -t </span><span class="si">{5}</span><span class="s2"> -D </span><span class="si">{6}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">cloud_creds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cloud_creds</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">password</span><span class="p">,</span> <span class="n">mountpath</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">cloud_server_type</span><span class="p">,</span>
+                    <span class="n">destination_path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Please pass the valid format for loginname, hostname//accesskey&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Please pass the valid cloud vendor name&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Download cmd </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">download_cmd</span><span class="p">))</span>
+        <span class="n">download_cmd_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">download_cmd</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">download_cmd_output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Failed with error = </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">download_cmd_output</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Download successfull&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DRHelper.get_latest_folder_network_dr_path"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.get_latest_folder_network_dr_path">[docs]</a>    <span class="k">def</span> <span class="nf">get_latest_folder_network_dr_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">local_mounted_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to get the latest DR folder from a mounted DR network Path</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            local_mounted_path  (str)   -- local Mounted path of network DR path</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The DR Folder Path if present or none</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting the latest set folder in shared network path&quot;</span><span class="p">)</span>
+        <span class="n">sorted_script</span> <span class="o">=</span> <span class="s2">&quot;Get-ChildItem </span><span class="si">{0}</span><span class="s2"> | ? {{ $_.PSIsContainer }} | sort LastWriteTime | select Name&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">local_mounted_path</span><span class="p">)</span>
+        <span class="n">folder_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">sorted_script</span><span class="p">)</span>
+        <span class="n">output_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">folder_output</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">))</span>
+        <span class="n">output_list</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">folder</span> <span class="ow">in</span> <span class="n">output_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;DR_[0-9]+$&quot;</span><span class="p">,</span> <span class="n">folder</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cs_dump_in_path</span><span class="p">(</span><span class="n">local_mounted_path</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">folder</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="k">return</span> <span class="n">local_mounted_path</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">folder</span></div>
+
+<div class="viewcode-block" id="DRHelper.get_cs_dump_in_path"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.get_cs_dump_in_path">[docs]</a>    <span class="k">def</span> <span class="nf">get_cs_dump_in_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dr_folder</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to get the CS Dump in a given Folder Path</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        dr_folder   (str): DR Folder path from which CS Dump would be returned</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Commserver Dump name if present or None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">files_present</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">get_files_in_path</span><span class="p">(</span><span class="n">dr_folder</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;.*commserv_.*.dmp&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">match</span><span class="p">,</span> <span class="n">files_present</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="DRHelper.set_er_directory"><a class="viewcode-back" href="../../../source/Server.DisasterRecovery.html#Server.DisasterRecovery.drhelper.DRHelper.set_er_directory">[docs]</a>    <span class="k">def</span> <span class="nf">set_er_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the ER Staging Directory folder to the given path if provided else the default CommServeDR Location</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        path   (str): ER Staging Directory path to be set</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">install_path</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">CommserveDR&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;setting registry key ERStagingDirectory to CommserveDR location&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">create_registry</span><span class="p">(</span><span class="s2">&quot;CommServe&quot;</span><span class="p">,</span> <span class="s2">&quot;ERStagingDirectory&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

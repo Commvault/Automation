@@ -1,0 +1,726 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Server.NameChange.name_change_helper &mdash; Commvault Automation 11.20 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Server.NameChange.name_change_helper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Server.NameChange.name_change_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for performing Name Change related operations on Commcell and Clients</span>
+
+<span class="sd">NameChangeHelper is the only class defined in this file.</span>
+
+<span class="sd">NameChangeHelper:</span>
+<span class="sd">    __init__()                                  --  Initializes instance of the NameChangeHelper</span>
+<span class="sd">                                                    class</span>
+
+<span class="sd">    change_commserve_display_name()             --  Changes the display name of the commserver</span>
+
+<span class="sd">    change_client_display_name()                --  Changes the display name of the client</span>
+
+<span class="sd">    change_commserver_hostname_for_client()     --  Changes the commserver hostname on the client</span>
+
+<span class="sd">    change_client_hostname()                    --  Changes the hostname of the client</span>
+
+<span class="sd">    change_client_name()                        --  Changes the client name</span>
+
+<span class="sd">    change_commserver_hostname_remote_clients() --  Changes the commserver hostname on the</span>
+<span class="sd">                                                    commserver and clients</span>
+
+<span class="sd">    change_commserver_hostname_after_dr()       --  Changes the commserver hostname on the given</span>
+<span class="sd">                                                    clients</span>
+
+<span class="sd">    change_client_domain_name()                 --  Changes the domain name of the clients</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.name_change</span> <span class="kn">import</span> <span class="n">OperationType</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.idautils</span> <span class="kn">import</span> <span class="n">CommonUtils</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="kn">import</span> <span class="n">OptionsSelector</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+
+
+<div class="viewcode-block" id="NameChangeHelper"><a class="viewcode-back" href="../../../source/Server.NameChange.html#Server.NameChange.name_change_helper.NameChangeHelper">[docs]</a><span class="k">class</span> <span class="nc">NameChangeHelper</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to provide Name Change related operations on Commcell and Clients&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Initializes instance of the NameChangeHelper class</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            testcase_obj (obj)    -- Testcase object</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">testcase_obj</span><span class="o">.</span><span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">testcase_obj</span><span class="o">.</span><span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverbase</span> <span class="o">=</span> <span class="n">CommonUtils</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+
+<div class="viewcode-block" id="NameChangeHelper.change_commserve_display_name"><a class="viewcode-back" href="../../../source/Server.NameChange.html#Server.NameChange.name_change_helper.NameChangeHelper.change_commserve_display_name">[docs]</a>    <span class="k">def</span> <span class="nf">change_commserve_display_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Changes the display name of the commserver</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                new_name(str)   --  The new commserver display name to be updated</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    -   If failed to update the commserver display name</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;New commserver display name should be: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_name</span><span class="p">)</span>
+
+        <span class="n">name_change_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">name_change</span>
+        <span class="n">name_change_object</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="n">new_name</span>
+
+        <span class="c1"># Validation starts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_hostname</span><span class="p">)</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="n">updated_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_hostname</span><span class="p">)</span><span class="o">.</span><span class="n">display_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;The updated display name of the commserver is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">updated_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">updated_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">new_name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Verified commserver display name change, from the DB&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Commserver display update failed.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NameChangeHelper.change_client_display_name"><a class="viewcode-back" href="../../../source/Server.NameChange.html#Server.NameChange.name_change_helper.NameChangeHelper.change_client_display_name">[docs]</a>    <span class="k">def</span> <span class="nf">change_client_display_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">new_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Changes the display name of the client</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client_name(str)    --  The client for which display name should be changed</span>
+
+<span class="sd">                new_name(str)       --  The new client display name to be updated</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    -   If failed to update the client display name</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+        <span class="n">name_change_object</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">name_change</span>
+        <span class="n">name_change_object</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="n">new_name</span>
+
+        <span class="c1"># Validation starts</span>
+        <span class="n">client_object</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Verifying if client display name is updated, from the DB&quot;</span><span class="p">)</span>
+        <span class="n">updated_name</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">display_name</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;The updated display name of the client is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">updated_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">updated_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">new_name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Verified client display name change, from the DB&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Client display name not updated.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NameChangeHelper.change_commserver_hostname_for_client"><a class="viewcode-back" href="../../../source/Server.NameChange.html#Server.NameChange.name_change_helper.NameChangeHelper.change_commserver_hostname_for_client">[docs]</a>    <span class="k">def</span> <span class="nf">change_commserver_hostname_for_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">new_commserver_hostname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Changes the commserver hostname on the client</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client_name(str)            --  The client for which commserver hostname</span>
+<span class="sd">                                                should be changed</span>
+
+<span class="sd">                new_commserver_hostname(str)--  The new commserver hostname to be updated</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    -   If failed to update the commserver hostname on the client</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;New commserver hostname of the client should be: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_commserver_hostname</span><span class="p">)</span>
+
+        <span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+        <span class="n">name_change_object</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">name_change</span>
+        <span class="n">dict_params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;operation&#39;</span><span class="p">:</span> <span class="n">OperationType</span><span class="o">.</span><span class="n">COMMSERVER_HOSTNAME</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="s1">&#39;CommserverHostname&#39;</span><span class="p">:</span> <span class="n">new_commserver_hostname</span>
+        <span class="p">}</span>
+        <span class="n">name_change_object</span><span class="o">.</span><span class="n">hostname</span> <span class="o">=</span> <span class="n">dict_params</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for 180 sec for client services to restart&quot;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">180</span><span class="p">)</span>
+
+        <span class="c1"># Validation starts</span>
+        <span class="n">client_object</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Verifying if client&#39;s commserver hostname is updated, from the DB&quot;</span><span class="p">)</span>
+        <span class="n">updated_hostname</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">commcell_name</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;The updated commserver hostname of the client is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">updated_hostname</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">updated_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">new_commserver_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Verified the client&#39;s commserver hostname change, from the DB&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Client&#39;s commserver hostname update failed.&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking registry of the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
+        <span class="n">machine_object</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client_object</span><span class="p">)</span>
+        <span class="n">commserver_hostname_in_registry</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">get_registry_value</span><span class="p">(</span>
+            <span class="s2">&quot;CommServe&quot;</span><span class="p">,</span> <span class="s2">&quot;sCSHOSTNAME&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;The commserver hostname for the client &#39;</span><span class="si">%s</span><span class="s2">&#39; in &quot;</span>
+            <span class="s2">&quot;registry is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">commserver_hostname_in_registry</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">new_commserver_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">commserver_hostname_in_registry</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;The client&#39;s &#39;</span><span class="si">%s</span><span class="s2">&#39; registry sCSHOSTNAME has been updated&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;The client&#39;s &#39;</span><span class="si">%s</span><span class="s2">&#39; registry sCSHOSTNAME has NOT &quot;</span>
+                            <span class="s2">&quot;been updated&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Running check readiness for the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverbase</span><span class="o">.</span><span class="n">check_client_readiness</span><span class="p">([</span><span class="n">client_name</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Check readiness Passed for the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="n">client_name</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NameChangeHelper.change_client_hostname"><a class="viewcode-back" href="../../../source/Server.NameChange.html#Server.NameChange.name_change_helper.NameChangeHelper.change_client_hostname">[docs]</a>    <span class="k">def</span> <span class="nf">change_client_hostname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">new_client_hostname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Changes the hostname of the client</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client_name(str)            --  The client for which hostname should be changed</span>
+
+<span class="sd">                new_client_hostname(str)    --  The new client hostname to be updated</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    -   If failed to update the client hostname</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;New client hostname should be: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_client_hostname</span><span class="p">)</span>
+
+        <span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+        <span class="n">name_change_object</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">name_change</span>
+        <span class="n">dict_params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;operation&#39;</span><span class="p">:</span> <span class="n">OperationType</span><span class="o">.</span><span class="n">CLIENT_HOSTNAME</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="s1">&#39;ClientHostname&#39;</span><span class="p">:</span> <span class="n">new_client_hostname</span>
+        <span class="p">}</span>
+        <span class="n">name_change_object</span><span class="o">.</span><span class="n">hostname</span> <span class="o">=</span> <span class="n">dict_params</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for 180 sec for client services to restart&quot;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">180</span><span class="p">)</span>
+
+        <span class="c1"># Validation starts</span>
+        <span class="n">client_object</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Verifying if client name is updated, from the DB&quot;</span><span class="p">)</span>
+        <span class="n">updated_client_hostname</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">client_hostname</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;The updated client hostname is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">updated_client_hostname</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">updated_client_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">new_client_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Verified the client&#39;s hostname change, from the DB&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Client&#39;s hostname update failed.&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking registry of the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
+        <span class="n">machine_object</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client_object</span><span class="p">)</span>
+        <span class="n">sub_key</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="s2">&quot;Machines&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
+        <span class="n">client_hostname_in_registry</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">get_registry_value</span><span class="p">(</span><span class="n">sub_key</span><span class="p">,</span> <span class="s2">&quot;sHOSTNAME&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;The hostname for the client &#39;</span><span class="si">%s</span><span class="s2">&#39; in registry&quot;</span>
+            <span class="s2">&quot; is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">client_hostname_in_registry</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">new_client_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">client_hostname_in_registry</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;The client&#39;s &#39;</span><span class="si">%s</span><span class="s2">&#39; registry sHOSTNAME has been updated&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;The client&#39;s &#39;</span><span class="si">%s</span><span class="s2">&#39; registry sHOSTNAME has NOT been &quot;</span>
+                            <span class="s2">&quot;updated&quot;</span><span class="o">%</span> <span class="n">client_name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Running check readiness for the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">client_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverbase</span><span class="o">.</span><span class="n">check_client_readiness</span><span class="p">([</span><span class="n">client_name</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Check readiness Passed for the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">client_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NameChangeHelper.change_client_name"><a class="viewcode-back" href="../../../source/Server.NameChange.html#Server.NameChange.name_change_helper.NameChangeHelper.change_client_name">[docs]</a>    <span class="k">def</span> <span class="nf">change_client_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">old_client_name</span><span class="p">,</span> <span class="n">new_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Changes the name of the client</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                old_client_name(str)    --  The client for which name should be changed</span>
+
+<span class="sd">                new_name(str)           --  The new client name to be updated</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    -   If failed to update the client name</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;New client name should be: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_name</span><span class="p">)</span>
+
+        <span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">old_client_name</span><span class="p">)</span>
+        <span class="n">name_change_object</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">name_change</span>
+        <span class="n">name_change_object</span><span class="o">.</span><span class="n">client_name</span> <span class="o">=</span> <span class="n">new_name</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for 180 sec for client services to restart&quot;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">180</span><span class="p">)</span>
+
+        <span class="c1"># Validation starts</span>
+        <span class="n">client_object</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Verifying if client&#39;s name is updated, from the DB&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">has_client</span><span class="p">(</span><span class="n">new_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Client name update in the DB, has been verified&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking registry of the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_name</span><span class="p">)</span>
+        <span class="n">machine_object</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client_object</span><span class="p">)</span>
+        <span class="n">client_name_in_registry</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">get_registry_value</span><span class="p">(</span>
+            <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;sPhysicalNodeName&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;The client name for the client &#39;</span><span class="si">%s</span><span class="s2">&#39; in registry&quot;</span>
+            <span class="s2">&quot; is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_name</span><span class="p">,</span> <span class="n">client_name_in_registry</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">new_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">client_name_in_registry</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;The client&#39;s &#39;</span><span class="si">%s</span><span class="s2">&#39; registry sPhysicalNodeName has been updated&quot;</span><span class="p">,</span> <span class="n">new_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;The client&#39;s &#39;</span><span class="si">%s</span><span class="s2">&#39; registry sPhysicalNodeName has&quot;</span>
+                            <span class="s2">&quot; NOT been updated&quot;</span> <span class="o">%</span> <span class="n">new_name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Running check readiness for the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">new_name</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverbase</span><span class="o">.</span><span class="n">check_client_readiness</span><span class="p">([</span><span class="n">new_name</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Check readiness Passed for the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">new_name</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="NameChangeHelper.change_commserver_hostname_remote_clients"><a class="viewcode-back" href="../../../source/Server.NameChange.html#Server.NameChange.name_change_helper.NameChangeHelper.change_commserver_hostname_remote_clients">[docs]</a>    <span class="k">def</span> <span class="nf">change_commserver_hostname_remote_clients</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">new_commserver_hostname</span><span class="p">,</span> <span class="n">clients</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Changes the commserver hostname on the commserver and remote clients</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                clients (list)              --  The list of client for which commserver hostname</span>
+<span class="sd">                                                should be changed</span>
+
+<span class="sd">                new_commserver_hostname(str)--  The new client hostname to be updated</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    -   If failed to update the commserver hostname on the commserver and clients</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;New commserver hostname should be: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_commserver_hostname</span><span class="p">)</span>
+
+        <span class="n">name_change_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">name_change</span>
+        <span class="n">dict_params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;operation&#39;</span><span class="p">:</span> <span class="n">OperationType</span><span class="o">.</span><span class="n">COMMSERVER_HOSTNAME_REMOTE_CLIENTS</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="s1">&#39;newName&#39;</span><span class="p">:</span> <span class="n">new_commserver_hostname</span><span class="p">}</span>
+        <span class="n">name_change_object</span><span class="o">.</span><span class="n">hostname</span> <span class="o">=</span> <span class="n">dict_params</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for 180 sec for client services to restart&quot;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">180</span><span class="p">)</span>
+
+        <span class="c1"># Validation starts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Verifying if the commserver hostname for the client is updated, &quot;</span>
+                      <span class="s2">&quot;from the DB&quot;</span><span class="p">)</span>
+        <span class="n">updated_commserver_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_hostname</span>
+
+        <span class="k">if</span> <span class="n">updated_commserver_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">new_commserver_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Verified the commserver hostname change, from the DB&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Commserver hostname change failed on commserver.&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">client</span> <span class="ow">in</span> <span class="n">clients</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking registry of the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client</span><span class="p">)</span>
+            <span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">machine_object</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client_object</span><span class="p">)</span>
+            <span class="n">commserver_hostname_in_registry</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">get_registry_value</span><span class="p">(</span>
+                <span class="s2">&quot;CommServe&quot;</span><span class="p">,</span> <span class="s2">&quot;sCSHOSTNAME&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;The commserver hostname in client &#39;</span><span class="si">%s</span><span class="s2">&#39; registry &quot;</span>
+                <span class="s2">&quot;is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">commserver_hostname_in_registry</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">new_commserver_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">commserver_hostname_in_registry</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;The client&#39;s &#39;</span><span class="si">%s</span><span class="s2">&#39; registry sCSHOSTNAME has been updated&quot;</span><span class="p">,</span> <span class="n">client</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;The client&#39;s &#39;</span><span class="si">%s</span><span class="s2">&#39; registry sCSHOSTNAME has NOT been updated&quot;</span><span class="o">%</span> <span class="n">client</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running check readiness for all the clients&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverbase</span><span class="o">.</span><span class="n">check_client_readiness</span><span class="p">(</span><span class="n">clients</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Check readiness Passed for the clients&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NameChangeHelper.change_commserver_hostname_after_dr"><a class="viewcode-back" href="../../../source/Server.NameChange.html#Server.NameChange.name_change_helper.NameChangeHelper.change_commserver_hostname_after_dr">[docs]</a>    <span class="k">def</span> <span class="nf">change_commserver_hostname_after_dr</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">new_commserver_hostname</span><span class="p">,</span> <span class="n">old_commserver_hostname</span><span class="p">,</span> <span class="n">clients</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Changes the commserver hostname on the clients (after disater recovery option)</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                clients(list)               --  The list of clients for which commserver hostname</span>
+<span class="sd">                                                should be changed</span>
+
+<span class="sd">                new_commserver_hostname(str)--  The new commserver hostname to be updated</span>
+
+<span class="sd">                old_commserver_hostname(str)--  The old commserver hostname on the clients</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    -   If failed to update the commserver hostname on the clients</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Commserver hostname on the clients should be: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_commserver_hostname</span><span class="p">)</span>
+        <span class="n">client_ids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">client</span> <span class="ow">in</span> <span class="n">clients</span><span class="p">:</span>
+            <span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">client_id</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">client_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Client id for client &#39;</span><span class="si">%s</span><span class="s2">&#39; is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">client</span><span class="p">,</span>
+                <span class="n">client_id</span><span class="p">)</span>
+
+            <span class="n">client_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span>
+
+        <span class="n">name_change_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">name_change</span>
+        <span class="n">dict_params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;operation&#39;</span><span class="p">:</span> <span class="n">OperationType</span><span class="o">.</span><span class="n">COMMSERVER_HOSTNAME_AFTER_DR</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="s1">&#39;oldName&#39;</span><span class="p">:</span> <span class="n">old_commserver_hostname</span><span class="p">,</span>
+            <span class="s1">&#39;clientIds&#39;</span><span class="p">:</span> <span class="n">client_ids</span>
+        <span class="p">}</span>
+        <span class="n">name_change_object</span><span class="o">.</span><span class="n">hostname</span> <span class="o">=</span> <span class="n">dict_params</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for 180 sec for client services to restart&quot;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">180</span><span class="p">)</span>
+
+        <span class="c1"># Validation starts</span>
+        <span class="k">for</span> <span class="n">client</span> <span class="ow">in</span> <span class="n">clients</span><span class="p">:</span>
+            <span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">client_object</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Verifying if client&#39;s commserver hostname is updated, from the DB&quot;</span><span class="p">)</span>
+            <span class="n">updated_commserver_name</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">commcell_name</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;The updated commserver hostname of the client is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">updated_commserver_name</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">updated_commserver_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">new_commserver_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Verified the client &#39;</span><span class="si">%s</span><span class="s2">&#39;s commserver hostname change, from the DB&quot;</span><span class="p">,</span>
+                    <span class="n">client</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Commserver hostname change for the client &#39;</span><span class="si">%s</span><span class="s2">&#39; failed&quot;</span> <span class="o">%</span> <span class="n">client</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking registry of the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client</span><span class="p">)</span>
+            <span class="n">machine_object</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client_object</span><span class="p">)</span>
+            <span class="n">commserver_hostname_in_registry</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">get_registry_value</span><span class="p">(</span>
+                <span class="s2">&quot;CommServe&quot;</span><span class="p">,</span> <span class="s2">&quot;sCSHOSTNAME&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;The commserver hostname in client &#39;</span><span class="si">%s</span><span class="s2">&#39; registry is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">client</span><span class="p">,</span>
+                <span class="n">commserver_hostname_in_registry</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">new_commserver_hostname</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">commserver_hostname_in_registry</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;The client &#39;</span><span class="si">%s</span><span class="s2">&#39;s registry sCSHOSTNAME has been updated&quot;</span><span class="p">,</span> <span class="n">client</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;The client &#39;</span><span class="si">%s</span><span class="s2">&#39;s registry sCSHOSTNAME has NOT been updated&quot;</span> <span class="o">%</span> <span class="n">client</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running check readiness for all the clients&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverbase</span><span class="o">.</span><span class="n">check_client_readiness</span><span class="p">(</span><span class="n">clients</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Check readiness Passed for the clients&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NameChangeHelper.change_client_domain_name"><a class="viewcode-back" href="../../../source/Server.NameChange.html#Server.NameChange.name_change_helper.NameChangeHelper.change_client_domain_name">[docs]</a>    <span class="k">def</span> <span class="nf">change_client_domain_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_list</span><span class="p">,</span> <span class="n">old_domain</span><span class="p">,</span> <span class="n">new_domain</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Changes the commserver hostname on the commserver and clients</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client_list(list)--  The list of clients for which commserver hostname should be</span>
+<span class="sd">                                    changed</span>
+
+<span class="sd">                new_domain(str)  --  The new client domain name to be updated</span>
+
+<span class="sd">                old_domain(str)  --  The old domain name of the client</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+<span class="sd">                    -   If failed to update the commserver hostname on the commserver and clients</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;The domainname on the clients should be: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">new_domain</span><span class="p">)</span>
+        <span class="n">dict_params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;oldDomain&#39;</span><span class="p">:</span> <span class="n">old_domain</span><span class="p">,</span>
+            <span class="s1">&#39;newDomain&#39;</span><span class="p">:</span> <span class="n">new_domain</span>
+        <span class="p">}</span>
+        <span class="n">name_change_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">name_change</span>
+        <span class="n">name_change_object</span><span class="o">.</span><span class="n">domain_name</span> <span class="o">=</span> <span class="n">dict_params</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Waiting for 180 sec for client services to restart&quot;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">180</span><span class="p">)</span>
+
+        <span class="c1"># Validation starts</span>
+        <span class="k">for</span> <span class="n">clients</span> <span class="ow">in</span> <span class="n">client_list</span><span class="p">:</span>
+            <span class="n">client_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">clients</span><span class="p">)</span>
+            <span class="n">client_object</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="n">updated_client_hostname</span> <span class="o">=</span> <span class="n">client_object</span><span class="o">.</span><span class="n">client_hostname</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;The updated client hostname is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">updated_client_hostname</span><span class="p">)</span>
+            <span class="n">updated_domain_name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;\.(.*)&quot;</span><span class="p">,</span> <span class="n">updated_client_hostname</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">updated_domain_name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">new_domain</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Verified the client &#39;</span><span class="si">%s</span><span class="s2">&#39;s domain name change, from the DB&quot;</span><span class="p">,</span> <span class="n">clients</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Client domain name change for the client &#39;</span><span class="si">%s</span><span class="s2">&#39; failed&quot;</span> <span class="o">%</span> <span class="n">clients</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking registry of the client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">clients</span><span class="p">)</span>
+            <span class="n">machine_object</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client_object</span><span class="p">)</span>
+            <span class="n">sub_key</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="s2">&quot;Machines&quot;</span><span class="p">,</span> <span class="n">clients</span><span class="p">)</span>
+            <span class="n">client_hostname_in_registry</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">get_registry_value</span><span class="p">(</span><span class="n">sub_key</span><span class="p">,</span> <span class="s2">&quot;sHOSTNAME&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;The client hostname in client &#39;</span><span class="si">%s</span><span class="s2">&#39; registry is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">clients</span><span class="p">,</span>
+                <span class="n">client_hostname_in_registry</span><span class="p">)</span>
+            <span class="n">updated_domain_in_registry</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;\.(.*)&quot;</span><span class="p">,</span> <span class="n">client_hostname_in_registry</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">new_domain</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">updated_domain_in_registry</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;The client &#39;</span><span class="si">%s</span><span class="s2">&#39;s registry sHOSTNAME has been updated&quot;</span><span class="p">,</span> <span class="n">clients</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;The client &#39;</span><span class="si">%s</span><span class="s2">&#39;s registry sHOSTNAME has NOT been updated&quot;</span> <span class="o">%</span> <span class="n">clients</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running check readiness for the client&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverbase</span><span class="o">.</span><span class="n">check_client_readiness</span><span class="p">(</span><span class="n">client_list</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Check readiness Passed for the client&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

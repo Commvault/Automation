@@ -1,0 +1,496 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Testcases.54506 &mdash; Commvault Automation 11.20 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>Testcases.54506</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Testcases.54506</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding=utf-8</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main file for executing this test case</span>
+
+<span class="sd">TestCase is the only class defined in this file.</span>
+
+<span class="sd">TestCase: Class for executing this test case</span>
+
+<span class="sd">TestCase:</span>
+<span class="sd">    __init__()      --  initialize TestCase class</span>
+
+<span class="sd">    setup()         --  setup function of this test case</span>
+
+<span class="sd">    run()           --  run function of this test case</span>
+
+<span class="sd">    tear_down()     --  tear down function of this test case</span>
+
+<span class="sd">design steps:</span>
+<span class="sd">1. Install a client</span>
+<span class="sd">2. Add config param ‘DA_CONFIG_NUMBER_OF_DAYS_TO_KEEP_DECONFIGURED_CLIENTS’ if doesn’t exist and set it to 0</span>
+<span class="sd">3. Run some backups on it</span>
+<span class="sd">4. Delete all backups on client except for 1 backup job</span>
+<span class="sd">5. Run data aging</span>
+<span class="sd">6. Deconfigure the client --&gt; use retire client option</span>
+<span class="sd">7. Make sure config ‘DA_CONFIG_DELETE_DECONFIGURED_CLIENTS_WITH_NO_DATA’ is enabled</span>
+<span class="sd">8. Run data aging and make sure the client is not deleted as it still has jobs on it</span>
+<span class="sd">9. Now delete the backup job and run DA. Make sure deconfigured client is deleted.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.deployment.deploymentconstants</span> <span class="kn">import</span> <span class="n">WindowsDownloadFeatures</span>
+<span class="kn">from</span> <span class="nn">base64</span> <span class="kn">import</span> <span class="n">b64encode</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="kn">import</span> <span class="n">CVTestCase</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">MediaAgents.MAUtils.mahelper</span> <span class="kn">import</span> <span class="n">MMHelper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="kn">import</span> <span class="n">OptionsSelector</span>
+
+
+<div class="viewcode-block" id="TestCase"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.54506.TestCase">[docs]</a><span class="k">class</span> <span class="nc">TestCase</span><span class="p">(</span><span class="n">CVTestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for executing this test case&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes test case class object&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TestCase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;data aging case for validation of delete deconfigured clients config&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;MediaAgentName&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;SqlSaPassword&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;InstallClientHostName&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;InstallClientUserName&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;InstallClientPassword&quot;</span><span class="p">:</span> <span class="kc">None</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">library_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_policy_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backupset_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subclient_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">content_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mount_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">library</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_policy</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backupset</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">copy</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clients</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="TestCase.setup"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.54506.TestCase.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Setup function of this test case&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">library_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_lib&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_policy_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_SP&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backupset_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_BS&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subclient_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_SC&quot;</span>
+        <span class="c1"># self.path = os.path.normpath(self.tcinputs[&quot;PathToUse&quot;])</span>
+        <span class="c1"># self.mount_path = os.path.join(self.path, &quot;MP&quot;)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span> <span class="o">=</span> <span class="n">MMHelper</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TestCase.set_days_to_keep_deconfigured_clients"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.54506.TestCase.set_days_to_keep_deconfigured_clients">[docs]</a>    <span class="k">def</span> <span class="nf">set_days_to_keep_deconfigured_clients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        sets config param &#39;DA_CONFIG_NUMBER_OF_DAYS_TO_KEEP_DECONFIGURED_CLIENTS&#39; with number of days value</span>
+<span class="sd">        Args:</span>
+<span class="sd">            value (int): number of days to set as config param value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                    IF NOT EXISTS (</span>
+<span class="s2">                        SELECT * FROM MMConfigs</span>
+<span class="s2">                        WHERE NAME = &#39;DA_CONFIG_NUMBER_OF_DAYS_TO_KEEP_DECONFIGURED_CLIENTS&#39;</span>
+<span class="s2">                    )</span>
+<span class="s2">                    BEGIN</span>
+<span class="s2">                        INSERT INTO MMConfigs(NAME,value,bExposeInGUI,nType,nMin,nMax,</span>
+<span class="s2">                        nConfigSubSystemId,fallBackValueName)</span>
+<span class="s2">                        VALUES (&#39;DA_CONFIG_NUMBER_OF_DAYS_TO_KEEP_DECONFIGURED_CLIENTS&#39;,</span><span class="si">{0}</span><span class="s2">,0,1,0,30,2,</span>
+<span class="s2">                        &#39;number of days to delete deconfigured clients&#39;)</span>
+<span class="s2">                    END</span>
+<span class="s2">                    ELSE</span>
+<span class="s2">                    BEGIN</span>
+<span class="s2">                        UPDATE MMConfigs</span>
+<span class="s2">                        SET VALUE = </span><span class="si">{0}</span><span class="s2"></span>
+<span class="s2">                        WHERE NAME = &#39;DA_CONFIG_NUMBER_OF_DAYS_TO_KEEP_DECONFIGURED_CLIENTS&#39;</span>
+<span class="s2">                    END&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span><span class="o">.</span><span class="n">execute_update_query</span><span class="p">(</span><span class="n">_query</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;SqlSaPassword&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TestCase.run_backup"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.54506.TestCase.run_backup">[docs]</a>    <span class="k">def</span> <span class="nf">run_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backup_type</span><span class="o">=</span><span class="s2">&quot;FULL&quot;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        this function runs backup by generating new content to get unique blocks for dedupe backups</span>
+<span class="sd">        Args:</span>
+<span class="sd">            backup_type (str): type of backup to run</span>
+<span class="sd">            size (int): size of backup content to generate</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        (object) -- returns job object to backup job</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># add content</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">content_path</span><span class="p">,</span> <span class="sa">r</span><span class="s1">&#39;*&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span><span class="o">.</span><span class="n">create_uncompressable_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">content_path</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running </span><span class="si">%s</span><span class="s2"> backup...&quot;</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Backup job: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run </span><span class="si">{0}</span><span class="s2"> backup with error: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Backup job completed.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">job</span></div>
+
+<div class="viewcode-block" id="TestCase.run"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.54506.TestCase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Run function of this test case&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running install job...&quot;</span><span class="p">)</span>
+            <span class="n">install_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">install_software</span><span class="p">(</span><span class="n">client_computers</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;InstallClientHostName&#39;</span><span class="p">]],</span>
+                                        <span class="n">windows_features</span><span class="o">=</span><span class="p">[</span><span class="n">WindowsDownloadFeatures</span><span class="o">.</span><span class="n">FILE_SYSTEM</span><span class="o">.</span><span class="n">value</span><span class="p">],</span>
+                                        <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;InstallClientUserName&#39;</span><span class="p">],</span>
+                                        <span class="n">password</span><span class="o">=</span><span class="n">b64encode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;InstallClientPassword&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Install job: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">install_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">install_job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Failed to run install client job with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">install_job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Client:</span><span class="si">%s</span><span class="s2"> installed.&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;InstallClientHostName&#39;</span><span class="p">])</span>
+            <span class="c1"># self.clients = Clients(self.commcell)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;InstallClientHostName&#39;</span><span class="p">])</span><span class="c1">#.split(&#39;.&#39;)[0])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">agent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">agents</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;AgentName&#39;</span><span class="p">])</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">content_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">log_directory</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">content_path</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">content_path</span><span class="p">)</span>
+            <span class="c1"># select drive</span>
+            <span class="n">utility</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="n">media_agent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;MediaAgentName&#39;</span><span class="p">])</span>
+            <span class="n">media_agent_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">media_agent</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="n">mount_path_drive</span> <span class="o">=</span> <span class="n">utility</span><span class="o">.</span><span class="n">get_drive</span><span class="p">(</span><span class="n">media_agent_machine</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">3072</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">mount_path_drive</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;no free space on MA to create library&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;selected backup content drive: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">mount_path_drive</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mount_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">mount_path_drive</span><span class="p">,</span> <span class="s1">&#39;MP&#39;</span><span class="p">)</span>
+
+            <span class="c1"># 2. Add config param ‘DA_CONFIG_NUMBER_OF_DAYS_TO_KEEP_DECONFIGURED_CLIENTS’ if doesn’t exist and set to 0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;set config param DA_CONFIG_NUMBER_OF_DAYS_TO_KEEP_DECONFIGURED_CLIENTS to 0&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_days_to_keep_deconfigured_clients</span><span class="p">()</span>
+
+            <span class="c1"># 3. Run some backups on it</span>
+            <span class="c1"># create library, dedupe sp, backupset and subclient</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">library</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span><span class="o">.</span><span class="n">configure_disk_library</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">library_name</span><span class="p">,</span>
+                                                                <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;MediaAgentName&quot;</span><span class="p">],</span>
+                                                                <span class="bp">self</span><span class="o">.</span><span class="n">mount_path</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">storage_policy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span><span class="o">.</span><span class="n">configure_storage_policy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage_policy_name</span><span class="p">,</span>
+                                                                         <span class="bp">self</span><span class="o">.</span><span class="n">library_name</span><span class="p">,</span>
+                                                                         <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;MediaAgentName&quot;</span><span class="p">])</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">backupset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span><span class="o">.</span><span class="n">configure_backupset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backupset_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span><span class="o">.</span><span class="n">configure_subclient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backupset_name</span><span class="p">,</span>
+                                                               <span class="bp">self</span><span class="o">.</span><span class="n">subclient_name</span><span class="p">,</span>
+                                                               <span class="bp">self</span><span class="o">.</span><span class="n">storage_policy_name</span><span class="p">,</span>
+                                                               <span class="bp">self</span><span class="o">.</span><span class="n">content_path</span><span class="p">,</span>
+                                                               <span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">copy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_policy</span><span class="o">.</span><span class="n">get_copy</span><span class="p">(</span><span class="s1">&#39;Primary&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="o">.</span><span class="n">copy_retention</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="n">job1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_backup</span><span class="p">()</span>
+            <span class="n">job2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_backup</span><span class="p">()</span>
+            <span class="n">job3</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_backup</span><span class="p">()</span>
+
+            <span class="c1"># 4. Delete all backups on client except for 1 backup job</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;deleting jobs: </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job1</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job2</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="o">.</span><span class="n">delete_job</span><span class="p">(</span><span class="n">job1</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="o">.</span><span class="n">delete_job</span><span class="p">(</span><span class="n">job2</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+            <span class="c1"># 5. Run data aging</span>
+            <span class="n">da_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">run_data_aging</span><span class="p">(</span><span class="s1">&#39;Primary&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_policy_name</span><span class="p">,</span>
+                                                  <span class="n">is_granular</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">include_all_clients</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">select_copies</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">prune_selected_copies</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;start data aging: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">da_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">da_job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Failed to run data aging job job with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">da_job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;data aging job completed!&quot;</span><span class="p">)</span>
+
+            <span class="c1"># 6. Deconfigure the client --&gt; use retire client option</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">retire</span><span class="p">()</span>
+            <span class="n">job_ctrl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span>
+            <span class="k">for</span> <span class="n">job_id</span> <span class="ow">in</span> <span class="n">job_ctrl</span><span class="o">.</span><span class="n">active_jobs</span><span class="p">(</span><span class="n">job_filter</span><span class="o">=</span><span class="s1">&#39;UNINSTALLCLIENT&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;wait for job: </span><span class="si">%s</span><span class="s2"> to complete&quot;</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+                <span class="n">uninstall_job</span> <span class="o">=</span> <span class="n">job_ctrl</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">uninstall_job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="s2">&quot;Failed to run retire client job with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">uninstall_job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+                    <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;retire client job completed!&quot;</span><span class="p">)</span>
+
+            <span class="c1"># 7. Make sure config ‘DA_CONFIG_DELETE_DECONFIGURED_CLIENTS_WITH_NO_DATA’ is enabled</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                    IF NOT EXISTS (</span>
+<span class="s2">                    SELECT * FROM MMConfigs </span>
+<span class="s2">                    WHERE NAME = &#39;DA_CONFIG_DELETE_DECONFIGURED_CLIENTS_WITH_NO_DATA&#39; AND VALUE = 1</span>
+<span class="s2">                    )</span>
+<span class="s2">                    BEGIN</span>
+<span class="s2">                        UPDATE MMConfigs</span>
+<span class="s2">                        SET VALUE = 1</span>
+<span class="s2">                        WHERE NAME = &#39;DA_CONFIG_DELETE_DECONFIGURED_CLIENTS_WITH_NO_DATA&#39;</span>
+<span class="s2">                    END</span>
+<span class="s2">                    &quot;&quot;&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;QUERY: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span><span class="o">.</span><span class="n">execute_update_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;SqlSaPassword&#39;</span><span class="p">])</span>
+
+            <span class="c1"># 8. Run data aging and make sure the client is not deleted as it still has jobs on it</span>
+            <span class="n">da_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">run_data_aging</span><span class="p">(</span><span class="s1">&#39;Primary&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_policy_name</span><span class="p">,</span>
+                                                  <span class="n">is_granular</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">include_all_clients</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">select_copies</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">prune_selected_copies</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;start data aging: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">da_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">da_job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Failed to run data aging job job with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">da_job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;data aging job completed!&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;VALIDATION: check Client is not deleted&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">has_client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;client was not expected to be deleted by data aging&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;client was not expected to be deleted by data aging&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;client is present as expected&quot;</span><span class="p">)</span>
+
+            <span class="c1"># 9. Now delete the backup job and run DA. Make sure deconfigured client is deleted.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;deleting job: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job3</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="o">.</span><span class="n">delete_job</span><span class="p">(</span><span class="n">job3</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="n">da_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">run_data_aging</span><span class="p">(</span><span class="s1">&#39;Primary&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_policy_name</span><span class="p">,</span>
+                                                  <span class="n">is_granular</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">include_all_clients</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">select_copies</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                                  <span class="n">prune_selected_copies</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;start data aging: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">da_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">da_job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="s2">&quot;Failed to run data aging job job with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">da_job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;data aging job completed!&quot;</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;VALIDATION: check Client should be deleted&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">has_client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;client was expected to be deleted by data aging&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;client was expected to be deleted by data aging&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;client is deleted as expected&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to execute test case with error: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result_string</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span></div>
+
+<div class="viewcode-block" id="TestCase.tear_down"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.54506.TestCase.tear_down">[docs]</a>    <span class="k">def</span> <span class="nf">tear_down</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Main function to perform cleanup operations&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;cleaning up configs and installed client...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">has_client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;deleting client...&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">retire</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;delete client done!&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">storage_policies</span><span class="o">.</span><span class="n">has_policy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage_policy_name</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;deleting storage policy...&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">storage_policies</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage_policy_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">disk_libraries</span><span class="o">.</span><span class="n">has_library</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">library_name</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;deleting library...&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">disk_libraries</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">library_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;cleanup done.&quot;</span><span class="p">)</span></div></div>
+
+
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

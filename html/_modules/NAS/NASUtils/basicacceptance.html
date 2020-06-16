@@ -1,0 +1,494 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>NAS.NASUtils.basicacceptance &mdash; Commvault Automation 11.20 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>NAS.NASUtils.basicacceptance</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for NAS.NASUtils.basicacceptance</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file that executes the  basic acceptance test cases for nas client</span>
+
+<span class="sd">BasicAcceptance is the only class defined in this file</span>
+
+<span class="sd">This class include below cases:</span>
+<span class="sd">    1.  FULL backup job</span>
+
+<span class="sd">    2.  INCREMENTAL backup job after adding test data</span>
+
+<span class="sd">    3.  DIFFERENTIAL backup job after adding test data</span>
+
+<span class="sd">    4.  Storage Policy copy creation</span>
+
+<span class="sd">    5.  Running Aux copy job</span>
+
+<span class="sd">    6.  Restore out of place to Windows client</span>
+
+<span class="sd">    7.  Restore out of place to Unix client</span>
+
+<span class="sd">    8.  Restore in place job</span>
+
+<span class="sd">    9.  Restore out of place to filer job</span>
+
+<span class="sd">    10. Restore in place from copy job</span>
+
+<span class="sd">    11. Restore in place in incremental job time frame</span>
+
+<span class="sd">BasicAcceptance:</span>
+<span class="sd">    __init__()              --  initializes basicacceptance object</span>
+
+<span class="sd">    _get_copy_precedence()  --  returns the copy precedence value</span>
+
+<span class="sd">    _run_backup()           --  starts the backup job</span>
+
+<span class="sd">    run()                   --  runs the basic acceptance test case</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">string</span>
+
+
+<span class="kn">from</span> <span class="nn">NAS.NASUtils.nashelper</span> <span class="kn">import</span> <span class="n">NASHelper</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="kn">import</span> <span class="n">OptionsSelector</span>
+
+
+<div class="viewcode-block" id="BasicAcceptance"><a class="viewcode-back" href="../../../source/NAS.NASUtils.html#NAS.NASUtils.basicacceptance.BasicAcceptance">[docs]</a><span class="k">class</span> <span class="nc">BasicAcceptance</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to run basic acceptance test case for nas client&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_case_obj</span><span class="p">,</span> <span class="n">is_cluster</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes basicacceptance object</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                test_case_obj   (object)    --  test case class object</span>
+
+<span class="sd">                is_cluster      (bool)      --  flag to determine if the specified client</span>
+<span class="sd">                                                    is cluster / vserver / filer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span> <span class="o">=</span> <span class="n">test_case_obj</span><span class="o">.</span><span class="n">tcinputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">test_case_obj</span><span class="o">.</span><span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span> <span class="o">=</span> <span class="n">test_case_obj</span><span class="o">.</span><span class="n">subclient</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commserver_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span> <span class="o">=</span> <span class="n">test_case_obj</span><span class="o">.</span><span class="n">csdb</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span> <span class="o">=</span> <span class="n">NASHelper</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">test_case_obj</span><span class="o">.</span><span class="n">client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_cluster</span> <span class="o">=</span> <span class="n">is_cluster</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_agent</span> <span class="o">=</span> <span class="n">test_case_obj</span><span class="o">.</span><span class="n">agent</span>
+
+    <span class="k">def</span> <span class="nf">_run_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Starts backup job&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Starting Subclient </span><span class="si">{0}</span><span class="s2"> Backup &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started </span><span class="si">%s</span><span class="s2"> backup with Job ID: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run </span><span class="si">{0}</span><span class="s2"> backup job with error: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">backup_type</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">job</span>
+
+    <span class="k">def</span> <span class="nf">_get_copy_precedence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage_policy</span><span class="p">,</span> <span class="n">storage_policy_copy</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the copy precedence value&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+            <span class="s2">&quot;select copy from archGroupCopy where archGroupId in (select id from archGroup where </span><span class="se">\</span>
+<span class="s2">            name = &#39;</span><span class="si">{0}</span><span class="s2">&#39;) and name = &#39;</span><span class="si">{1}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">storage_policy</span><span class="p">,</span> <span class="n">storage_policy_copy</span><span class="p">))</span>
+        <span class="n">cur</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">cur</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<div class="viewcode-block" id="BasicAcceptance.run"><a class="viewcode-back" href="../../../source/NAS.NASUtils.html#NAS.NASUtils.basicacceptance.BasicAcceptance.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Executes basic acceptance test case&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Will run below test case on: </span><span class="si">%s</span><span class="s2"> subclient&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;SubclientName&#39;</span><span class="p">])</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Number of data readers: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">data_readers</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">data_readers</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting the data readers count to 3&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">data_readers</span> <span class="o">=</span> <span class="mi">3</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Get NAS Client object&quot;</span><span class="p">)</span>
+        <span class="n">nas_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span><span class="o">.</span><span class="n">get_nas_client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_agent</span><span class="p">,</span>
+                                                     <span class="n">is_cluster</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_cluster</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Make a CIFS Share connection&quot;</span><span class="p">)</span>
+        <span class="n">nas_client</span><span class="o">.</span><span class="n">connect_to_cifs_share</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;CIFSShareUser&#39;</span><span class="p">]),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;CIFSSharePassword&#39;</span><span class="p">])</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_backup</span><span class="p">(</span><span class="s2">&quot;FULL&quot;</span><span class="p">)</span>
+
+        <span class="n">volume_path</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nas_client</span><span class="o">.</span><span class="n">get_path_from_content</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span><span class="o">.</span><span class="n">copy_test_data</span><span class="p">(</span><span class="n">nas_client</span><span class="p">,</span> <span class="n">volume_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_backup</span><span class="p">(</span><span class="s2">&quot;INCREMENTAL&quot;</span><span class="p">)</span>
+        <span class="n">volume_path</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">nas_client</span><span class="o">.</span><span class="n">get_path_from_content</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span><span class="o">.</span><span class="n">copy_test_data</span><span class="p">(</span><span class="n">nas_client</span><span class="p">,</span> <span class="n">volume_path</span><span class="p">)</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_backup</span><span class="p">(</span><span class="s2">&quot;DIFFERENTIAL&quot;</span><span class="p">)</span>
+        <span class="n">diff_job_start_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">start_time</span><span class="p">)</span>
+        <span class="n">diff_job_end_time</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">end_time</span><span class="p">)</span>
+        <span class="c1"># create a random string</span>
+        <span class="n">random_string</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)])</span>
+
+        <span class="n">storage_policy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">storage_policies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">storage_policy</span><span class="p">)</span>
+        <span class="n">storage_policy_copy</span> <span class="o">=</span> <span class="s2">&quot;SPCopy_&quot;</span> <span class="o">+</span> <span class="n">random_string</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Creating Storage Policy Copy </span><span class="si">%s</span><span class="s2"> &quot;</span><span class="p">,</span> <span class="n">storage_policy_copy</span>
+        <span class="p">)</span>
+        <span class="n">storage_policy</span><span class="o">.</span><span class="n">create_secondary_copy</span><span class="p">(</span>
+            <span class="n">storage_policy_copy</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;AuxCopyLibrary&#39;</span><span class="p">]),</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;AuxCopyMediaAgent&#39;</span><span class="p">])</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully created secondary copy&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Run Aux Copy job &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">storage_policy</span><span class="o">.</span><span class="n">run_aux_copy</span><span class="p">(</span>
+            <span class="n">storage_policy_copy</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;AuxCopyMediaAgent&#39;</span><span class="p">])</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started Aux Copy job with Job ID: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run aux copy job with error: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished Aux Copy Job&quot;</span><span class="p">)</span>
+
+        <span class="n">options_selector</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+
+        <span class="n">size</span> <span class="o">=</span> <span class="n">nas_client</span><span class="o">.</span><span class="n">get_content_size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+        <span class="n">windows_restore_client</span><span class="p">,</span> <span class="n">windows_restore_location</span> <span class="o">=</span> \
+            <span class="n">options_selector</span><span class="o">.</span><span class="n">get_windows_restore_client</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Run out of place restore to Windows Client &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">restore_out_of_place</span><span class="p">(</span>
+            <span class="n">windows_restore_client</span><span class="o">.</span><span class="n">machine_name</span><span class="p">,</span> <span class="n">windows_restore_location</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Started Restore out of place to Windows client job with Job ID: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run restore out of place job with error: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished Restore out of place to windows client&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span><span class="o">.</span><span class="n">validate_windows_restored_content</span><span class="p">(</span>
+            <span class="n">nas_client</span><span class="p">,</span> <span class="n">windows_restore_client</span><span class="p">,</span> <span class="n">windows_restore_location</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Run out of place restore to Linux Client&quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+
+        <span class="n">linux_restore_client</span><span class="p">,</span> <span class="n">linux_restore_location</span> <span class="o">=</span> \
+            <span class="n">options_selector</span><span class="o">.</span><span class="n">get_linux_restore_client</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">)</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">restore_out_of_place</span><span class="p">(</span>
+            <span class="n">linux_restore_client</span><span class="o">.</span><span class="n">machine_name</span><span class="p">,</span> <span class="n">linux_restore_location</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Started restore out of place to linux client job with Job ID: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run restore out of place job with error: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished Restore out of place to linux client&quot;</span><span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">windows_restore_client</span><span class="o">.</span><span class="n">compare_folders</span><span class="p">(</span>
+            <span class="n">linux_restore_client</span><span class="p">,</span> <span class="n">windows_restore_location</span><span class="p">,</span>
+            <span class="n">linux_restore_location</span><span class="p">,</span> <span class="n">ignore_files</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span><span class="o">.</span><span class="n">ignore_files_list</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">out</span> <span class="o">!=</span> <span class="p">[]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Restore validation failed. List of different files </span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Restore validation failed. Please check logs for more details.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully validated restored content&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Run Restore in place &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started restore in place job with Job ID: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run restore in place job with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished restore in place job&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span><span class="o">.</span><span class="n">validate_filer_restored_content</span><span class="p">(</span>
+            <span class="n">nas_client</span><span class="p">,</span> <span class="n">windows_restore_client</span><span class="p">,</span> <span class="n">windows_restore_location</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Run out of place restore to Filer &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">filer_restore_location</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">[</span><span class="s1">&#39;FilerRestoreLocation&#39;</span><span class="p">])</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">restore_out_of_place</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span>
+            <span class="n">filer_restore_location</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Started Restore out of place to filer job with Job ID: </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run restore out of place job with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished Restore out of place to Filer&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span><span class="o">.</span><span class="n">validate_filer_restored_content</span><span class="p">(</span>
+            <span class="n">nas_client</span><span class="p">,</span> <span class="n">windows_restore_client</span><span class="p">,</span> <span class="n">windows_restore_location</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">filer_restore_location</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Run in place restore from copy &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">copy_precedence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_copy_precedence</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">storage_policy</span><span class="p">,</span> <span class="n">storage_policy_copy</span>
+        <span class="p">)</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span><span class="p">,</span> <span class="n">copy_precedence</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">copy_precedence</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Started restore in place from copy job with Job ID: </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run restore from copy with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">))</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished Restore in place from copy&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span><span class="o">.</span><span class="n">validate_filer_restored_content</span><span class="p">(</span>
+            <span class="n">nas_client</span><span class="p">,</span> <span class="n">windows_restore_client</span><span class="p">,</span> <span class="n">windows_restore_location</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting Secondary copy&quot;</span><span class="p">)</span>
+        <span class="n">storage_policy</span><span class="o">.</span><span class="n">delete_secondary_copy</span><span class="p">(</span><span class="n">storage_policy_copy</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully deleted secondary copy&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Run in place restore from differential jobtime frame &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span>\
+                   <span class="mi">10</span><span class="p">)</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span><span class="p">,</span>
+            <span class="n">from_time</span><span class="o">=</span><span class="n">diff_job_start_time</span><span class="p">,</span>
+            <span class="n">to_time</span><span class="o">=</span><span class="n">diff_job_end_time</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Started restore in place from differential jobtime frame job with Job ID: </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span>\
+            <span class="n">job</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run restore from differential time frame with error: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished Restore in place in differential time frame&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nas_helper</span><span class="o">.</span><span class="n">validate_filer_restored_content</span><span class="p">(</span>
+            <span class="n">nas_client</span><span class="p">,</span> <span class="n">windows_restore_client</span><span class="p">,</span> <span class="n">windows_restore_location</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient</span><span class="o">.</span><span class="n">content</span>
+        <span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

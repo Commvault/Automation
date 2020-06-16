@@ -1,0 +1,816 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Application.Exchange.SolrSearchHelper &mdash; Commvault Automation 11.20 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Application.Exchange.SolrSearchHelper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Application.Exchange.SolrSearchHelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;&quot;helper class for solr related queries &quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="k">as</span> <span class="nn">ET</span>
+<span class="kn">import</span> <span class="nn">xmltodict</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">,</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">dateutil.parser</span> <span class="kn">import</span> <span class="n">parse</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.exception</span> <span class="kn">import</span> <span class="n">SDKException</span>
+<span class="kn">from</span> <span class="nn">dynamicindex.Datacube.dcube_solr_helper</span> <span class="kn">import</span> <span class="n">SolrHelper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="kn">import</span> <span class="n">MSSQL</span>
+
+
+<div class="viewcode-block" id="SolrSearchHelper"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper">[docs]</a><span class="k">class</span> <span class="nc">SolrSearchHelper</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">     This class contains all the methods for IndexServer Solr search</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tc_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper for IndexServer Solr search related files</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tc_object   (object)    --  Testcase class object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span> <span class="o">=</span> <span class="n">tc_object</span><span class="o">.</span><span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span> <span class="o">=</span> <span class="n">tc_object</span><span class="o">.</span><span class="n">csdb</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">tc_object</span><span class="o">.</span><span class="n">log</span>
+
+    <span class="k">def</span> <span class="nf">_is_date</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string</span><span class="p">,</span> <span class="n">fuzzy</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return whether the string can be interpreted as a date.</span>
+
+<span class="sd">        :param string: str, string to check for date</span>
+<span class="sd">        :param fuzzy: bool, ignore unknown tokens in string if True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parse</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="n">fuzzy</span><span class="o">=</span><span class="n">fuzzy</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="SolrSearchHelper.get_date_range"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.get_date_range">[docs]</a>    <span class="k">def</span> <span class="nf">get_date_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dates_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute date range and return the range to fire Indexserver query</span>
+<span class="sd">        :param dates_list: list of date ranges to be converted</span>
+<span class="sd">        :return: daterange (str)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">received_time_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">date_range</span> <span class="ow">in</span> <span class="n">dates_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">date_range</span> <span class="o">==</span> <span class="s2">&quot;Past month&quot;</span><span class="p">:</span>
+                <span class="n">today</span> <span class="o">=</span> <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()</span>
+                <span class="n">lastmonth_date</span> <span class="o">=</span> <span class="n">today</span><span class="o">-</span><span class="n">timedelta</span><span class="p">(</span><span class="mi">29</span><span class="p">)</span>
+                <span class="n">received_time</span> <span class="o">=</span> <span class="s2">&quot;[&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lastmonth_date</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;T00:00:00Z TO &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">today</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;T23:59:59Z]&quot;</span>
+
+            <span class="k">elif</span> <span class="n">date_range</span> <span class="o">==</span> <span class="s2">&quot;Past year&quot;</span><span class="p">:</span>
+                <span class="n">today</span> <span class="o">=</span> <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()</span>
+                <span class="n">lastyear_date</span> <span class="o">=</span> <span class="n">today</span><span class="o">-</span><span class="n">timedelta</span><span class="p">(</span><span class="mi">364</span><span class="p">)</span>
+                <span class="n">received_time</span> <span class="o">=</span> <span class="s2">&quot;[&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lastyear_date</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;T00:00:00Z TO &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">today</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;T23:59:59Z]&quot;</span>
+
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_date</span><span class="p">(</span><span class="n">date_range</span><span class="p">):</span>
+                <span class="n">given_date</span> <span class="o">=</span> <span class="n">date_range</span>
+                <span class="n">date_time_obj</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">given_date</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%d</span><span class="s1">/%m/%Y&#39;</span><span class="p">)</span>
+                <span class="n">given_last_date</span> <span class="o">=</span> <span class="n">date_time_obj</span><span class="o">-</span><span class="n">timedelta</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">time_now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">second</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">microsecond</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">yesterday</span> <span class="o">=</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">-</span><span class="n">timedelta</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+                <span class="n">received_time</span> <span class="o">=</span> <span class="s2">&quot;[&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">given_last_date</span><span class="o">.</span><span class="n">date</span><span class="p">())</span><span class="o">+</span><span class="s2">&quot;T&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">time_now</span><span class="p">)</span>\
+                                <span class="o">+</span><span class="s2">&quot;Z TO &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">yesterday</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;T23:59:59Z]&quot;</span>
+
+            <span class="k">elif</span> <span class="n">date_range</span> <span class="o">==</span> <span class="s2">&quot;Beyond one year&quot;</span><span class="p">:</span>
+                <span class="n">today</span> <span class="o">=</span> <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()</span>
+                <span class="n">lastyear_date</span> <span class="o">=</span> <span class="n">today</span><span class="o">-</span><span class="n">timedelta</span><span class="p">(</span><span class="mi">365</span><span class="p">)</span>
+                <span class="n">received_time</span> <span class="o">=</span> <span class="s2">&quot;[1970-01-01T00:00:00Z TO &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">lastyear_date</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;T23:59:59Z]&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">received_time</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+            <span class="n">received_time_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">received_time</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">received_time_list</span></div>
+
+<div class="viewcode-block" id="SolrSearchHelper.get_size_range"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.get_size_range">[docs]</a>    <span class="k">def</span> <span class="nf">get_size_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sizes_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute date range and return the range to fire Indexserver query</span>
+<span class="sd">        :param sizes_list: list of size ranges to be converted</span>
+<span class="sd">        :return: sizerange (str)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">size_range_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">size_range</span> <span class="ow">in</span> <span class="n">sizes_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">size_range</span> <span class="o">==</span> <span class="s2">&quot;Below 1 MB&quot;</span><span class="p">:</span>
+                <span class="n">one_mb</span> <span class="o">=</span> <span class="mi">1024</span><span class="o">*</span><span class="mi">1024</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="s2">&quot;[0 TO &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">one_mb</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;]&quot;</span>
+
+            <span class="k">elif</span> <span class="n">size_range</span> <span class="o">==</span> <span class="s2">&quot;1 - 5 MB&quot;</span><span class="p">:</span>
+                <span class="n">one_mb</span> <span class="o">=</span> <span class="mi">1024</span><span class="o">*</span><span class="mi">1024</span>
+                <span class="n">five_mb</span> <span class="o">=</span> <span class="mi">5</span><span class="o">*</span><span class="n">one_mb</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="s2">&quot;[&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">one_mb</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; TO &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">five_mb</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;]&quot;</span>
+
+            <span class="k">elif</span> <span class="n">size_range</span> <span class="o">==</span> <span class="s2">&quot;5 - 10 MB&quot;</span><span class="p">:</span>
+                <span class="n">one_mb</span> <span class="o">=</span> <span class="mi">1024</span><span class="o">*</span><span class="mi">1024</span>
+                <span class="n">five_mb</span> <span class="o">=</span> <span class="mi">5</span><span class="o">*</span><span class="n">one_mb</span>
+                <span class="n">ten_mb</span> <span class="o">=</span> <span class="mi">10</span><span class="o">*</span><span class="n">one_mb</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="s2">&quot;[&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">five_mb</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; TO &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">ten_mb</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;]&quot;</span>
+
+            <span class="k">elif</span> <span class="s2">&quot;SizeKB&quot;</span> <span class="ow">in</span> <span class="n">size_range</span><span class="p">:</span>
+                <span class="n">values</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\d+&#39;</span><span class="p">,</span> <span class="n">size_range</span><span class="p">)</span>
+
+                <span class="n">min_size_kb</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">*</span><span class="mi">1024</span>
+                <span class="n">max_size_kb</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">*</span><span class="mi">1024</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="s2">&quot;[&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">min_size_kb</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot; TO &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">max_size_kb</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;]&quot;</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+            <span class="n">size_range_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">size_range_list</span></div>
+
+<div class="viewcode-block" id="SolrSearchHelper.construct_payload"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.construct_payload">[docs]</a>    <span class="k">def</span> <span class="nf">construct_payload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">search_keyword</span><span class="p">,</span> <span class="n">indexservercloud</span><span class="p">,</span>
+                          <span class="n">username</span><span class="p">,</span> <span class="n">interfilter_op</span><span class="p">,</span> <span class="n">email_filters</span><span class="p">,</span> <span class="n">ci_server_info</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;constructs the payload for doWebSearch API request</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            search_keyword             -- Search Keyword to be fired</span>
+<span class="sd">            indexservercloud(str)      --  Indexserver cloud name</span>
+<span class="sd">            username (str)             --  Login username</span>
+<span class="sd">            interfilter_op (str)       -- Interfilter operator to be applied</span>
+<span class="sd">            email_filters (list)       -- List of emailfilters with format interoperator;values</span>
+<span class="sd">                                          EX: Email_From : OR;email_add1;email_add2</span>
+<span class="sd">                                          EX: Subject : AND;test_subj1;test_subj2</span>
+<span class="sd">                                          Interoperator = None in case of single value</span>
+<span class="sd">                                          EX: Folder: NONE;Inbox</span>
+<span class="sd">            ci_server_info (str)         --  json encoded content with CIServer list</span>
+
+<span class="sd">        Returns</span>
+
+<span class="sd">            str - payload</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">is_user_mb</span> <span class="o">=</span> <span class="n">email_filters</span><span class="p">[</span><span class="s2">&quot;usermailbox&quot;</span><span class="p">]</span>
+        <span class="n">is_journal_mb</span> <span class="o">=</span> <span class="n">email_filters</span><span class="p">[</span><span class="s2">&quot;journalmailbox&quot;</span><span class="p">]</span>
+        <span class="n">is_smtp_mb</span> <span class="o">=</span> <span class="n">email_filters</span><span class="p">[</span><span class="s2">&quot;smtpmailbox&quot;</span><span class="p">]</span>
+
+        <span class="n">interfilter_operators</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;OR&quot;</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;AND&quot;</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;NOT&quot;</span><span class="p">:</span><span class="mi">4</span><span class="p">,</span> <span class="s2">&quot;NONE&quot;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;RANGE&quot;</span><span class="p">:</span><span class="mi">1</span><span class="p">}</span>
+        <span class="n">inter_op</span> <span class="o">=</span> <span class="n">interfilter_operators</span><span class="p">[</span><span class="n">interfilter_op</span><span class="p">]</span>
+
+        <span class="n">cloud_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cloudid</span><span class="p">(</span><span class="n">indexservercloud</span><span class="p">)</span>
+
+        <span class="n">user_guid_query</span> <span class="o">=</span> <span class="s2">&quot;select userGuid from UMUsers where login=&#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">username</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">user_guid_query</span><span class="p">)</span>
+        <span class="n">_user_guid_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+        <span class="n">user_guid</span> <span class="o">=</span> <span class="n">_user_guid_results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">dict_info</span> <span class="ow">in</span> <span class="n">ci_server_info</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dict_info</span><span class="p">[</span><span class="s1">&#39;cloudID&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="nb">int</span><span class="p">(</span><span class="n">cloud_id</span><span class="p">):</span>
+                <span class="n">CIServerInfo</span> <span class="o">=</span> <span class="n">dict_info</span>
+                <span class="k">break</span>
+
+        <span class="c1"># OR : 0, AND : 2</span>
+
+        <span class="n">payload_xml</span> <span class="o">=</span> <span class="sa">fr</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            &lt;DM2ContentIndexing_CVSearchReq mode=&quot;2&quot;&gt;</span>
+<span class="s2">                &lt;searchProcessingInfo pageSize=&quot;50&quot; resultOffset=&quot;0&quot;&gt;</span>
+<span class="s2">                        &lt;queryParams param=&quot;SORT_STYLE&quot; value=&quot;DESCENDING&quot;/&gt;</span>
+<span class="s2">                        &lt;queryParams param=&quot;SORTFIELD&quot; value=&quot;SIZEINKB&quot;/&gt;</span>
+<span class="s2">                        &lt;queryParams param=&quot;ENABLE_DEFAULT_VISIBLE_QUERY&quot;</span>
+<span class="s2">                         value=&quot;true&quot;/&gt;</span>
+<span class="s2">                &lt;/searchProcessingInfo&gt;</span>
+<span class="s2">                &lt;advSearchGrp&gt;</span>
+<span class="s2">                        &lt;cvSearchKeyword keyword=&quot;</span><span class="si">{</span><span class="n">search_keyword</span><span class="si">}</span><span class="s2">&quot; </span>
+<span class="s2">                        keywordIntraOperator=&quot;1&quot; isExactWordsOptionSelected=&quot;0&quot;/&gt;</span>
+<span class="s2">                        &lt;emailFilter interGroupOP=&quot;</span><span class="si">{</span><span class="n">inter_op</span><span class="si">}</span><span class="s2">&quot;&gt;</span>
+<span class="s2">                            &lt;filter interFilterOP=&quot;</span><span class="si">{</span><span class="n">inter_op</span><span class="si">}</span><span class="s2">&quot;&gt;</span>
+<span class="s2">                            &lt;/filter&gt;</span>
+<span class="s2">                        &lt;/emailFilter&gt;</span>
+<span class="s2">                        &lt;commonFilter&gt;</span>
+<span class="s2">                            &lt;filter&gt;</span>
+<span class="s2">                                &lt;filters field=&quot;CISTATE&quot; intraFieldOp=&quot;0&quot;&gt;</span>
+<span class="s2">                                    &lt;fieldValues&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;0&quot;/&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;1&quot;/&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;12&quot;/&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;13&quot;/&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;14&quot;/&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;15&quot;/&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;1014&quot;/&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;3333&quot;/&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;3334&quot;/&gt;</span>
+<span class="s2">                                        &lt;values val=&quot;3335&quot;/&gt;</span>
+<span class="s2">                                    &lt;/fieldValues&gt;</span>
+<span class="s2">                                &lt;/filters&gt;</span>
+<span class="s2">                                &lt;filters field=&quot;DATA_TYPE&quot;&gt;</span>
+<span class="s2">                                    &lt;fieldValues&gt;</span>
+<span class="s2">                                         &lt;values val=&quot;2&quot;/&gt;</span>
+<span class="s2">                                    &lt;/fieldValues&gt;</span>
+<span class="s2">                                &lt;/filters&gt;</span>
+<span class="s2">                            &lt;/filter&gt;</span>
+<span class="s2">                        &lt;/commonFilter&gt;</span>
+<span class="s2">                        &lt;galaxyFilter applicationType=&quot;3&quot;/&gt;</span>
+<span class="s2">                       &lt;emailView usermailbox=&quot;</span><span class="si">{</span><span class="n">is_user_mb</span><span class="si">}</span><span class="s2">&quot; journalmailbox=&quot;</span><span class="si">{</span><span class="n">is_journal_mb</span><span class="si">}</span><span class="s2">&quot; </span>
+<span class="s2">                       smtpmailbox=&quot;</span><span class="si">{</span><span class="n">is_smtp_mb</span><span class="si">}</span><span class="s2">&quot;/&gt;</span>
+<span class="s2">                &lt;/advSearchGrp&gt;    </span>
+<span class="s2">                &lt;listOfCIServer cloudID=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;cloudID&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; </span>
+<span class="s2">                cIServerURL=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;cIServerURL&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; </span>
+<span class="s2">                clientId=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;clientId&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; clientName=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;clientName&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; </span>
+<span class="s2">                basePort=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;basePort&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; hostName=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;hostName&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; </span>
+<span class="s2">                version=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;version&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; type=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; </span>
+<span class="s2">                engineName=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;engineName&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; serverType=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;serverType&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; </span>
+<span class="s2">                indexServerClientId=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;indexServerClientId&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot; </span>
+<span class="s2">                internalCloudName=&quot;</span><span class="si">{</span><span class="n">CIServerInfo</span><span class="p">[</span><span class="s1">&#39;internalCloudName&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;/&gt;</span>
+<span class="s2">                &lt;userInformation userGuid=&quot;</span><span class="si">{</span><span class="n">user_guid</span><span class="si">}</span><span class="s2">&quot;/&gt;</span>
+<span class="s2">            &lt;/DM2ContentIndexing_CVSearchReq&gt;</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+
+        <span class="n">root</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">payload_xml</span><span class="p">)</span>
+        <span class="c1"># To convert to an ElementTree</span>
+        <span class="n">filter_element</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;.advSearchGrp/emailFilter/filter&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">indx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">email_filters</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">email_filters</span><span class="p">[</span><span class="n">item</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">all_values</span> <span class="o">=</span> <span class="n">email_filters</span><span class="p">[</span><span class="n">item</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+                <span class="n">attrib</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;field&quot;</span><span class="p">:</span> <span class="n">item</span><span class="p">,</span>
+                          <span class="s2">&quot;intraFieldOp&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">interfilter_operators</span>
+                                              <span class="p">[</span><span class="n">all_values</span><span class="p">[</span><span class="mi">0</span><span class="p">]])}</span>
+                <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">filter_element</span><span class="p">,</span> <span class="s1">&#39;filters&#39;</span><span class="p">,</span> <span class="n">attrib</span><span class="p">)</span>
+                <span class="n">filters_element</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;.advSearchGrp/emailFilter&quot;</span>
+                                               <span class="s2">&quot;/filter/filters&quot;</span><span class="p">)[</span><span class="n">indx</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">all_values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;RANGE&quot;</span><span class="p">:</span>
+                    <span class="n">att</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;isRange&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">}</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">att</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">filters_element</span><span class="p">,</span> <span class="s1">&#39;fieldValues&#39;</span><span class="p">,</span> <span class="n">att</span><span class="p">)</span>
+                <span class="n">field_values_element</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;.advSearchGrp/emailFilter&quot;</span>
+                                                    <span class="s2">&quot;/filter/filters/fieldValues&quot;</span><span class="p">)[</span><span class="n">indx</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">value_item</span> <span class="ow">in</span> <span class="n">all_values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+                    <span class="n">attrib_val</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;val&quot;</span><span class="p">:</span> <span class="n">value_item</span><span class="p">}</span>
+                    <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">field_values_element</span><span class="p">,</span> <span class="s1">&#39;values&#39;</span><span class="p">,</span> <span class="n">attrib_val</span><span class="p">)</span>
+                <span class="n">indx</span> <span class="o">=</span> <span class="n">indx</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="n">xml_string</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">tostring</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">xml_string</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SolrSearchHelper.construct_solr_query_for_compliancesearch"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.construct_solr_query_for_compliancesearch">[docs]</a>    <span class="k">def</span> <span class="nf">construct_solr_query_for_compliancesearch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                                  <span class="n">indexservercloud</span><span class="p">,</span>
+                                                  <span class="n">isadvancedsearch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">datatypes_search</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the Solr query to be fired against IndexServer</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            indexservercloud(str)      --  Indexserver cloud name</span>
+<span class="sd">            isadvancedsearch(boolean)  -- true/ false or None</span>
+<span class="sd">            datatypes_search (list)    -- list of datatypes included in advanced search-</span>
+<span class="sd">                                          usermailbox/journalmailbox/smtpmailbox</span>
+<span class="sd">        Returns</span>
+
+<span class="sd">            str - Solr Query</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">            Exception on failure to construct query</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1">#get indexserver client names</span>
+            <span class="n">clientnames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index_server_client_names</span><span class="p">(</span><span class="n">indexservercloud</span><span class="p">)</span>
+
+            <span class="c1">#get base URL</span>
+            <span class="n">solr_helper_obj</span> <span class="o">=</span> <span class="n">SolrHelper</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">base_client</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">clientnames</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">baseurl</span> <span class="o">=</span> <span class="n">solr_helper_obj</span><span class="o">.</span><span class="n">get_solr_baseurl</span><span class="p">(</span><span class="n">base_client</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+
+            <span class="c1">#get cloudID</span>
+            <span class="n">cloud_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cloudid</span><span class="p">(</span><span class="n">indexservercloud</span><span class="p">)</span>
+
+            <span class="c1">#get all collection names for the given cloud</span>
+
+            <span class="n">collection_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_collections_for_cloud</span><span class="p">(</span><span class="n">cloud_id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">isadvancedsearch</span><span class="p">:</span>
+                <span class="n">corename_prefix</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">datatype</span> <span class="ow">in</span> <span class="n">datatypes_search</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">datatype</span> <span class="o">==</span> <span class="s2">&quot;usermailbox&quot;</span><span class="p">:</span>
+                        <span class="n">corename_prefix</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;UM&quot;</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="n">datatype</span> <span class="o">==</span> <span class="s2">&quot;journalmailbox&quot;</span><span class="p">:</span>
+                        <span class="n">corename_prefix</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;JM&quot;</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="n">datatype</span> <span class="o">==</span> <span class="s2">&quot;smtpmailbox&quot;</span><span class="p">:</span>
+                        <span class="n">corename_prefix</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;CM&quot;</span><span class="p">)</span>
+
+                <span class="n">datatype_collections</span> <span class="o">=</span> <span class="p">[]</span>
+
+                <span class="k">for</span> <span class="n">core_name</span> <span class="ow">in</span> <span class="n">collection_names</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="n">corename_prefix</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="n">core_name</span><span class="p">:</span>
+                            <span class="n">datatype_collections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">core_name</span><span class="p">)</span>
+
+                <span class="n">collection_names</span> <span class="o">=</span> <span class="n">datatype_collections</span>
+
+            <span class="c1">#construct the query</span>
+
+            <span class="n">search_base_url</span> <span class="o">=</span> <span class="n">baseurl</span><span class="o">+</span><span class="s2">&quot;/&quot;</span><span class="o">+</span><span class="n">collection_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;/&quot;</span><span class="o">+</span><span class="s2">&quot;select/?collection=&quot;</span>
+
+            <span class="k">for</span> <span class="n">collection</span> <span class="ow">in</span> <span class="n">collection_names</span><span class="p">:</span>
+                <span class="n">search_base_url</span> <span class="o">=</span> <span class="n">search_base_url</span><span class="o">+</span><span class="n">collection</span><span class="o">+</span><span class="s2">&quot;,&quot;</span>
+
+            <span class="n">search_base_url</span> <span class="o">=</span> <span class="n">search_base_url</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;&amp;&quot;</span>
+
+            <span class="k">return</span> <span class="n">search_base_url</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Unable to construct solr query&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SolrSearchHelper.get_index_server_client_names"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.get_index_server_client_names">[docs]</a>    <span class="k">def</span> <span class="nf">get_index_server_client_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cloudname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of client names for given cloud</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cloudname(str)      --  Indexserver cloud name</span>
+
+<span class="sd">        Returns</span>
+
+<span class="sd">            list - client names list</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">            Exception on failure to find details</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_query</span> <span class="o">=</span> <span class="s2">&quot;select name from app_client where id in &quot;</span> \
+            <span class="s2">&quot;(select ClientId from dm2searchservercoreinfo where CloudId in&quot;</span> \
+            <span class="s2">&quot;(select cloudId from DM2Cloud where name = &#39;</span><span class="si">{0}</span><span class="s2">&#39;))&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cloudname</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Querying CS DB to get indexserver </span><span class="si">%s</span><span class="s2"> client names&quot;</span><span class="p">,</span> <span class="n">cloudname</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">_query</span><span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+            <span class="n">clientnames</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+                <span class="n">clientnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">clientnames</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Unable to find clientnames of indexserver&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SolrSearchHelper.get_cloudid"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.get_cloudid">[docs]</a>    <span class="k">def</span> <span class="nf">get_cloudid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cloudname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the cloudid for given cloud</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cloudname (str)      --  Indexserver cloudname</span>
+
+<span class="sd">        Returns</span>
+
+<span class="sd">            str - cloudid</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">            Exception on failure to find details</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_query</span> <span class="o">=</span> <span class="s2">&quot;(select cloudId from DM2Cloud where name = &#39;</span><span class="si">{0}</span><span class="s2">&#39;)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cloudname</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Querying CS DB : &quot;</span> <span class="o">+</span> <span class="n">_query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">_query</span><span class="p">)</span>
+        <span class="n">cloud_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">cloud_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to find cloud ID in CS db&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">cloud_id</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="SolrSearchHelper.get_collections_for_cloud"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.get_collections_for_cloud">[docs]</a>    <span class="k">def</span> <span class="nf">get_collections_for_cloud</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cloudid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the list of collection names for given cloud</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cloudid(str)      -- Cloudid</span>
+
+<span class="sd">        Returns</span>
+
+<span class="sd">            list - collection names list</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">            Exception on failure to find details</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_query</span> <span class="o">=</span> <span class="s2">&quot;select corename from SECollectionInfo where corename &quot;</span> \
+                     <span class="s2">&quot;not like </span><span class="se">\&#39;</span><span class="s2">%meta%</span><span class="se">\&#39;</span><span class="s2"> and CloudID = </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cloudid</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Querying CS DB to get&quot;</span>
+                          <span class="s2">&quot; indexserver collection names of cloudid </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cloudid</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">_query</span><span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+            <span class="n">collectionnames</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c1">#Checking if the collection is valid by cross checking</span>
+            <span class="c1"># with backupset GUID in App_IndexDBInfo table</span>
+
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+                <span class="n">collection_name</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">collection_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+                <span class="n">backupset_guid</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+                <span class="n">_query</span> <span class="o">=</span> <span class="s2">&quot;select count(*) from APP_IndexDBInfo &quot;</span> \
+                         <span class="s2">&quot;where dbName = &#39;</span><span class="si">{0}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backupset_guid</span><span class="p">)</span>
+                <span class="c1">#self.log.info(&quot;Querying CS DB to get IndexDBInfo for backupset %s&quot;, backupset_GUID)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">_query</span><span class="p">)</span>
+                <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">count</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="c1">#Valid</span>
+                    <span class="n">collectionnames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">collection_name</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">collectionnames</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Unable to find clientnames of indexserver&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SolrSearchHelper.create_url_with_debug_query_and_get_response"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.create_url_with_debug_query_and_get_response">[docs]</a>    <span class="k">def</span> <span class="nf">create_url_with_debug_query_and_get_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">helper_obj</span><span class="p">,</span> <span class="n">select_dict</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                                     <span class="n">attr_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">op_params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Helper method to get results from a url with debug query</span>
+<span class="sd">            Args:</span>
+<span class="sd">                helper_obj (object)             -- SolrHelper class object</span>
+
+<span class="sd">                select_dict(dictionary)         --  Dictionary containing search criteria and</span>
+<span class="sd">                                                    value. Acts as &#39;q&#39; field in solr query</span>
+
+<span class="sd">                attr_list(set)                  --  Criteria to filter results. Acts as &#39;fl&#39; in</span>
+<span class="sd">                                                    solr query</span>
+
+<span class="sd">                op_params(dictionary)           --  Other params and values for solr query. Do not</span>
+<span class="sd">                                                    mention &#39;wt&#39; param as it is always json</span>
+<span class="sd">                                                    (Ex: start, rows)</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                content of the response</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">solr_url</span> <span class="o">=</span> <span class="n">helper_obj</span><span class="o">.</span><span class="n">create_solr_query</span><span class="p">(</span><span class="n">select_dict</span><span class="p">,</span> <span class="n">attr_list</span><span class="p">,</span> <span class="n">op_params</span><span class="p">)</span>
+            <span class="n">solr_url</span> <span class="o">=</span> <span class="n">solr_url</span><span class="o">+</span><span class="s2">&quot;&amp;debugQuery=false&amp;sort=Size desc,score desc&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;URL formed from the details provided is: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">solr_url</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">solr_url</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="SolrSearchHelper.submit_advanced_search_api_request"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.submit_advanced_search_api_request">[docs]</a>    <span class="k">def</span> <span class="nf">submit_advanced_search_api_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">baseurl</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">indexserver</span><span class="p">,</span>
+                                           <span class="n">search_keyword</span><span class="p">,</span> <span class="n">interfilter_op</span><span class="p">,</span> <span class="n">email_filters</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper method to submit advanced search REST API request</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        baseurl (str) - URL corresponding to Webservice base URL</span>
+<span class="sd">        username (str) - Commserve username</span>
+<span class="sd">        password (str) - Commserve user password- bas64 encoded</span>
+<span class="sd">        indexserver(str) - Indexserver cloudname</span>
+<span class="sd">        search_keyword (str)    - search keyword</span>
+<span class="sd">        interfilter_op (str) - Interfilter operator to be applied</span>
+<span class="sd">        email_filters (str) - List of emailfilters with format interoperator;values</span>
+<span class="sd">                                          EX: Email_From : OR;email_add1;email_add2</span>
+<span class="sd">                                          EX: Subject : AND;test_subj1;test_subj2</span>
+<span class="sd">                                          Interoperator = None in case of single value</span>
+<span class="sd">                                          EX: Folder: NONE;Inbox</span>
+<span class="sd">        :return: totalSearchResults(str) - response json value for &#39;totalHits&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1">#Login to get authtoken</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">baseurl</span><span class="o">+</span> <span class="s2">&quot;//Login&quot;</span>
+        <span class="n">login_payload</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span>
+            <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">password</span>
+        <span class="p">}</span>
+        <span class="n">cvpysdk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">_cvpysdk_object</span>
+        <span class="n">flag</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="n">cvpysdk</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span><span class="s1">&#39;POST&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">login_payload</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span> <span class="ow">and</span> <span class="s1">&#39;token&#39;</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">authtoken</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;token&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Response&#39;</span><span class="p">,</span> <span class="s1">&#39;102&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Response&#39;</span><span class="p">,</span> <span class="s1">&#39;101&#39;</span><span class="p">,</span> <span class="n">cvpysdk</span><span class="o">.</span><span class="n">_update_response_</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">))</span>
+
+        <span class="c1">#Get CI Server details</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">baseurl</span><span class="o">+</span> <span class="s2">&quot;//getCIServerList?mode=2&quot;</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;Accept&#39;</span><span class="p">:</span> <span class="s1">&#39;application/json&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/xml&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Authtoken&#39;</span><span class="p">:</span> <span class="n">authtoken</span>
+        <span class="p">}</span>
+
+        <span class="n">cvpysdk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">_cvpysdk_object</span>
+        <span class="n">flag</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="n">cvpysdk</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span> <span class="ow">and</span> <span class="s1">&#39;listOfCIServer&#39;</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">ci_server_info</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;listOfCIServer&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Response&#39;</span><span class="p">,</span> <span class="s1">&#39;102&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Response&#39;</span><span class="p">,</span> <span class="s1">&#39;101&#39;</span><span class="p">,</span> <span class="n">cvpysdk</span><span class="o">.</span><span class="n">_update_response_</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">))</span>
+
+        <span class="n">url</span> <span class="o">=</span> <span class="n">baseurl</span><span class="o">+</span> <span class="s2">&quot;//doWebSearch&quot;</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;Accept&#39;</span><span class="p">:</span> <span class="s1">&#39;application/json&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/xml&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Authtoken&#39;</span><span class="p">:</span> <span class="n">authtoken</span>
+        <span class="p">}</span>
+
+        <span class="n">payload</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">construct_payload</span><span class="p">(</span><span class="n">search_keyword</span><span class="p">,</span>
+                                         <span class="n">indexserver</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span>
+                                         <span class="n">interfilter_op</span><span class="p">,</span> <span class="n">email_filters</span><span class="p">,</span> <span class="n">ci_server_info</span><span class="p">)</span>
+        <span class="n">flag</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="n">cvpysdk</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span><span class="s1">&#39;POST&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span> <span class="ow">and</span> <span class="s1">&#39;proccessingInfo&#39;</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="n">total_search_results</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;proccessingInfo&#39;</span><span class="p">][</span><span class="s1">&#39;totalHits&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Response&#39;</span><span class="p">,</span> <span class="s1">&#39;102&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Response&#39;</span><span class="p">,</span> <span class="s1">&#39;101&#39;</span><span class="p">,</span> <span class="n">cvpysdk</span><span class="o">.</span><span class="n">_update_response_</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">total_search_results</span></div>
+        
+<div class="viewcode-block" id="SolrSearchHelper.get_index_server_name"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.get_index_server_name">[docs]</a>    <span class="k">def</span> <span class="nf">get_index_server_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cloud_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        To get the index server name from the CSDB</span>
+<span class="sd">        :param cloud_id:            Cloud Id number</span>
+<span class="sd">        :return:                    String containing the Index Server name</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;select name from app_client where id=&quot;</span>
+                 <span class="s2">&quot;(select pseudoClientId from dm2cloud where cloudId=&quot;</span> <span class="o">+</span> <span class="n">cloud_id</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Querying CSDB to get the Index Server name&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">index_server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_one_row</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">index_server</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to find Index Server Name in CSDB&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The Index Server Name retrieved from DB is </span><span class="si">{</span><span class="n">index_server</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">index_server</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="SolrSearchHelper.get_app_id"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.get_app_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_app_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">case_name</span><span class="p">,</span> <span class="n">location</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        To query the app_id from the CSDB</span>
+<span class="sd">        :param case_name:           Name of the case</span>
+<span class="sd">        :param location:            Whether source / destination</span>
+<span class="sd">        :return:                    Integer containing the App Id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">app_id_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">location</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;source&#39;</span><span class="p">:</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;srcAppId&#39;</span>
+        <span class="k">elif</span> <span class="n">location</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;destination&#39;</span><span class="p">:</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;destAppId&#39;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;select &quot;</span> <span class="o">+</span> <span class="n">location</span> <span class="o">+</span> <span class="s2">&quot; from CMReference where definitionId=&quot;</span>
+                 <span class="s2">&quot;(select id from cmdefinition where name =&#39;&quot;</span> <span class="o">+</span> <span class="n">case_name</span> <span class="o">+</span> <span class="s2">&quot;&#39;)&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Querying CSDB to get AppId&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">app_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">app_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to find App ID in CSDB&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">app_id</span><span class="p">:</span>
+            <span class="n">app_id_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The App IDs retrieved from DB is %s&#39;</span><span class="p">,</span> <span class="n">app_id_list</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">app_id_list</span></div>
+
+<div class="viewcode-block" id="SolrSearchHelper.get_ci_server_url"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.get_ci_server_url">[docs]</a>    <span class="k">def</span> <span class="nf">get_ci_server_url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mssql</span><span class="p">,</span> <span class="n">app_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        To get the URL of the Content Indexing Server</span>
+<span class="sd">        :param mssql:               MSSQL Object</span>
+<span class="sd">        :param app_id:              The App Id of the case</span>
+<span class="sd">        :return:                    List containing the URL(s) of the CI Server</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;select GUID from APP_BackupSetName where id in &quot;</span>
+                 <span class="s2">&quot;(select backupSet from App_Application where id in &quot;</span> <span class="o">+</span> <span class="n">app_id</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Querying CSDB to get BackupSet GUIDs&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">guid_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">backupset_guid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">backupset_guid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Unable to find BackupSet GUID in CSDB&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">backupset_guid</span><span class="p">:</span>
+            <span class="n">guid_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The backupSet GUID retrieved from DB is </span><span class="si">{</span><span class="n">guid_list</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="n">details_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">distinct_cloud_ids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">guid</span> <span class="ow">in</span> <span class="n">guid_list</span><span class="p">:</span>
+            <span class="n">parameter</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&#39;&lt;Indexing_GetCloudServerReq backupsetGUID=</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+                         <span class="o">+</span> <span class="n">guid</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2"> corePrefix=</span><span class="se">\&quot;\&quot;</span><span class="s2">/&gt;&#39;&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Querying CSDB to get User Mailboxes&#39;</span><span class="p">)</span>
+            <span class="n">procedure</span> <span class="o">=</span> <span class="s1">&#39;exec AppGetCloudServerInfo &#39;</span> <span class="o">+</span> <span class="n">parameter</span>
+            <span class="n">xml_response</span> <span class="o">=</span> <span class="n">mssql</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">procedure</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">xml_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">resp_list</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;DM2ContentIndexing_GetCloudServerResp&#39;</span><span class="p">][</span><span class="s1">&#39;ciServers&#39;</span><span class="p">][</span><span class="s1">&#39;listOfCIServer&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">resp_list</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">resp_list</span><span class="p">:</span>
+                    <span class="n">details</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+                    <span class="n">details</span><span class="p">[</span><span class="s1">&#39;ciServer&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;@cIServerURL&#39;</span><span class="p">]</span>
+                    <span class="n">details</span><span class="p">[</span><span class="s1">&#39;cloudId&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;@cloudID&#39;</span><span class="p">]</span>
+                    <span class="n">details</span><span class="p">[</span><span class="s1">&#39;serverType&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;@serverType&#39;</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s1">&#39;@cloudID&#39;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">distinct_cloud_ids</span><span class="p">:</span>
+                        <span class="n">distinct_cloud_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">&#39;@cloudID&#39;</span><span class="p">])</span>
+                    <span class="n">details_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">details</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">details</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+                <span class="n">details</span><span class="p">[</span><span class="s1">&#39;ciServer&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">resp_list</span><span class="p">[</span><span class="s1">&#39;@cIServerURL&#39;</span><span class="p">]</span>
+                <span class="n">details</span><span class="p">[</span><span class="s1">&#39;cloudId&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">resp_list</span><span class="p">[</span><span class="s1">&#39;@cloudID&#39;</span><span class="p">]</span>
+                <span class="n">details</span><span class="p">[</span><span class="s1">&#39;serverType&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">resp_list</span><span class="p">[</span><span class="s1">&#39;@serverType&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">resp_list</span><span class="p">[</span><span class="s1">&#39;@cloudID&#39;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">distinct_cloud_ids</span><span class="p">:</span>
+                    <span class="n">distinct_cloud_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">resp_list</span><span class="p">[</span><span class="s1">&#39;@cloudID&#39;</span><span class="p">])</span>
+                <span class="n">details_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">details</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;List of CI details is </span><span class="si">{</span><span class="n">details_list</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">details_list</span><span class="p">,</span> <span class="n">distinct_cloud_ids</span></div>
+
+<div class="viewcode-block" id="SolrSearchHelper.get_archfile_id"><a class="viewcode-back" href="../../../source/Application.Exchange.html#Application.Exchange.SolrSearchHelper.SolrSearchHelper.get_archfile_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_archfile_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        To get the Archive File Id given the Job Id</span>
+<span class="sd">        :param job_id:              Job Id</span>
+<span class="sd">        :return:                    Archive File Id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select id from archFile where jobId=&quot;</span> <span class="o">+</span> <span class="n">job_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Querying CSDB to get Archive File Id&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">afile_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="n">afile_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">afile_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Unable to find Archive File ID in CSDB&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">file_id</span> <span class="ow">in</span> <span class="n">afile_id</span><span class="p">:</span>
+            <span class="n">afile_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_id</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;The Archive File IDs retrieved from DB are %s&#39;</span><span class="p">,</span> <span class="n">afile_list</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">afile_list</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
