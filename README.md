@@ -6,11 +6,11 @@ shipped as part of the Commvault Software.
 
 ## Documentation
 
-To get started, please see the [full documentation for this library](https://commvaultengg.github.io/Automation/)
+To get started, please see the [full documentation for this library](https://commvault.github.io/Automation/)
 
 
 ## License
-**Commvault Automation** and its contents are licensed under [Commvault License](https://raw.githubusercontent.com/CommvaultEngg/Automation/master/LICENSE)
+**Commvault Automation** and its contents are licensed under [Commvault License](https://raw.githubusercontent.com/Commvault/Automation/master/LICENSE)
 
 
 ## About Commvault
