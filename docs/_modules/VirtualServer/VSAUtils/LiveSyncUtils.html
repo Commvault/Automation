@@ -1,0 +1,562 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>VirtualServer.VSAUtils.LiveSyncUtils &mdash; Commvault Automation 11.21 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>VirtualServer.VSAUtils.LiveSyncUtils</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for VirtualServer.VSAUtils.LiveSyncUtils</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main file for performing operations relating to live sync</span>
+
+<span class="sd">classes defined:</span>
+
+<span class="sd">    Base class:</span>
+
+<span class="sd">        LiveSyncUtils                   -   Act as base class for all Live Sync operations</span>
+
+<span class="sd">    Methods:</span>
+
+<span class="sd">        validate_live_sync()            -   Validate Live Sync</span>
+
+<span class="sd">        get_recent_replication_job()    -   Get latest replication job corresponding to the Live Sync Schedule</span>
+
+<span class="sd">        cleanup_live_sync()             -   Delete replicated VM and Live Sync Schedule</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">sleep</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">Server.Scheduler.schedulerhelper</span> <span class="k">import</span> <span class="n">SchedulerHelper</span>
+<span class="kn">from</span> <span class="nn">VirtualServer.VSAUtils</span> <span class="k">import</span> <span class="n">VirtualServerUtils</span>
+<span class="kn">from</span> <span class="nn">VirtualServer.VSAUtils.VirtualServerHelper</span> <span class="k">import</span> <span class="n">AutoVSAVSClient</span>
+<span class="kn">from</span> <span class="nn">VirtualServer.VSAUtils.VirtualServerHelper</span> <span class="k">import</span> <span class="n">AutoVSAVSInstance</span>
+
+
+<div class="viewcode-block" id="LiveSyncUtils"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.LiveSyncUtils.LiveSyncUtils">[docs]</a><span class="k">class</span> <span class="nc">LiveSyncUtils</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">    Base Class for performing Live Sync related functions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">auto_subclient</span><span class="p">,</span> <span class="n">schedule_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize common variables for LiveSyncUtils</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            auto_subclient          -       (AutoVSASubclient)  Auto VSA subclient</span>
+
+<span class="sd">            schedule_name:          -       (str)   schedule name of live sync</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">schedule_name</span> <span class="o">=</span> <span class="n">schedule_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span> <span class="o">=</span> <span class="n">auto_subclient</span>
+        <span class="n">auto_subclient</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">live_sync</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_live_sync_pair</span> <span class="o">=</span> <span class="n">auto_subclient</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">live_sync</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">schedule_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_vm_pairs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_live_sync_pair</span><span class="o">.</span><span class="n">vm_pairs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_vm_pair</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_vms</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_agent</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instance</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_auto_client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dest_auto_vsa_instance</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">vm_pair</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        First vm pair from vm_pairs</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (LiveSyncVMPair) object for vm pair</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vm_pair</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">live_sync</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_vm_pair</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_live_sync_pair</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_vm_pairs</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vm_pair</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">live_sync_pair</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Get Live Sync Pair</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            live_sync_pair  -   (LiveSyncPair) Object for Live Sync Pair</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_live_sync_pair</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">vm_pairs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Get Live Sync VM pairs</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            vm_pairs    -   (LiveSyncVMPairs) Object for Live Sync VM pairs</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vm_pairs</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">destination_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Get destination virtualization client for live sync</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            destination_client   -   (Client)  Virtualization client object</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span> \
+                <span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_pair</span><span class="o">.</span><span class="n">destination_client</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_client</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">agent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Get Agent object for Live Sync</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            agent       -   (Agent) Agent Object</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_agent</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_agent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span><span class="o">.</span><span class="n">agents</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;virtual server&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_agent</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Get Instance object for the Live sync Pair</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            instance    -   (Instance) Instance Object</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instance</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_pair</span><span class="o">.</span><span class="n">destination_instance</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instance</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dest_auto_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Get destination auto client</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dest_auto_client    -   (AutoVSAVSClient) Destination Auto client</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dest_auto_client</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dest_auto_client</span> <span class="o">=</span> <span class="n">AutoVSAVSClient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">destination_client</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dest_auto_client</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">destination_vms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Get list of destination VMs in Live Sync</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            destination_vms     -   (list) List of destination VMs</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_vms</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_destination_vms</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">live_sync_pair</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">vm_pair</span><span class="p">)</span><span class="o">.</span><span class="n">destination_vm</span> <span class="k">for</span> <span class="n">vm_pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vm_pairs</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_destination_vms</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dest_auto_vsa_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Destination Auto VSA instance</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dest_auto_vsa_instance  -   (AutoVSAVSInstance) Destination Auto VSA Instance</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dest_auto_vsa_instance</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing destination AutoVSAVSInstance&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dest_auto_vsa_instance</span> <span class="o">=</span> <span class="n">AutoVSAVSInstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">dest_vm_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">destination_vms</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span> <span class="o">=</span> <span class="n">dest_vm_name</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dest_auto_vsa_instance</span>
+
+<div class="viewcode-block" id="LiveSyncUtils.get_recent_replication_job"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.LiveSyncUtils.LiveSyncUtils.get_recent_replication_job">[docs]</a>    <span class="k">def</span> <span class="nf">get_recent_replication_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backup_jobid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            backup_jobid (int): will get the replication job id that ran after backup job</span>
+
+<span class="sd">        Returns latest replication job, for live sync schedule</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            replication_job (Job) : Job Object for latest replication job</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client</span><span class="o">.</span><span class="n">schedules</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="n">schedule</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client</span><span class="o">.</span><span class="n">schedules</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">schedule_name</span><span class="p">)</span>
+        <span class="n">schedule_helper</span> <span class="o">=</span> <span class="n">SchedulerHelper</span><span class="p">(</span><span class="n">schedule</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">backup_jobid</span><span class="p">:</span>
+            <span class="n">replication_job</span> <span class="o">=</span> <span class="n">schedule_helper</span><span class="o">.</span><span class="n">get_jobid_from_taskid</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">15</span><span class="p">):</span> <span class="c1">#replication thread is triggered once in 15 minutes</span>
+                <span class="c1"># Get latest replication job from schedule helper</span>
+                <span class="n">temp</span> <span class="o">=</span> <span class="n">schedule_helper</span><span class="o">.</span><span class="n">get_jobid_from_taskid</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">temp</span><span class="o">.</span><span class="n">job_id</span> <span class="o">&gt;</span> <span class="n">backup_jobid</span><span class="p">:</span>
+                    <span class="n">replication_job</span> <span class="o">=</span> <span class="n">temp</span>
+                    <span class="k">break</span>
+                <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="mi">15</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="n">f</span><span class="s2">&quot;New Replication job not yet triggered after backup job </span><span class="si">{backup_jobid}</span><span class="s2"> &quot;</span>
+                        <span class="n">f</span><span class="s2">&quot;recheck after 1 minute&quot;</span>
+                    <span class="p">)</span>
+                    <span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;New Replication job not triggered after backup job </span><span class="si">{backup_jobid}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">replication_job</span></div>
+
+<div class="viewcode-block" id="LiveSyncUtils.validate_live_sync"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.LiveSyncUtils.LiveSyncUtils.validate_live_sync">[docs]</a>    <span class="k">def</span> <span class="nf">validate_live_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">replication_run</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">check_replication_size</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">schedule</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;To validate VSA live sync</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            replication_run (bool)          -       Set to True to check if replication job is triggered</span>
+<span class="sd">            for the backup,else False, default: True</span>
+
+<span class="sd">            check_replication_size (bool)   -       Set to False if incremental job is coverted to full replication</span>
+
+<span class="sd">             schedule(object) -- schedule object for replication schedule to be validated</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception</span>
+
+<span class="sd">                - If validation fails</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">vm_pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_pairs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;validating VM pair: &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="n">vm_pair</span><span class="p">)</span>
+
+            <span class="n">source_vm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">vm_pair</span><span class="p">]</span>
+            <span class="n">source_vm</span><span class="o">.</span><span class="n">update_vm_info</span><span class="p">(</span><span class="s1">&#39;All&#39;</span><span class="p">,</span> <span class="n">os_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">force_update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="n">dest_vm_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_sync_pair</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">vm_pair</span><span class="p">)</span><span class="o">.</span><span class="n">destination_vm</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span> <span class="o">=</span> <span class="n">dest_vm_name</span>
+            <span class="n">dest_vm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">dest_vm_name</span><span class="p">]</span>
+
+            <span class="n">dest_vm</span><span class="o">.</span><span class="n">power_on</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully powered on VM: &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="n">dest_vm_name</span><span class="p">)</span>
+
+            <span class="c1"># Wait for IP to be generated</span>
+            <span class="n">wait</span> <span class="o">=</span> <span class="mi">10</span>
+
+            <span class="k">while</span> <span class="n">wait</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Waiting for 60 seconds for the IP to be generated&#39;</span><span class="p">)</span>
+                <span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">dest_vm</span><span class="o">.</span><span class="n">update_vm_info</span><span class="p">(</span><span class="s1">&#39;All&#39;</span><span class="p">,</span> <span class="n">os_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">force_update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">dest_vm</span><span class="o">.</span><span class="n">ip</span> <span class="ow">and</span> <span class="n">VirtualServerUtils</span><span class="o">.</span><span class="n">validate_ip</span><span class="p">(</span><span class="n">dest_vm</span><span class="o">.</span><span class="n">ip</span><span class="p">):</span>
+                    <span class="k">break</span>
+                <span class="n">wait</span> <span class="o">-=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Valid IP not generated within 10 minutes&#39;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Valid IP for VM: </span><span class="si">{dest_vm_name}</span><span class="s1"> not generated within 5 minutes&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;IP is generated&#39;</span><span class="p">)</span>
+
+            <span class="n">vm_pair_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_sync_pair</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">vm_pair</span><span class="p">)</span>
+
+            <span class="n">replication_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">vm_pair_obj</span><span class="o">.</span><span class="n">latest_replication_job</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">replication_run</span><span class="p">:</span>
+                <span class="c1"># To validate if replication job completed successfully</span>
+                <span class="k">if</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">check_v2_indexing</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_vsaclient</span><span class="o">.</span><span class="n">vsa_client</span><span class="o">.</span><span class="n">client_name</span><span class="p">)):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Last synced Backup Job : </span><span class="si">{vm_pair_obj.last_synced_backup_job}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">child_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">get_child_jobs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">backup_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+                    <span class="k">assert</span> <span class="nb">str</span><span class="p">(</span><span class="n">vm_pair_obj</span><span class="o">.</span><span class="n">last_synced_backup_job</span><span class="p">)</span> <span class="ow">in</span> <span class="n">child_jobs</span><span class="p">,</span> \
+                        <span class="n">f</span><span class="s2">&quot;Replication job failed to sync latest backup job </span><span class="si">{self._auto_subclient.backup_job.job_id}</span><span class="s2">&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Backup job sync successful&#39;</span><span class="p">)</span>
+
+                    <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">get_backup_pending_jobs_to_replicate</span><span class="p">(</span>
+                        <span class="n">source_vm</span><span class="o">.</span><span class="n">vm_name</span><span class="p">)</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">],</span> <span class="n">f</span><span class="s2">&quot;Pending backup jobs to sync for VM: </span><span class="si">{source_vm.vm_name}</span><span class="s2">&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Last synced Backup Job : </span><span class="si">{vm_pair_obj.last_synced_backup_job}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">assert</span> <span class="nb">str</span><span class="p">(</span><span class="n">vm_pair_obj</span><span class="o">.</span><span class="n">last_synced_backup_job</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">backup_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">),</span> \
+                        <span class="n">f</span><span class="s2">&quot;Replication job failed to sync latest backup job </span><span class="si">{self._auto_subclient.backup_job.job_id}</span><span class="s2">&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Backup job sync successful&#39;</span><span class="p">)</span>
+                <span class="n">backup_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">auto_commcell</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">backup_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">backup_job</span><span class="o">.</span><span class="n">backup_level</span> <span class="o">==</span> <span class="s1">&#39;Incremental&#39;</span> <span class="ow">and</span> <span class="n">check_replication_size</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="n">replication_job</span><span class="o">.</span><span class="n">size_of_application</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">backup_job</span><span class="o">.</span><span class="n">size_of_application</span> <span class="o">+</span> <span class="mi">10485760</span><span class="p">),</span> \
+                        <span class="s2">&quot;Replication job has replicated more data than expected for Incremental backup&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Data replicated for incremental job validation successful&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># To validate if replication job never started</span>
+                <span class="k">assert</span> <span class="nb">str</span><span class="p">(</span><span class="n">vm_pair_obj</span><span class="o">.</span><span class="n">last_synced_backup_job</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">backup_job</span><span class="o">.</span><span class="n">job_id</span><span class="p">),</span> \
+                    <span class="n">f</span><span class="s2">&quot;Replication Job started for Synthetic full, failing case&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Replication run not started for Synthetic, validation successful&#39;</span><span class="p">)</span>
+
+            <span class="c1"># To validate sync status</span>
+            <span class="k">assert</span> <span class="n">vm_pair_obj</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s1">&#39;IN_SYNC&#39;</span><span class="p">,</span> \
+                <span class="n">f</span><span class="s1">&#39;VM pair : &quot;</span><span class="si">{vm_pair}</span><span class="s1">&quot; </span><span class="se">\n</span><span class="s1"> Status: &quot;</span><span class="si">{vm_pair_obj.status}</span><span class="s1"> </span><span class="se">\n</span><span class="s1"> Validation failed&quot;&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Sync status validation successful&#39;</span><span class="p">)</span>
+
+            <span class="n">_livesyncsource</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">LiveSyncVmValidation</span><span class="p">(</span><span class="n">source_vm</span><span class="p">,</span> <span class="n">schedule</span><span class="p">,</span> <span class="n">replication_job</span><span class="p">)</span>
+            <span class="n">_livesyncdest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">LiveSyncVmValidation</span><span class="p">(</span><span class="n">dest_vm</span><span class="p">,</span> <span class="n">schedule</span><span class="p">,</span> <span class="n">replication_job</span><span class="p">)</span>
+
+            <span class="c1"># hypervisor specific validation</span>
+            <span class="k">assert</span> <span class="n">_livesyncsource</span> <span class="o">==</span> <span class="n">_livesyncdest</span><span class="p">,</span> <span class="s2">&quot;Error while validation&quot;</span>
+
+
+            <span class="c1"># To validate test data between source and destination</span>
+            <span class="k">if</span> <span class="n">replication_run</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">drive</span> <span class="ow">in</span> <span class="n">dest_vm</span><span class="o">.</span><span class="n">drive_list</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">dest_path</span> <span class="o">=</span> <span class="n">source_vm</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span>
+                        <span class="n">drive</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">backup_folder_name</span><span class="p">,</span> <span class="s2">&quot;TestData&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">timestamp</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">fs_testdata_validation</span><span class="p">(</span><span class="n">dest_vm</span><span class="o">.</span><span class="n">machine</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Testdata validation successful&#39;</span><span class="p">)</span>
+
+            <span class="n">dest_vm</span><span class="o">.</span><span class="n">power_off</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully powered off VM: &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="n">dest_vm_name</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Validation successful for VM pair: &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="n">vm_pair</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LiveSyncUtils.cleanup_live_sync"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.LiveSyncUtils.LiveSyncUtils.cleanup_live_sync">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_live_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        To clean up live sync operations</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception</span>
+
+<span class="sd">                - If cleanup operation fails</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">vm_pair</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_pairs</span><span class="p">:</span>
+            <span class="n">dest_vm_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">live_sync_pair</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">vm_pair</span><span class="p">)</span><span class="o">.</span><span class="n">destination_vm</span>
+            <span class="c1"># Checking Existence of destination VM before deleting, in case the replication was killed</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">check_vms_exist</span><span class="p">([</span><span class="n">dest_vm_name</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span> <span class="o">=</span> <span class="n">dest_vm_name</span>
+                <span class="n">dest_vm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dest_auto_vsa_instance</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">VMs</span><span class="p">[</span><span class="n">dest_vm_name</span><span class="p">]</span>
+                <span class="n">dest_vm</span><span class="o">.</span><span class="n">power_off</span><span class="p">()</span>
+
+                <span class="c1"># To delete the replicated VM</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">dest_vm</span><span class="o">.</span><span class="n">delete_vm</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">output</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully deleted the replicated VM : &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="n">dest_vm_name</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Failed to delete the VM </span><span class="si">{dest_vm_name}</span><span class="s1"> please check the logs&#39;</span><span class="p">)</span>
+
+        <span class="c1"># To delete the created live sync configuration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_auto_subclient</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">_client_object</span><span class="o">.</span><span class="n">schedules</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">schedule_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Successfully deleted the Live sync configuration schedule </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule_name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Live sync cleanup operation is successful&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

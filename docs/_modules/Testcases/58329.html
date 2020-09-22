@@ -1,0 +1,488 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Testcases.58329 &mdash; Commvault Automation 11.21 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>Testcases.58329</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Testcases.58329</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;&quot;Main file for executing this test case</span>
+
+<span class="sd">TestCase is the only class defined in this file.</span>
+
+<span class="sd">TestCase: Class for executing this test case</span>
+
+<span class="sd">TestCase:</span>
+<span class="sd">    __init__()          --  initialize TestCase class</span>
+
+<span class="sd">    setup()             --  setup function of this test case</span>
+
+<span class="sd">    corrupt_sfile       --  function to corrupt an SFILE at a given offset</span>
+
+<span class="sd">    get_chunk_status    --  function to parse the csv dump and list good and bad blocks</span>
+
+<span class="sd">    validate_bad_chunk  --  function to validate if the nad block has the offset that was corrupted</span>
+
+<span class="sd">    run()           --  run function of this test case</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="c1"># import os</span>
+<span class="c1"># import zipfile</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">win32security</span>
+<span class="kn">import</span> <span class="nn">ntsecuritycon</span> <span class="k">as</span> <span class="nn">con</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="k">import</span> <span class="n">CVTestCase</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.idautils</span> <span class="k">import</span> <span class="n">CommonUtils</span>
+
+<span class="kn">from</span> <span class="nn">MediaAgents.MAUtils.mahelper</span> <span class="k">import</span> <span class="n">DedupeHelper</span><span class="p">,</span> <span class="n">MMHelper</span>
+
+
+<div class="viewcode-block" id="TestCase"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58329.TestCase">[docs]</a><span class="k">class</span> <span class="nc">TestCase</span><span class="p">(</span><span class="n">CVTestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for executing this test case&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes test case class object&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TestCase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Block-level Health check during DDB Verification&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;MediaAgentName&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;DedupeStorePath1&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;DedupeStorePath2&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;ContentPath&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;MountPath&quot;</span><span class="p">:</span> <span class="kc">None</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dedupehelper</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">common_util</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cs_machine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="TestCase.setup"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58329.TestCase.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Setup function of this test case&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dedupehelper</span> <span class="o">=</span> <span class="n">DedupeHelper</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mmhelper</span> <span class="o">=</span> <span class="n">MMHelper</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">common_util</span> <span class="o">=</span> <span class="n">CommonUtils</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cs_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCase.corrupt_sfile"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58329.TestCase.corrupt_sfile">[docs]</a>    <span class="k">def</span> <span class="nf">corrupt_sfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">volume</span><span class="p">,</span> <span class="n">chunk</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;F:</span><span class="se">\\</span><span class="s2">Automation</span><span class="se">\\</span><span class="s2">58329</span><span class="se">\\</span><span class="s2">Library</span><span class="se">\\</span><span class="s2">MP1</span><span class="se">\\</span><span class="s2">X2S3TX_06.11.2020_13.10</span><span class="se">\\</span><span class="s2">CV_MAGNETIC</span><span class="se">\\</span><span class="s2">V_</span><span class="si">{0}</span><span class="se">\\</span><span class="s2">CHUNK_</span><span class="si">{1}</span><span class="s2">&quot;</span> \
+                    <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">SFILE_CONTAINER_001&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;File name: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+        <span class="n">user_y</span><span class="p">,</span> <span class="n">domain</span><span class="p">,</span> <span class="n">perm_type</span> <span class="o">=</span> <span class="n">win32security</span><span class="o">.</span><span class="n">LookupAccountName</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;Everyone&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Domain name: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">domain</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Permission type: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">perm_type</span><span class="p">)</span>
+        <span class="n">sd</span> <span class="o">=</span> <span class="n">win32security</span><span class="o">.</span><span class="n">GetFileSecurity</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">win32security</span><span class="o">.</span><span class="n">DACL_SECURITY_INFORMATION</span><span class="p">)</span>
+        <span class="n">dacl</span> <span class="o">=</span> <span class="n">sd</span><span class="o">.</span><span class="n">GetSecurityDescriptorDacl</span><span class="p">()</span>
+        <span class="n">dacl</span><span class="o">.</span><span class="n">AddAccessAllowedAce</span><span class="p">(</span><span class="n">win32security</span><span class="o">.</span><span class="n">ACL_REVISION</span><span class="p">,</span> <span class="n">con</span><span class="o">.</span><span class="n">FILE_ALL_ACCESS</span><span class="p">,</span> <span class="n">user_y</span><span class="p">)</span>
+        <span class="n">sd</span><span class="o">.</span><span class="n">SetSecurityDescriptorDacl</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dacl</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">win32security</span><span class="o">.</span><span class="n">SetFileSecurity</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">win32security</span><span class="o">.</span><span class="n">DACL_SECURITY_INFORMATION</span><span class="p">,</span> <span class="n">sd</span><span class="p">)</span>
+        <span class="n">dummy_data_16bytes</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="s2">&quot;ThisIsCorruption&quot;</span><span class="p">,</span> <span class="s1">&#39;ascii&#39;</span><span class="p">)</span>
+        <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s2">&quot;r+b&quot;</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">dummy_data_16bytes</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestCase.get_chunk_status"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58329.TestCase.get_chunk_status">[docs]</a>    <span class="k">def</span> <span class="nf">get_chunk_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dump_path</span><span class="p">,</span> <span class="n">chunk_id</span><span class="p">,</span> <span class="n">sfile_id</span><span class="p">):</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">dump_path</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">usecols</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39; chunkId &#39;</span><span class="p">,</span> <span class="s1">&#39; id &#39;</span><span class="p">,</span> <span class="s1">&#39; flags &#39;</span><span class="p">,</span> <span class="s1">&#39; objMetaOffset &#39;</span><span class="p">])</span>
+        <span class="n">d_f</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="c1"># filter only related to only chunk_id</span>
+        <span class="n">chunk_data</span> <span class="o">=</span> <span class="n">d_f</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">d_f</span><span class="p">[</span><span class="s1">&#39; chunkId &#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">chunk_id</span><span class="p">)]</span>
+        <span class="n">bad_chunks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">good_chunks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">chunk_data</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="c1"># look for specific sfile_id</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39; objMetaOffset &#39;</span><span class="p">]</span> <span class="o">&gt;&gt;</span> <span class="mi">32</span><span class="p">)</span> <span class="o">==</span> <span class="n">sfile_id</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Corrupt chunk index in list is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">index</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39; flags &#39;</span><span class="p">]</span> <span class="o">&amp;</span> <span class="mi">1024</span><span class="p">:</span>
+                    <span class="c1"># add id to good chunks</span>
+                    <span class="n">good_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39; id &#39;</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># add id to bad chunks</span>
+                    <span class="n">bad_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39; id &#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">good_chunks</span><span class="p">,</span> <span class="n">bad_chunks</span></div>
+
+<div class="viewcode-block" id="TestCase.validate_bad_chunk"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58329.TestCase.validate_bad_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">validate_bad_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dump_path</span><span class="p">,</span> <span class="n">bad_chunk_id</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">dump_path</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">usecols</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39; id &#39;</span><span class="p">,</span> <span class="s1">&#39; size &#39;</span><span class="p">,</span> <span class="s1">&#39; objMetaOffset &#39;</span><span class="p">])</span>
+        <span class="n">d_f</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">bad_chunk_data</span> <span class="o">=</span> <span class="n">d_f</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">d_f</span><span class="p">[</span><span class="s1">&#39; id &#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">bad_chunk_id</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">bad_chunk_data</span><span class="p">))</span>
+        <span class="n">obj_meta_offset</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bad_chunk_data</span><span class="p">[</span><span class="s1">&#39; objMetaOffset &#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bad_chunk_data</span><span class="p">[</span><span class="s1">&#39; size &#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="c1"># below print is debug print, remove if unnecessary</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">obj_meta_offset</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">obj_meta_offset</span> <span class="o">&amp;</span> <span class="mh">0xFFFFFFFF</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">offset</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="n">obj_meta_offset</span> <span class="o">&amp;</span> <span class="mh">0xFFFFFFFF</span><span class="p">)</span> <span class="o">+</span> <span class="n">size</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">return</span> <span class="n">status</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Offset and bad block comparision failed&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCase.run"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58329.TestCase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Run function of this test case&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sp_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_SP&quot;</span>
+            <span class="n">backupset_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_BS&quot;</span>
+            <span class="n">subclient_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_SC&quot;</span>
+            <span class="n">library_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_lib&quot;</span>
+            <span class="n">copy_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;_case2_copy&quot;</span>
+            <span class="n">job_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started executing </span><span class="si">%s</span><span class="s2"> testcase&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+            <span class="c1"># Setup test environment</span>
+            <span class="c1"># Check backupset if exits and create if not present</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">backupsets</span><span class="o">.</span><span class="n">has_backupset</span><span class="p">(</span><span class="n">backupset_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Backupset exists!&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating Backupset.&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">backupsets</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">backupset_name</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Backupset creation completed.&quot;</span><span class="p">)</span>
+            <span class="n">backupset_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">backupsets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">backupset_name</span><span class="p">)</span>
+
+            <span class="c1"># check if library exists</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;check library: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">library_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">disk_libraries</span><span class="o">.</span><span class="n">has_library</span><span class="p">(</span><span class="n">library_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;adding Library...&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">disk_libraries</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">library_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;MediaAgentName&quot;</span><span class="p">],</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;MountPath&quot;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Library exists!&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Library Config done.&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Check SP if exits and create if not present</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">storage_policies</span><span class="o">.</span><span class="n">has_policy</span><span class="p">(</span><span class="n">sp_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Storage policy exists!&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating Storage policy&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">storage_policies</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">sp_name</span><span class="p">,</span> <span class="n">library_name</span><span class="p">,</span>
+                                                   <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;MediaAgentName&quot;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Storage policy creation completed.&quot;</span><span class="p">)</span>
+            <span class="n">sp_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">policies</span><span class="o">.</span><span class="n">storage_policies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sp_name</span><span class="p">)</span>
+
+            <span class="c1"># create dedupe copy</span>
+            <span class="k">if</span> <span class="n">sp_obj</span><span class="o">.</span><span class="n">has_copy</span><span class="p">(</span><span class="n">copy_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Copy exits!!&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating dedupe copy&quot;</span><span class="p">)</span>
+                <span class="n">sp_obj</span><span class="o">.</span><span class="n">create_dedupe_secondary_copy</span><span class="p">(</span><span class="n">copy_name</span><span class="p">,</span>
+                                                    <span class="n">library_name</span><span class="p">,</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;MediaAgentName&quot;</span><span class="p">],</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;DedupeStorePath2&quot;</span><span class="p">],</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;MediaAgentName&quot;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dedupe secondary copy creation completed. &quot;</span><span class="p">)</span>
+
+            <span class="c1"># Check SC if exits and create if not present</span>
+            <span class="k">if</span> <span class="n">backupset_obj</span><span class="o">.</span><span class="n">subclients</span><span class="o">.</span><span class="n">has_subclient</span><span class="p">(</span><span class="n">subclient_name</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Subclient exists!&quot;</span><span class="p">)</span>
+                <span class="n">subclient_obj</span> <span class="o">=</span> <span class="n">backupset_obj</span><span class="o">.</span><span class="n">subclients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">subclient_name</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating subclient&quot;</span><span class="p">)</span>
+                <span class="n">subclient_obj</span> <span class="o">=</span> <span class="n">backupset_obj</span><span class="o">.</span><span class="n">subclients</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">subclient_name</span><span class="p">,</span> <span class="n">sp_name</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Subclient creation completed&quot;</span><span class="p">)</span>
+                <span class="c1"># add subclient content</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Adding subclient content to backup&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Setting subclient content to: </span><span class="si">%s</span><span class="s2"></span>
+<span class="s2">                               &quot;&quot;&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;ContentPath&quot;</span><span class="p">])</span>
+                <span class="n">subclient_obj</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;ContentPath&quot;</span><span class="p">]]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Adding subclient content completed.&quot;</span><span class="p">)</span>
+
+            <span class="c1"># run backups</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running backup : Iteration = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+                <span class="n">job_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">common_util</span><span class="o">.</span><span class="n">subclient_backup</span><span class="p">(</span><span class="n">subclient_obj</span><span class="p">,</span> <span class="s1">&#39;FULL&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">))</span>
+
+
+            <span class="c1"># run DV2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Running DDB Verification job on </span><span class="si">%s</span><span class="s2"></span>
+<span class="s2">                            &quot;&quot;&quot;</span><span class="p">,</span> <span class="n">sp_name</span><span class="p">)</span>
+            <span class="n">storage_policy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">storage_policies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sp_name</span><span class="p">)</span>
+            <span class="n">sp_id</span> <span class="o">=</span> <span class="n">storage_policy</span><span class="o">.</span><span class="n">storage_policy_id</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="n">storage_policy</span><span class="o">.</span><span class="n">run_ddb_verification</span><span class="p">(</span><span class="s1">&#39;Primary&#39;</span><span class="p">,</span> <span class="s1">&#39;Full&#39;</span><span class="p">,</span> <span class="s1">&#39;DDB_VERIFICATION&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;DDB Verification job: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run DDB Verification Job: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="c1"># listing all the datamovers MAs initiated</span>
+            <span class="n">log_f</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;AuxCopyMgr.log&#39;</span>
+            <span class="n">log_l</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Started AuxCopy process on mediaAgent&#39;</span>
+            <span class="p">(</span><span class="n">matched_line</span><span class="p">,</span> <span class="n">matched_string</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dedupehelper</span><span class="o">.</span><span class="n">parse_log</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">,</span>
+                <span class="n">log_f</span><span class="p">,</span>
+                <span class="n">log_l</span><span class="p">,</span>
+                <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Matched line is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">matched_line</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Matched sting is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">matched_string</span><span class="p">)</span>
+            <span class="n">malist</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">matched_line</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[^[]*\[([^]]*)\]&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">malist</span> <span class="o">+=</span> <span class="p">[</span><span class="n">result</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">malist</span><span class="p">)</span>
+            <span class="n">chunkinfo</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">mpid_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">volid_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">chunkid_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c1"># checking if the mountpaths are local to MA</span>
+            <span class="k">for</span> <span class="n">media_agent</span> <span class="ow">in</span> <span class="n">malist</span><span class="p">:</span>
+
+                <span class="c1"># collecting all the chunks verified by each MA</span>
+                <span class="n">log_f</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;DataVerf.log&#39;</span>
+                <span class="n">log_l</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;Going to validate Sfile for chnk&#39;</span>
+
+                <span class="p">(</span><span class="n">matched_line</span><span class="p">,</span> <span class="n">matched_string</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dedupehelper</span><span class="o">.</span><span class="n">parse_log</span><span class="p">(</span><span class="n">media_agent</span><span class="p">,</span> <span class="n">log_f</span><span class="p">,</span> <span class="n">log_l</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">matched_line</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                    <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[^[]*\[([^]]*)\]&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">chunkinfo</span> <span class="o">+=</span> <span class="p">[</span><span class="n">result</span><span class="p">]</span>
+
+                <span class="n">split</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">chunks</span> <span class="ow">in</span> <span class="n">chunkinfo</span><span class="p">:</span>
+                    <span class="n">split</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">,</span> <span class="n">chunks</span><span class="p">)</span>
+                    <span class="n">mpid_list</span> <span class="o">+=</span> <span class="p">[</span><span class="n">split</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                    <span class="n">volid_list</span> <span class="o">+=</span> <span class="p">[</span><span class="n">split</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+                    <span class="n">chunkid_list</span> <span class="o">+=</span> <span class="p">[</span><span class="n">split</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+
+            <span class="c1"># randomly picking a chunk to corrupt</span>
+            <span class="n">corrupt_chunk</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">chunkid_list</span><span class="p">)</span>
+            <span class="n">corrupt_offset</span> <span class="o">=</span> <span class="mi">16</span><span class="o">*</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">1000</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Chunk to be corrupted is: </span><span class="si">%s</span><span class="s2"> at offset: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">corrupt_chunk</span><span class="p">,</span> <span class="n">corrupt_offset</span><span class="p">)</span>
+            <span class="n">chunk_index</span> <span class="o">=</span> <span class="n">chunkid_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">corrupt_chunk</span><span class="p">)</span>
+            <span class="n">volume</span> <span class="o">=</span> <span class="n">volid_list</span><span class="p">[</span><span class="n">chunk_index</span><span class="p">]</span>
+
+            <span class="c1"># corrupting the chunk</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">corrupt_sfile</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">corrupt_chunk</span><span class="p">,</span> <span class="n">corrupt_offset</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Chunk has been corrupted&quot;</span><span class="p">)</span>
+
+            <span class="c1"># running DV2 again</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="n">storage_policy</span><span class="o">.</span><span class="n">run_ddb_verification</span><span class="p">(</span><span class="s1">&#39;Primary&#39;</span><span class="p">,</span> <span class="s1">&#39;Full&#39;</span><span class="p">,</span> <span class="s1">&#39;DDB_VERIFICATION&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;DDB Verification job: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to run DDB Verification Job: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+
+            <span class="c1"># get sidbstore id for the copy</span>
+            <span class="n">sidb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dedupehelper</span><span class="o">.</span><span class="n">get_sidb_ids</span><span class="p">(</span><span class="n">sp_id</span><span class="p">,</span> <span class="s1">&#39;Primary&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;The SIDBStoreID and SIDBSubStoreID for Primary copy is: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">sidb</span><span class="p">)</span>
+
+            <span class="c1"># dump Primary table after DV2 job completes</span>
+            <span class="n">dump_path</span> <span class="o">=</span> <span class="s2">&quot;F:</span><span class="se">\\</span><span class="s2">Automation</span><span class="se">\\</span><span class="s2">58329</span><span class="se">\\</span><span class="s2">Dump</span><span class="se">\\</span><span class="s2">PrimaryCopy</span><span class="se">\\</span><span class="s2">primary.csv&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;The primary dump will be created on at: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">dump_path</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dedupehelper</span><span class="o">.</span><span class="n">get_sidb_dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;MediaAgentName&quot;</span><span class="p">],</span> <span class="s1">&#39;primary&#39;</span><span class="p">,</span> <span class="n">sidb</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dump_path</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;The primary dump created&quot;</span><span class="p">)</span>
+
+            <span class="c1"># getting block status</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking for the block status on the primary dump&quot;</span><span class="p">)</span>
+            <span class="n">good</span><span class="p">,</span> <span class="n">bad</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_chunk_status</span><span class="p">(</span><span class="n">dump_path</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">corrupt_chunk</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;good chunks: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">good</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;bad chunks: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">bad</span><span class="p">)</span>
+
+            <span class="c1"># verify if the correct block was marked bad</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate_bad_chunk</span><span class="p">(</span><span class="n">dump_path</span><span class="p">,</span> <span class="n">bad</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">corrupt_offset</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">status</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Corrupted offset and the bad block match. Case passed&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to execute test case with error: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">result_string</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

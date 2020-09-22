@@ -1,0 +1,332 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>VirtualServer.VSAUtils.GenerateEnumFromDotX &mdash; Commvault Automation 11.21 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>VirtualServer.VSAUtils.GenerateEnumFromDotX</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for VirtualServer.VSAUtils.GenerateEnumFromDotX</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This script helps fetch enums defined in Api.x, and generate a standalone</span>
+<span class="sd">Python file containing two mappings. One is from type code to descrption</span>
+<span class="sd">text, and the other is from enum to type code.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+
+
+<div class="viewcode-block" id="setup"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.GenerateEnumFromDotX.setup">[docs]</a><span class="k">def</span> <span class="nf">setup</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;sets up the parser for this script&quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">()</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-e&quot;</span><span class="p">,</span> <span class="s2">&quot;--enum&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;enum to be generated&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;output file path&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-p&quot;</span><span class="p">,</span> <span class="s2">&quot;--prefix&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;prefix of generated definition&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--api&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;path to the Api.x&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="generate_top_msg"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.GenerateEnumFromDotX.generate_top_msg">[docs]</a><span class="k">def</span> <span class="nf">generate_top_msg</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;generates the messages on top of output file&quot;&quot;&quot;</span>
+    <span class="n">msg_on_top</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">msg_on_top</span> <span class="o">+=</span> <span class="sa">r</span><span class="s2">&quot;# -*- coding: utf-8 -*-&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="n">msg_on_top</span> <span class="o">+=</span> <span class="sa">r</span><span class="s2">&quot;#&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="n">msg_on_top</span> <span class="o">+=</span> <span class="sa">r</span><span class="s2">&quot;# This is generated by&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;#     </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="sa">r</span><span class="s2">&quot;\vaultcx\Source\tools\Automation\VirtualServer\VSAUtils&quot;</span> <span class="o">+</span>
+        <span class="sa">r</span><span class="s2">&quot;\GenerateEnumFromDotX.py&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="n">msg_on_top</span> <span class="o">+=</span> <span class="sa">r</span><span class="s2">&quot;# Generated Time: </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()))</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+
+    <span class="n">msg_on_top</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\&quot;\&quot;\&quot;</span><span class="s2">This file provides dicts.</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> \
+        <span class="s2">&quot;One is from job phase code to text, and the other is from enum to code.</span><span class="se">\n\&quot;\&quot;\&quot;\n\n</span><span class="s2">&quot;</span>
+
+    <span class="k">return</span> <span class="n">msg_on_top</span></div>
+
+
+<div class="viewcode-block" id="parse_input"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.GenerateEnumFromDotX.parse_input">[docs]</a><span class="k">def</span> <span class="nf">parse_input</span><span class="p">(</span><span class="n">api_path</span><span class="p">,</span> <span class="n">enum_to_parse</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;parses input from the arguments&quot;&quot;&quot;</span>
+    <span class="n">api_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">api_path</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Open Api.x in &quot;</span> <span class="o">+</span> <span class="n">api_path</span><span class="p">)</span>
+
+    <span class="nb">input</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">api_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">searching</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;enum&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="ow">and</span> <span class="n">enum_to_parse</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                <span class="n">searching</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">if</span> <span class="n">searching</span><span class="p">:</span>
+                <span class="nb">input</span> <span class="o">+=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="s1">&#39;}&#39;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                    <span class="n">searching</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">break</span>
+
+    <span class="c1"># extracts the part within &quot;{}&quot;</span>
+    <span class="nb">input</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;{(.*)}&#39;</span><span class="p">,</span> <span class="nb">input</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># separates the input by &#39;,&#39;</span>
+    <span class="nb">input</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">input</span></div>
+
+
+<div class="viewcode-block" id="generate_output_dict"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.GenerateEnumFromDotX.generate_output_dict">[docs]</a><span class="k">def</span> <span class="nf">generate_output_dict</span><span class="p">(</span><span class="nb">input</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;generates the output dicts&quot;&quot;&quot;</span>
+    <span class="n">code_to_text</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">enum_to_code</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">input</span><span class="p">:</span>
+        <span class="c1"># uses regular expression to extract info we need</span>
+        <span class="n">regex_result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;@Text\(text=&quot;(.*)&quot;\)(.*)=[ ]*([0-9]*)&#39;</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+        <span class="n">description_text</span> <span class="o">=</span> <span class="n">regex_result</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">enum</span> <span class="o">=</span> <span class="n">regex_result</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">type_code</span> <span class="o">=</span> <span class="n">regex_result</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+        <span class="n">code_to_text</span><span class="p">[</span><span class="n">type_code</span><span class="p">]</span> <span class="o">=</span> <span class="n">description_text</span>
+        <span class="n">enum_to_code</span><span class="p">[</span><span class="n">enum</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">type_code</span><span class="p">)</span>
+
+    <span class="c1"># make the `code_to_text` dict ordered by code value</span>
+    <span class="n">code_to_text</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">(</span>
+        <span class="nb">sorted</span><span class="p">(</span><span class="n">code_to_text</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">])))</span>
+
+    <span class="c1"># make the `enum_to_code` dict ordered by code value</span>
+    <span class="n">enum_to_code</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">(</span>
+        <span class="nb">sorted</span><span class="p">(</span><span class="n">enum_to_code</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">code_to_text</span><span class="p">,</span> <span class="n">enum_to_code</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="generate_output_str"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.GenerateEnumFromDotX.generate_output_str">[docs]</a><span class="k">def</span> <span class="nf">generate_output_str</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">code_to_text</span><span class="p">,</span> <span class="n">enum_to_code</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;converts dicts to json strings&quot;&quot;&quot;</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="n">prefix</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">output</span> <span class="o">+=</span> <span class="n">generate_top_msg</span><span class="p">()</span>
+    <span class="n">output</span> <span class="o">+=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;_CODE_TO_TEXT = &quot;</span> <span class="o">+</span> \
+        <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">code_to_text</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+    <span class="n">output</span> <span class="o">+=</span> <span class="n">prefix</span> <span class="o">+</span> <span class="sa">r</span><span class="s2">&quot;_ENUM_TO_CODE = &quot;</span> <span class="o">+</span> \
+        <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">enum_to_code</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+
+    <span class="k">return</span> <span class="n">output</span></div>
+
+
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../../source/VirtualServer.VSAUtils.html#VirtualServer.VSAUtils.GenerateEnumFromDotX.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;main function of this script&quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">setup</span><span class="p">()</span>
+    <span class="n">enum_to_parse</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">enum</span>
+
+    <span class="c1"># removes trailing &quot;.py&quot; (will be added at the end)</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.py&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="c1"># determines whether api.x path is provided by user</span>
+    <span class="n">filepath_to_apix</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">api</span> <span class="ow">or</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span>
+        <span class="vm">__file__</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">..</span><span class="se">\\</span><span class="s2">..</span><span class="se">\\</span><span class="s2">..</span><span class="se">\\</span><span class="s2">..</span><span class="se">\\</span><span class="s2">Common</span><span class="se">\\</span><span class="s2">XmlMessage</span><span class="se">\\</span><span class="s2">Api.x&quot;</span><span class="p">)</span>
+
+    <span class="n">parsed_input</span> <span class="o">=</span> <span class="n">parse_input</span><span class="p">(</span><span class="n">filepath_to_apix</span><span class="p">,</span> <span class="n">enum_to_parse</span><span class="p">)</span>
+    <span class="p">(</span><span class="n">code_to_text</span><span class="p">,</span> <span class="n">enum_to_code</span><span class="p">)</span> <span class="o">=</span> <span class="n">generate_output_dict</span><span class="p">(</span><span class="n">parsed_input</span><span class="p">)</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">generate_output_str</span><span class="p">(</span>
+        <span class="n">prefix</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="n">code_to_text</span><span class="o">=</span><span class="n">code_to_text</span><span class="p">,</span>
+        <span class="n">enum_to_code</span><span class="o">=</span><span class="n">enum_to_code</span><span class="p">)</span>
+
+    <span class="n">output_filename</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span> <span class="o">+</span> <span class="s2">&quot;.py&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_filename</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

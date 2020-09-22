@@ -1,0 +1,978 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Application.AD.ms_azuread &mdash; Commvault Automation 11.21 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Application.AD.ms_azuread</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Application.AD.ms_azuread</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This library is used to communicate with Micsoft Azure AD</span>
+
+<span class="sd">Class:</span>
+<span class="sd">    AzureAd        Azure Ad related operation</span>
+<span class="sd">    CvAzureAd        Commvault Azure Ad operation class</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">sleep</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+
+
+<span class="kn">from</span> <span class="nn">azure.graphrbac</span> <span class="k">import</span> <span class="n">GraphRbacManagementClient</span>
+<span class="kn">from</span> <span class="nn">azure.graphrbac.models</span> <span class="k">import</span> <span class="n">UserCreateParameters</span><span class="p">,</span> <span class="n">PasswordProfile</span><span class="p">,</span>\
+                                <span class="n">GroupCreateParameters</span><span class="p">,</span> <span class="n">ApplicationCreateParameters</span><span class="p">,</span>\
+                                <span class="n">ServicePrincipalCreateParameters</span>
+<span class="kn">from</span> <span class="nn">azure.common.credentials</span> <span class="k">import</span> <span class="n">UserPassCredentials</span>
+<span class="kn">import</span> <span class="nn">adal</span>
+<span class="kn">from</span> <span class="nn">msrestazure.azure_active_directory</span> <span class="k">import</span> <span class="n">AdalAuthentication</span>
+<span class="kn">from</span> <span class="nn">msrestazure.azure_cloud</span> <span class="k">import</span> <span class="n">AZURE_PUBLIC_CLOUD</span>
+<span class="kn">from</span> <span class="nn">.exceptions</span> <span class="k">import</span> <span class="n">ADException</span>
+<span class="kn">from</span> <span class="nn">.adconstants</span> <span class="k">import</span> <span class="n">AZUREAD_SUPPORTED_TYPE_MAPPER</span><span class="p">,</span> <span class="n">AZUREAD_TYPE_CREATE_PARANAME</span><span class="p">,</span>\
+                         <span class="n">AZUREAD_TYPE_CREATE_KEYNAME</span><span class="p">,</span> <span class="n">AZUREAD_TYPE_CREATE_ENTRIES</span><span class="p">,</span>\
+                         <span class="n">AZUREAD_TYPE_ODATA_MAPPER</span><span class="p">,</span> <span class="n">AZUREAD_INDEX_META_MAPPER</span><span class="p">,</span>\
+                         <span class="n">AZUREAD_DELETED_URL</span><span class="p">,</span> <span class="n">AZUREAD_TYPE_ATTRIBUTES</span>
+
+
+
+
+<div class="viewcode-block" id="AzureAd"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd">[docs]</a><span class="k">class</span> <span class="nc">AzureAd</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Azure AD class to handle regular AD operations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tenant</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">client_id</span><span class="p">,</span> <span class="n">client_pass</span><span class="p">,</span> <span class="n">log</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; initial class for Azure AD connection</span>
+<span class="sd">        args:</span>
+<span class="sd">            tenant      (string)    azure ad tenant id</span>
+<span class="sd">            username    (string)    azure global admin user name</span>
+<span class="sd">            password    (string)    azure admin password</span>
+<span class="sd">            client_id    (string)    azure client to handle delete objects</span>
+<span class="sd">            client_pass    (string)    azure clinet password</span>
+<span class="sd">            log    (CV log instance)    log instance passed from test case</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">graphclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">(</span><span class="n">tenant</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domainname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_domain_name</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">domainname</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ADException</span><span class="p">(</span><span class="s2">&quot;azure&quot;</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="s2">&quot;can&#39;t find the domain name&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">adal_token</span><span class="p">(</span><span class="n">client_id</span><span class="p">,</span> <span class="n">client_pass</span><span class="p">,</span> <span class="n">tenant</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">graph_api_endpoint</span> <span class="o">=</span> <span class="s1">&#39;https://graph.microsoft.com/beta</span><span class="si">{0}</span><span class="s1">&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;Content-Type&#39;</span> <span class="p">:</span> <span class="s1">&#39;application/json&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Authorization&#39;</span><span class="p">:</span> <span class="s1">&#39;Bearer </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">[</span><span class="s1">&#39;accessToken&#39;</span><span class="p">]),</span>
+            <span class="s1">&#39;Accept&#39;</span> <span class="p">:</span> <span class="s1">&#39;application/json&#39;</span><span class="p">}</span>
+
+<div class="viewcode-block" id="AzureAd.conn"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.conn">[docs]</a>    <span class="k">def</span> <span class="nf">conn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tenant</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; connect azure ad with user credential</span>
+<span class="sd">        args:</span>
+<span class="sd">            tenant      (string)    azure ad tenant id</span>
+<span class="sd">            username    (string)    azure global admin user name</span>
+<span class="sd">            password    (string)    azure admin password</span>
+<span class="sd">        return:</span>
+<span class="sd">            graphclient    (obj)    azure graph client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conn_credntials</span> <span class="o">=</span> <span class="n">UserPassCredentials</span><span class="p">(</span><span class="n">username</span><span class="p">,</span>
+                                              <span class="n">password</span><span class="p">,</span>
+                                              <span class="n">resource</span><span class="o">=</span><span class="s2">&quot;https://graph.windows.net&quot;</span><span class="p">)</span>
+        <span class="n">graphclient</span> <span class="o">=</span> <span class="n">GraphRbacManagementClient</span><span class="p">(</span><span class="n">conn_credntials</span><span class="p">,</span> <span class="n">tenant</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;MS graph client is setuped&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">graphclient</span></div>
+
+<div class="viewcode-block" id="AzureAd.adal_token"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.adal_token">[docs]</a>    <span class="k">def</span> <span class="nf">adal_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_id</span><span class="p">,</span> <span class="n">client_pass</span><span class="p">,</span> <span class="n">tenant</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; connect to azure ad with client and cilent pass to generate token</span>
+<span class="sd">        args:</span>
+<span class="sd">            client_id    (string)    azure client to handle delete objects</span>
+<span class="sd">            client_pass    (string)    azure clinet password</span>
+<span class="sd">        return:</span>
+<span class="sd">            token    (obj)    adal connection token for app</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context</span> <span class="o">=</span> <span class="n">adal</span><span class="o">.</span><span class="n">AuthenticationContext</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;https://login.microsoftonline.com/</span><span class="si">{tenant}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">acquire_token_with_client_credentials</span><span class="p">(</span><span class="s2">&quot;https://graph.microsoft.com/&quot;</span><span class="p">,</span>
+                                                              <span class="n">client_id</span><span class="p">,</span>
+                                                              <span class="n">client_pass</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Azure connection token is setup&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">token</span></div>
+
+<div class="viewcode-block" id="AzureAd.type_operation"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.type_operation">[docs]</a>    <span class="k">def</span> <span class="nf">type_operation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_</span><span class="p">,</span> <span class="n">operation</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; common type operation to avoid duplicate code</span>
+<span class="sd">        args:</span>
+<span class="sd">            type_    (string)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            operation(string)    supported operation from the following ops</span>
+<span class="sd">                                    list, create, delete, find, update</span>
+<span class="sd">            kwargs    (dict)    additional parameter to operation on azure ad obj</span>
+<span class="sd">        return:</span>
+<span class="sd">            operation_result    (objs)    list of azure ad objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">obj_type_name</span> <span class="o">=</span> <span class="n">AZUREAD_SUPPORTED_TYPE_MAPPER</span><span class="p">[</span><span class="n">type_</span><span class="p">]</span>
+        <span class="n">obj_type</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">graphclient</span><span class="p">,</span> <span class="n">obj_type_name</span><span class="p">)</span>
+
+        <span class="n">operation_ins</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">operation_result</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">operation</span> <span class="o">==</span> <span class="s2">&quot;list&quot;</span><span class="p">:</span>
+            <span class="n">operation_ins</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj_type</span><span class="p">,</span> <span class="s2">&quot;list&quot;</span><span class="p">)()</span>
+            <span class="n">operation_result</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">obj_</span> <span class="ow">in</span> <span class="n">operation_ins</span><span class="p">:</span>
+                <span class="n">operation_result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj_</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">operation</span> <span class="o">==</span> <span class="s2">&quot;create&quot;</span><span class="p">:</span>
+            <span class="n">operation_ins</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj_type</span><span class="p">,</span> <span class="s2">&quot;create&quot;</span><span class="p">)</span>
+            <span class="n">operation_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_operation_create</span><span class="p">(</span><span class="n">obj_type</span><span class="p">,</span>
+                                                      <span class="n">operation_ins</span><span class="p">,</span>
+                                                      <span class="n">type_</span><span class="p">,</span>
+                                                      <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">operation</span> <span class="o">==</span> <span class="s2">&quot;delete&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;start to delete </span><span class="si">{type_}</span><span class="s2"> objects&quot;</span><span class="p">)</span>
+            <span class="n">operation_ins</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj_type</span><span class="p">,</span> <span class="s2">&quot;delete&quot;</span><span class="p">)</span>
+            <span class="n">objs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_objs</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;will delete {len(objs)} </span><span class="si">{type_}</span><span class="s2"> objects&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">obj_</span> <span class="ow">in</span> <span class="n">objs</span><span class="p">:</span>
+                <span class="n">operation_ins</span><span class="p">(</span><span class="n">obj_</span><span class="o">.</span><span class="n">object_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> object </span><span class="si">{}</span><span class="s2"> with name </span><span class="si">{}</span><span class="s2"> is deleted&quot;</span><span class="o">.</span>\
+                               <span class="nb">format</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="n">obj_</span><span class="o">.</span><span class="n">object_id</span><span class="p">,</span> <span class="n">obj_</span><span class="o">.</span><span class="n">display_name</span><span class="p">))</span>
+            <span class="n">operation_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="s2">&quot;list&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">operation</span> <span class="o">==</span> <span class="s2">&quot;find&quot;</span><span class="p">:</span>
+            <span class="n">operation_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_objs</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">operation</span> <span class="o">==</span> <span class="s2">&quot;update&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">type_</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="s2">&quot;ent_app&quot;</span><span class="p">]:</span>
+                <span class="n">operation_ins</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj_type</span><span class="p">,</span> <span class="s2">&quot;update&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">operation_ins</span> <span class="o">=</span> <span class="n">obj_type</span>
+            <span class="n">operation_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_operation_update</span><span class="p">(</span><span class="n">operation_ins</span><span class="p">,</span> <span class="n">type_</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">operation_result</span></div>
+
+    <span class="k">def</span> <span class="nf">_operation_create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_type</span><span class="p">,</span> <span class="n">ins_</span><span class="p">,</span> <span class="n">type_</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; create object</span>
+<span class="sd">        args:</span>
+<span class="sd">            obj_type (obj)    auzre object operation  obj create function</span>
+<span class="sd">            ins_    (obj)    azure object opeeration obj</span>
+<span class="sd">            type_    (str)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            kwargs    (dict)    additional parameter to create azure ad obj</span>
+<span class="sd">        return:</span>
+<span class="sd">            operation_result    (obj)    new object created or found obj</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">time_</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time_</span><span class="o">.</span><span class="n">timestamp</span><span class="p">())</span>
+        <span class="n">new_define</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">AZUREAD_TYPE_CREATE_ENTRIES</span><span class="p">[</span><span class="n">type_</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="n">new_define</span><span class="p">[</span><span class="n">AZUREAD_TYPE_CREATE_ENTRIES</span><span class="p">[</span><span class="n">type_</span><span class="p">][</span><span class="n">entry</span><span class="p">]]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">entry</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">new_define</span><span class="p">[</span><span class="n">AZUREAD_TYPE_CREATE_ENTRIES</span><span class="p">[</span><span class="n">type_</span><span class="p">][</span><span class="n">entry</span><span class="p">]]</span> <span class="o">=</span> \
+                <span class="n">f</span><span class="s2">&quot;Script_</span><span class="si">{type_}</span><span class="s2">_</span><span class="si">{timestamp}</span><span class="s2">&quot;</span>
+        <span class="n">new_define</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_type_create_decoration</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="n">new_define</span><span class="p">)</span>
+        <span class="n">type_define_ins</span> <span class="o">=</span> <span class="nb">globals</span><span class="p">()[</span><span class="n">AZUREAD_TYPE_CREATE_PARANAME</span><span class="p">[</span><span class="n">type_</span><span class="p">]]</span>
+        <span class="n">type_define</span> <span class="o">=</span> <span class="n">type_define_ins</span><span class="p">(</span><span class="o">**</span><span class="n">new_define</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">type_obj</span> <span class="o">=</span> <span class="n">obj_type</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">new_define</span><span class="p">[</span><span class="n">AZUREAD_TYPE_CREATE_KEYNAME</span><span class="p">[</span><span class="n">type_</span><span class="p">]])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;found  exist </span><span class="si">{type_}</span><span class="s2"> object name</span><span class="se">\</span>
+<span class="s2">                {new_define[AZUREAD_TYPE_CREATE_KEYNAME[type_]]}&quot;</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">type_obj</span> <span class="o">=</span> <span class="n">ins_</span><span class="p">(</span><span class="n">type_define</span><span class="p">)</span>
+        <span class="n">operation_result</span> <span class="o">=</span> <span class="n">type_obj</span>
+        <span class="k">return</span> <span class="n">operation_result</span>
+
+    <span class="k">def</span> <span class="nf">_operation_update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ins_</span><span class="p">,</span> <span class="n">type_</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; udpate attribute in the object</span>
+<span class="sd">        args:</span>
+<span class="sd">             ins_    (obj)    azure object opeeration obj</span>
+<span class="sd">            type_    (str)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            kwargs    (dict)    additional parameter to create azure ad obj</span>
+<span class="sd">        return:</span>
+<span class="sd">            operation_result    (obj)    updated objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;find&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">objs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_objs</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;find&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ADException</span><span class="p">(</span><span class="s2">&quot;azuread&quot;</span><span class="p">,</span> <span class="mi">401</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">type_</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;group&#39;</span><span class="p">,</span> <span class="s1">&#39;reg_app&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{type_}</span><span class="s2"> do not support update attribute, will update owner&quot;</span><span class="p">)</span>
+            <span class="n">operation_result</span> <span class="o">=</span> <span class="n">objs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;update&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="n">updatekey</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;update&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                <span class="c1"># only support single attribute update</span>
+                <span class="k">if</span> <span class="n">updatekey</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">AZUREAD_TYPE_ATTRIBUTES</span><span class="p">[</span><span class="n">type_</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">objs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">ins_</span><span class="p">(</span><span class="n">objs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">object_id</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;update&#39;</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">objs</span><span class="p">:</span>
+                            <span class="n">operation_result</span> <span class="o">=</span> <span class="n">ins_</span><span class="p">(</span><span class="n">_</span><span class="o">.</span><span class="n">object_id</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;update&#39;</span><span class="p">])</span>
+                    <span class="n">operation_result</span> <span class="o">=</span> <span class="n">objs</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">ADException</span><span class="p">(</span><span class="s1">&#39;azuread&#39;</span><span class="p">,</span> <span class="mi">403</span><span class="p">,</span> <span class="s2">&quot;type is </span><span class="si">{}</span><span class="s2">, update is </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                                      <span class="nb">format</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;update&#39;</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ADException</span><span class="p">(</span><span class="s1">&#39;azuread&#39;</span><span class="p">,</span> <span class="mi">402</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">operation_result</span>
+
+<div class="viewcode-block" id="AzureAd.user_ops"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.user_ops">[docs]</a>    <span class="k">def</span> <span class="nf">user_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;list&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;User related operations</span>
+<span class="sd">        args:</span>
+<span class="sd">            operation    (string)    supported operation from the following ops</span>
+<span class="sd">                                    list, create, delete, find, update,</span>
+<span class="sd">                                    default option is list operation</span>
+<span class="sd">            kwargs    (dict)    additional parameter to operation on azure ad obj</span>
+<span class="sd">        return:</span>
+<span class="sd">            users    (objs)    azure user objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">users</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="n">operation</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">users</span></div>
+
+<div class="viewcode-block" id="AzureAd.group_ops"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.group_ops">[docs]</a>    <span class="k">def</span> <span class="nf">group_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;list&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;group related operations</span>
+<span class="sd">        args:</span>
+<span class="sd">            operation(string)    supported operation from the following ops</span>
+<span class="sd">                                    list, create, delete, find, update</span>
+<span class="sd">                                    default option is list operation</span>
+<span class="sd">            kwargs    (dict)    additional parameter to operation on azure ad obj</span>
+<span class="sd">        return:</span>
+<span class="sd">            groups    (objs)    azure groups objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="s2">&quot;group&quot;</span><span class="p">,</span> <span class="n">operation</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">groups</span></div>
+
+<div class="viewcode-block" id="AzureAd.reg_app_ops"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.reg_app_ops">[docs]</a>    <span class="k">def</span> <span class="nf">reg_app_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;list&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;registred application related operation</span>
+<span class="sd">        args:</span>
+<span class="sd">            operation(string)    supported operation from the following ops</span>
+<span class="sd">                                    list, create, delete, find, update</span>
+<span class="sd">                                    default option is list operation</span>
+<span class="sd">            kwargs    (dict)    additional parameter to operation on azure ad obj</span>
+<span class="sd">        return:</span>
+<span class="sd">            reg_apps    (objs)    azure reg_app objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">reg_apps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="s2">&quot;reg_app&quot;</span><span class="p">,</span> <span class="n">operation</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">reg_apps</span></div>
+
+<div class="viewcode-block" id="AzureAd.ent_app_ops"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.ent_app_ops">[docs]</a>    <span class="k">def</span> <span class="nf">ent_app_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;list&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; enterprise app related operations</span>
+<span class="sd">        args:</span>
+<span class="sd">            operation(string)    supported operation from the following ops</span>
+<span class="sd">                                    list, create, delete, find, update</span>
+<span class="sd">                                    default option is list operation</span>
+<span class="sd">            kwargs    (dict)    additional parameter to operation on azure ad obj</span>
+<span class="sd">        return:</span>
+<span class="sd">            ent_apps    (objs)    azure ent_apps objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ent_apps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="s2">&quot;ent_app&quot;</span><span class="p">,</span> <span class="n">operation</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ent_apps</span></div>
+
+    <span class="k">def</span> <span class="nf">_type_create_decoration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_</span><span class="p">,</span> <span class="n">new_define</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; process specail case for object creation maping</span>
+<span class="sd">        args:</span>
+<span class="sd">            type_    (string)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            new_define    (obj)    auzre ad creattion obj based on input</span>
+<span class="sd">        return:</span>
+<span class="sd">            new_define    (obj)    azure ad creation obj with correct value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">type_</span> <span class="o">==</span> <span class="s2">&quot;user&quot;</span><span class="p">:</span>
+            <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;user_principal_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;user_principal_name&#39;</span><span class="p">]</span>\
+                                                <span class="o">+</span><span class="n">f</span><span class="s2">&quot;@</span><span class="si">{self.domainname}</span><span class="s2">&quot;</span>
+            <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;account_enabled&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;password_profile&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">PasswordProfile</span><span class="p">(</span><span class="n">password</span><span class="o">=</span><span class="s1">&#39;MyStr0ngP4ssword&#39;</span><span class="p">,</span>
+                                                             <span class="n">force_change_password_next_login</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">type_</span> <span class="o">==</span> <span class="s2">&quot;reg_app&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;identifier_uris&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">new_define</span><span class="p">:</span>
+                <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;identifier_uris&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">elif</span> <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;identifier_uris&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;Script&quot;</span><span class="p">):</span>
+                <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;identifier_uris&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;available_to_other_tenants&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="n">type_</span> <span class="o">==</span> <span class="s2">&quot;ent_app&quot;</span><span class="p">:</span>
+            <span class="n">new_reg_app</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reg_app_ops</span><span class="p">(</span><span class="n">operation</span><span class="o">=</span><span class="s2">&quot;create&quot;</span><span class="p">,</span>
+                                           <span class="o">**</span><span class="p">{</span><span class="s2">&quot;displayname&quot;</span><span class="p">:</span> <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;displayname&#39;</span><span class="p">]})</span>
+            <span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;app_id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_reg_app</span><span class="o">.</span><span class="n">app_id</span>
+            <span class="n">new_define</span><span class="p">[</span><span class="s2">&quot;account_enabled&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="c1"># have to remove the displayname before create script principal object</span>
+            <span class="k">del</span><span class="p">(</span><span class="n">new_define</span><span class="p">[</span><span class="s1">&#39;displayname&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">new_define</span>
+
+    <span class="k">def</span> <span class="nf">_find_objs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; find the objects based on give name or pattern</span>
+<span class="sd">        args:</span>
+<span class="sd">            type_    (string)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            kwargs    (dict)    additional parameter to operation on azure ad obj</span>
+<span class="sd">        return:</span>
+<span class="sd">            matchobjs    (objs)    founded objects in azure ad</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">matchobjs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="s2">&quot;args&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">displaykey</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">displaypattern</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;args&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">displaykey</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">displaypattern</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">displaykey</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;find </span><span class="si">{}</span><span class="s2"> object with the display key </span><span class="si">{}</span><span class="s2"> and pattern </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                       <span class="nb">format</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="n">displaykey</span><span class="p">,</span> <span class="n">displaypattern</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">displaypattern</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">displaypattern</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">operation</span> <span class="o">=</span> <span class="s2">&quot;match&quot;</span>
+            <span class="n">displayname</span> <span class="o">=</span> <span class="n">displaypattern</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">operation</span> <span class="o">=</span> <span class="s2">&quot;find&quot;</span>
+            <span class="n">displayname</span> <span class="o">=</span> <span class="n">displaypattern</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;will use method </span><span class="si">{operation}</span><span class="s2"> to get objects&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="s2">&quot;list&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">displaykey</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">attr_ins</span> <span class="o">=</span> <span class="n">_</span><span class="o">.</span><span class="n">display_name</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">type_</span> <span class="o">==</span> <span class="s2">&quot;ent_app&quot;</span><span class="p">:</span>
+                    <span class="n">attr_ins</span> <span class="o">=</span> <span class="n">_</span><span class="o">.</span><span class="n">display_name</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">attr_ins</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">AZUREAD_TYPE_CREATE_ENTRIES</span><span class="p">[</span><span class="n">type_</span><span class="p">][</span><span class="n">displaykey</span><span class="p">])</span>
+
+                <span class="k">if</span> <span class="n">operation</span> <span class="o">==</span> <span class="s2">&quot;match&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">attr_ins</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">displayname</span><span class="p">):</span>
+                        <span class="n">matchobjs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">attr_ins</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">displayname</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">matchobjs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;found </span><span class="si">{}</span><span class="s2"> objects,here are the objects list: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                       <span class="nb">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">matchobjs</span><span class="p">),</span> <span class="p">[</span><span class="n">_</span><span class="o">.</span><span class="n">object_id</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">matchobjs</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="n">matchobjs</span>
+
+    <span class="k">def</span> <span class="nf">_get_domain_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; get domain name from the tenant</span>
+<span class="sd">        args:</span>
+<span class="sd">        return:</span>
+<span class="sd">            domainname    (string)    domain name in auzre ad</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">graphclient</span><span class="o">.</span><span class="n">domains</span><span class="o">.</span><span class="n">list</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">_</span><span class="o">.</span><span class="n">is_default</span><span class="p">:</span>
+                <span class="n">domainname</span> <span class="o">=</span> <span class="n">_</span><span class="o">.</span><span class="n">name</span>
+                <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">domainname</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">domainname</span>
+
+<div class="viewcode-block" id="AzureAd.group_objs_create"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.group_objs_create">[docs]</a>    <span class="k">def</span> <span class="nf">group_objs_create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">prestring</span><span class="o">=</span><span class="s2">&quot;Script&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; create group objects based on the types</span>
+<span class="sd">        args:</span>
+<span class="sd">            type_    (string)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            prestring (string)    the string put before the object name</span>
+<span class="sd">        return:</span>
+<span class="sd">            group_objs    (dict)    dict for each type. a list of type objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">group_objs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">types</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">types</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">AZUREAD_SUPPORTED_TYPE_MAPPER</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="k">for</span> <span class="n">type_</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+            <span class="n">ins_type_name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{type_}</span><span class="s2">_ops&quot;</span><span class="p">)</span>
+            <span class="n">type_objects</span> <span class="o">=</span> <span class="n">ins_type_name</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;There are total {len(type_objects)} </span><span class="si">{type_}</span><span class="s2"> in Azure directory&quot;</span><span class="p">)</span>
+            <span class="n">newobj_name</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{prestring}</span><span class="s2">_</span><span class="si">{type_}</span><span class="s2">&quot;</span>
+            <span class="k">if</span> <span class="n">type_</span> <span class="o">==</span> <span class="s2">&quot;user&quot;</span><span class="p">:</span>
+                <span class="n">new_obj</span> <span class="o">=</span> <span class="n">ins_type_name</span><span class="p">(</span><span class="s2">&quot;create&quot;</span><span class="p">,</span>
+                                        <span class="o">**</span><span class="p">{</span><span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">newobj_name</span><span class="p">,</span>
+                                           <span class="s2">&quot;displayname&quot;</span><span class="p">:</span> <span class="n">newobj_name</span><span class="p">})</span>
+            <span class="k">elif</span> <span class="n">type_</span> <span class="o">==</span> <span class="s2">&quot;group&quot;</span><span class="p">:</span>
+                <span class="n">new_obj</span> <span class="o">=</span> <span class="n">ins_type_name</span><span class="p">(</span><span class="s2">&quot;create&quot;</span><span class="p">,</span> <span class="o">**</span><span class="p">{</span><span class="s2">&quot;displayname&quot;</span><span class="p">:</span> <span class="n">newobj_name</span><span class="p">})</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">new_obj</span> <span class="o">=</span> <span class="n">ins_type_name</span><span class="p">(</span><span class="s2">&quot;create&quot;</span><span class="p">,</span> <span class="o">**</span><span class="p">{</span><span class="s2">&quot;displayname&quot;</span><span class="p">:</span> <span class="n">newobj_name</span><span class="p">})</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;a new </span><span class="si">{type_}</span><span class="s2"> object created </span><span class="si">{new_obj}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">group_objs</span><span class="p">[</span><span class="n">type_</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_obj</span>
+        <span class="k">return</span> <span class="n">group_objs</span></div>
+
+<div class="viewcode-block" id="AzureAd.group_objs_check"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.group_objs_check">[docs]</a>    <span class="k">def</span> <span class="nf">group_objs_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">types</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; return objects list</span>
+<span class="sd">        args:</span>
+<span class="sd">            type_    (string)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">        return:</span>
+<span class="sd">            group_objs    (dict)    dict for each type. a list of type objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">group_objs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">types</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">types</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">AZUREAD_SUPPORTED_TYPE_MAPPER</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="k">for</span> <span class="n">type_</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+            <span class="n">ins_type_name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{type_}</span><span class="s2">_ops&quot;</span><span class="p">)</span>
+            <span class="n">type_objects</span> <span class="o">=</span> <span class="n">ins_type_name</span><span class="p">()</span>
+            <span class="n">group_objs</span><span class="p">[</span><span class="n">type_</span><span class="p">]</span> <span class="o">=</span> <span class="n">type_objects</span>
+
+        <span class="k">return</span> <span class="n">group_objs</span></div>
+
+<div class="viewcode-block" id="AzureAd.azuread_obj_mapper"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.azuread_obj_mapper">[docs]</a>    <span class="k">def</span> <span class="nf">azuread_obj_mapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; covnert the auzre objects to a readable objects</span>
+<span class="sd">        args:</span>
+<span class="sd">            obj_     (obj)    auzre ad object</span>
+<span class="sd">        return:</span>
+<span class="sd">            obj_dict    (dict)    return dict of azure ad object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">obj_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">type_name</span> <span class="o">=</span> <span class="n">obj_</span><span class="o">.</span><span class="n">additional_properties</span><span class="p">[</span><span class="s1">&#39;odata.type&#39;</span><span class="p">]</span>
+        <span class="n">type_</span> <span class="o">=</span> <span class="n">AZUREAD_TYPE_ODATA_MAPPER</span><span class="p">[</span><span class="n">type_name</span><span class="p">]</span>
+        <span class="n">obj_dict</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">type_</span>
+        <span class="n">obj_dict</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj_</span><span class="o">.</span><span class="n">display_name</span>
+        <span class="n">obj_dict</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj_</span><span class="o">.</span><span class="n">object_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;will convert the Azure ad object :</span><span class="se">\n</span><span class="si">{}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">to readable obj:</span><span class="se">\n</span><span class="s2"> </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                       <span class="nb">format</span><span class="p">(</span><span class="n">obj_</span><span class="p">,</span> <span class="n">obj_dict</span><span class="p">))</span>
+        <span class="n">obj_dict</span><span class="p">[</span><span class="s1">&#39;adv_attribute&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">AZUREAD_TYPE_ATTRIBUTES</span><span class="p">[</span><span class="n">type_</span><span class="p">]:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">obj_dict</span><span class="p">[</span><span class="s1">&#39;adv_attribute&#39;</span><span class="p">][</span><span class="n">_</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj_</span><span class="p">,</span> <span class="n">_</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{type_}</span><span class="s2"> object </span><span class="si">{obj_.object_id}</span><span class="s2"> do not have </span><span class="si">{_}</span><span class="s2"> attribute&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj_dict</span></div>
+
+<div class="viewcode-block" id="AzureAd.get_delete_objs"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.get_delete_objs">[docs]</a>    <span class="k">def</span> <span class="nf">get_delete_objs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; get delete items by type</span>
+<span class="sd">        args:</span>
+<span class="sd">            type_    (string)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">        return:</span>
+<span class="sd">            objs_     (obj)    azure ad objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">objs_</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">deleted_obj_list</span><span class="p">(</span><span class="n">type_</span><span class="p">):</span>
+            <span class="n">objs_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">objs_</span></div>
+
+<div class="viewcode-block" id="AzureAd.deleted_obj_list"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.deleted_obj_list">[docs]</a>    <span class="k">def</span> <span class="nf">deleted_obj_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_</span><span class="p">,</span> <span class="n">objectid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; get the delete objects list</span>
+<span class="sd">        args:</span>
+<span class="sd">            type_    (string)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            objectid    (string)    azure ad object id string</span>
+<span class="sd">        return:</span>
+<span class="sd">            objs     (obj)    azure ad objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">objectid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">graph_api_endpoint</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;/directory/deletedItems/</span><span class="si">{objectid}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">deleted_obj_mapper</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;user&quot;</span> <span class="p">:</span> <span class="s1">&#39;/directory/deletedItems/microsoft.graph.user&#39;</span><span class="p">,</span>
+                                  <span class="s2">&quot;group&quot;</span> <span class="p">:</span> <span class="s2">&quot;/directory/deletedItems/microsoft.graph.group&quot;</span><span class="p">,</span>
+                                  <span class="s2">&quot;reg_app&quot;</span> <span class="p">:</span> \
+                                  <span class="s2">&quot;/directory/deletedItems/microsoft.graph.application&quot;</span><span class="p">,</span>
+                                  <span class="s2">&quot;ent_app&quot;</span> <span class="p">:</span> \
+                                  <span class="s2">&quot;/directory/deletedItems/microsoft.graph.serviceprincipal&quot;</span><span class="p">}</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">graph_api_endpoint</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">deleted_obj_mapper</span><span class="p">[</span><span class="n">type_</span><span class="p">])</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="n">objs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_graph_requests_result_process</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">result</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">400</span><span class="p">:</span>
+            <span class="n">objs</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="n">result</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+            <span class="n">objs</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ADException</span><span class="p">(</span><span class="s2">&quot;azuread&quot;</span><span class="p">,</span> <span class="mi">501</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot; </span><span class="si">{url}</span><span class="s2"> reutrn </span><span class="si">{result.text}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">objs</span></div>
+
+    <span class="k">def</span> <span class="nf">_graph_requests_result_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; process requests result</span>
+<span class="sd">        args:</span>
+<span class="sd">            result    (obj)    request response result</span>
+<span class="sd">        return:</span>
+<span class="sd">            return_result    (list)    a list of result in json format</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;value&quot;</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+            <span class="n">return_result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">json</span><span class="p">(),</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">return_result</span> <span class="o">=</span> <span class="p">[</span><span class="n">result</span><span class="o">.</span><span class="n">json</span><span class="p">()]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;here is the request result </span><span class="si">{result}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">return_result</span>
+
+<div class="viewcode-block" id="AzureAd.deleted_obj_delete"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.deleted_obj_delete">[docs]</a>    <span class="k">def</span> <span class="nf">deleted_obj_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objectid</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; hard delete deleted object from recycle bin</span>
+<span class="sd">        args:</span>
+<span class="sd">             objectid    (string)    azure ad object id string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">objectid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ADException</span><span class="p">(</span><span class="s2">&quot;azuread&quot;</span><span class="p">,</span> <span class="mi">503</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">graph_api_endpoint</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;/directory/deletedItems/</span><span class="si">{objectid}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">204</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ADException</span><span class="p">(</span><span class="s2">&quot;azuread&quot;</span><span class="p">,</span> <span class="mi">502</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AzureAd.deleted_obj_clean"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.AzureAd.deleted_obj_clean">[docs]</a>    <span class="k">def</span> <span class="nf">deleted_obj_clean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">types</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; clean all deleted objects</span>
+<span class="sd">        args:</span>
+<span class="sd">            types    (list)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">type_</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+            <span class="n">del_objs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deleted_obj_list</span><span class="p">(</span><span class="n">type_</span><span class="p">)</span>
+            <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">del_objs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;There are {len(del_objs)} found in </span><span class="si">{type_}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">del_objs</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{_[&#39;id&#39;]}</span><span class="s2">  with name </span><span class="si">{_[&#39;displayName&#39;]}</span><span class="s2"> will be hard deleted&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">deleted_obj_delete</span><span class="p">(</span><span class="n">objectid</span><span class="o">=</span><span class="n">_</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+                <span class="n">del_objs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deleted_obj_list</span><span class="p">(</span><span class="n">type_</span><span class="p">)</span></div></div>
+
+<div class="viewcode-block" id="CvAzureAd"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.CvAzureAd">[docs]</a><span class="k">class</span> <span class="nc">CvAzureAd</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot; azure ad class for CV software&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aad_ins</span><span class="p">,</span> <span class="n">sc_ins</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; initial class</span>
+<span class="sd">        args:</span>
+<span class="sd">            aad_ins     ins    AzureAd instance</span>
+<span class="sd">            sc_ins        ins     subclient instnace from test case</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">aad_ins</span><span class="o">.</span><span class="n">log</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span> <span class="o">=</span> <span class="n">aad_ins</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span> <span class="o">=</span> <span class="n">sc_ins</span>
+
+
+<div class="viewcode-block" id="CvAzureAd.cv_restore_option_builder"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.CvAzureAd.cv_restore_option_builder">[docs]</a>    <span class="k">def</span> <span class="nf">cv_restore_option_builder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cv_objs</span><span class="p">,</span> <span class="n">type_</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; create cv restore option file</span>
+<span class="sd">        args:</span>
+<span class="sd">            cv_objs    list    azuread objects stored in cv backup</span>
+<span class="sd">            types    (list)    object type, select from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            overwrite    Boolean    restore overwrite option</span>
+<span class="sd">        return:</span>
+<span class="sd">            restore_options    dict    restore option to create restore job</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">restore_items</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;This is the object will be restored </span><span class="si">{cv_objs}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">cv_objs</span><span class="p">:</span>
+            <span class="n">item_</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span> <span class="p">:</span> <span class="n">AZUREAD_INDEX_META_MAPPER</span><span class="p">[</span><span class="n">type_</span><span class="p">],</span>
+                     <span class="s2">&quot;isFolder&quot;</span> <span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">_</span><span class="p">[</span><span class="s1">&#39;guid&#39;</span><span class="p">]}</span>
+            <span class="n">restore_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item_</span><span class="p">)</span>
+        <span class="n">restore_options</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;fs_options&quot;</span> <span class="p">:</span> <span class="p">{</span><span class="s2">&quot;overwrite&quot;</span> <span class="p">:</span> <span class="n">overwrite</span><span class="p">},</span>
+                           <span class="s2">&quot;restore_option&quot;</span> <span class="p">:</span> <span class="p">{</span><span class="s2">&quot;azureADOption&quot;</span> <span class="p">:</span> <span class="p">{</span><span class="s2">&quot;restoreAllMatching&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                                                                  <span class="s2">&quot;restoreMembership&quot;</span> <span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                                                                  <span class="s2">&quot;newUserDefaultPassword&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                                                                  <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="n">restore_items</span><span class="p">}}}</span>
+        <span class="k">return</span> <span class="n">restore_options</span></div>
+
+<div class="viewcode-block" id="CvAzureAd.cv_obj_delete_restore"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.CvAzureAd.cv_obj_delete_restore">[docs]</a>    <span class="k">def</span> <span class="nf">cv_obj_delete_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sourceobjs</span><span class="p">,</span> <span class="n">types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">harddelete</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; process azure ad object, delete it first delete then run the restore job</span>
+<span class="sd">        args:</span>
+<span class="sd">            sourceobjs    list    auzre ad objects of source</span>
+<span class="sd">            types        list    list of types from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            harddelete    Boolean    if the object type support hard delete or not</span>
+<span class="sd">        return:</span>
+<span class="sd">            obj_result    list    azure ad objects after rstore job</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">types</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">types</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">AZUREAD_SUPPORTED_TYPE_MAPPER</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">obj_result</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">type_</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+            <span class="n">obj_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">azuread_obj_mapper</span><span class="p">(</span><span class="n">sourceobjs</span><span class="p">[</span><span class="n">type_</span><span class="p">])</span>
+
+            <span class="n">find_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="s2">&quot;find&quot;</span><span class="p">,</span>
+                                                      <span class="o">**</span><span class="p">{</span><span class="s2">&quot;displayname&quot;</span> <span class="p">:</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]})</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">find_result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;found one matching obj with name </span><span class="si">{}</span><span class="s2"> and id is </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                               <span class="nb">format</span><span class="p">(</span><span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]))</span>
+            <span class="c1"># deleted objects</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="s2">&quot;delete&quot;</span><span class="p">,</span>
+                                        <span class="o">**</span><span class="p">{</span><span class="s2">&quot;displayname&quot;</span><span class="p">:</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]})</span>
+            <span class="c1"># check if the object move to recycle bin,wait 10 seconds to check delete obj</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wait for 60 seconds to check delete item in recycle bine&quot;</span><span class="p">)</span>
+            <span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">deleted_obj_list</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">deleted_state</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> object </span><span class="si">{}</span><span class="s2"> found in recycle bin with value like </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                               <span class="nb">format</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+                <span class="k">if</span> <span class="n">harddelete</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;hard delete is set, will permanent delete it&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">deleted_obj_delete</span><span class="p">(</span><span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{type_}</span><span class="s2"> object </span><span class="si">{obj_[&#39;id&#39;]}</span><span class="s2"> is deleted&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">deleted_state</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> object </span><span class="si">{}</span><span class="s2"> NOT found. it is hard deleted already&quot;</span><span class="o">.</span>\
+                               <span class="nb">format</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]))</span>
+
+            <span class="n">find_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="s2">&quot;find&quot;</span><span class="p">,</span>
+                                                      <span class="o">**</span><span class="p">{</span><span class="s2">&quot;displayname&quot;</span> <span class="p">:</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]})</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">find_result</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{type_}</span><span class="s2"> object </span><span class="si">{obj_[&#39;name&#39;]}</span><span class="s2"> is removed&quot;</span><span class="p">)</span>
+
+            <span class="n">job_ins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_obj_restore</span><span class="p">(</span><span class="n">obj_</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Wait for 30 seconds to check objects after restore&quot;</span><span class="p">)</span>
+            <span class="n">sleep</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+            <span class="n">obj_match</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_obj_compare</span><span class="p">(</span><span class="n">obj_</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">deleted_state</span><span class="p">:</span>
+                <span class="n">obj_result_new</span> <span class="o">=</span> <span class="n">obj_match</span>
+                <span class="k">if</span> <span class="n">harddelete</span><span class="p">:</span>
+                    <span class="n">obj_result_new</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">obj_match</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">obj_result_new</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">obj_match</span>
+            <span class="n">obj_result</span><span class="p">[</span><span class="n">type_</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">job_ins</span><span class="p">,</span> <span class="n">obj_result_new</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj_result</span></div>
+
+<div class="viewcode-block" id="CvAzureAd.cv_obj_change"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.CvAzureAd.cv_obj_change">[docs]</a>    <span class="k">def</span> <span class="nf">cv_obj_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sourceobjs</span><span class="p">,</span> <span class="n">types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">changevalue</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; process auzre object, change one attribute, then restor it</span>
+<span class="sd">        args:</span>
+<span class="sd">            sourceobjs    list    auzre ad objects of source</span>
+<span class="sd">            types        list    list of types from the following type</span>
+<span class="sd">                                    user, group, reg_app, ent_app</span>
+<span class="sd">            changevlue    dict    type based change dict, will pass to change option</span>
+<span class="sd">        return:</span>
+<span class="sd">            changevalue    dict    type based change dict, use for compare</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">types</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">types</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">AZUREAD_SUPPORTED_TYPE_MAPPER</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Here is the </span><span class="si">{types}</span><span class="s1"> we used to update attribute&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">changevalue</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">changevalue</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;start to get default change value for </span><span class="si">{_}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">change_name</span> <span class="o">=</span> <span class="n">AZUREAD_TYPE_ATTRIBUTES</span><span class="p">[</span><span class="n">_</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">change_value</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{change_name}</span><span class="s2">_changed_value&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;here is the default change atttribute </span><span class="si">{}</span><span class="s2"> and value </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                               <span class="nb">format</span><span class="p">(</span><span class="n">change_name</span><span class="p">,</span> <span class="n">change_value</span><span class="p">))</span>
+                <span class="n">changevalue</span><span class="p">[</span><span class="n">_</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">change_name</span> <span class="p">:</span> <span class="n">change_value</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Here is the change value </span><span class="si">{changevalue}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">type_</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">changevalue</span><span class="p">[</span><span class="n">type_</span><span class="p">]:</span>
+                <span class="n">change_name</span> <span class="o">=</span> <span class="n">_</span>
+                <span class="n">change_value</span> <span class="o">=</span> <span class="n">changevalue</span><span class="p">[</span><span class="n">type_</span><span class="p">][</span><span class="n">change_name</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;here is the attribute </span><span class="si">{}</span><span class="s2"> and old value </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                               <span class="nb">format</span><span class="p">(</span><span class="n">change_name</span><span class="p">,</span> <span class="n">change_value</span><span class="p">))</span>
+            <span class="n">obj_</span> <span class="o">=</span> <span class="n">sourceobjs</span><span class="p">[</span><span class="n">type_</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{type_}</span><span class="s1"> object with id </span><span class="si">{obj_.object_id}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">updateinfo</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;find&quot;</span> <span class="p">:</span> <span class="p">{</span><span class="s2">&quot;displayname&quot;</span><span class="p">:</span> <span class="n">obj_</span><span class="o">.</span><span class="n">display_name</span><span class="p">},</span>
+                          <span class="s2">&quot;update&quot;</span> <span class="p">:</span> <span class="n">changevalue</span><span class="p">[</span><span class="n">type_</span><span class="p">]}</span>
+
+            <span class="n">new_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="s2">&quot;update&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">updateinfo</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">type_</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;user&#39;</span><span class="p">,</span> <span class="s2">&quot;ent_app&quot;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;here is the </span><span class="si">{}</span><span class="s2"> object </span><span class="si">{}</span><span class="s2"> attribute value </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                               <span class="nb">format</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span>
+                                      <span class="n">new_obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">object_id</span><span class="p">,</span>
+                                      <span class="nb">getattr</span><span class="p">(</span><span class="n">new_obj</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">change_name</span><span class="p">)))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;check the owner of the object&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">changevalue</span></div>
+
+<div class="viewcode-block" id="CvAzureAd.cv_obj_change_browse_check"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.CvAzureAd.cv_obj_change_browse_check">[docs]</a>    <span class="k">def</span> <span class="nf">cv_obj_change_browse_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sourceobjs</span><span class="p">,</span> <span class="n">changevalue</span><span class="p">,</span> <span class="n">job_ins</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; process azure objects, check browse result and see if we get update value</span>
+<span class="sd">        args:</span>
+<span class="sd">            sourceobjs    list    auzre ad objects of source</span>
+<span class="sd">            changevlue    dict    type based change dict, will pass to change option</span>
+<span class="sd">            job_ins        ins    the latest backup job instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">types</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sourceobjs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">browse_time</span> <span class="o">=</span> <span class="n">job_ins</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;lastUpdateTime&#39;</span><span class="p">]</span>
+        <span class="n">jobinfo</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">jobinfo</span><span class="p">[</span><span class="s1">&#39;totalobjs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_ins</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;totalNumOfFiles&#39;</span><span class="p">]</span>
+        <span class="n">jobinfo</span><span class="p">[</span><span class="s1">&#39;totalsize&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_ins</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;sizeOfApplication&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;here is the backup job info: </span><span class="si">{jobinfo}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Backup job </span><span class="si">{job_ins.job_id}</span><span class="s2"> with browse time </span><span class="si">{browse_time}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Here is the value we want to change </span><span class="si">{changevalue}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">type_</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+            <span class="n">obj_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">azuread_obj_mapper</span><span class="p">(</span><span class="n">sourceobjs</span><span class="p">[</span><span class="n">type_</span><span class="p">])</span>
+            <span class="n">browse_option</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;to_time&quot;</span> <span class="p">:</span> <span class="n">browse_time</span><span class="p">,</span>
+                <span class="s2">&quot;folder&quot;</span> <span class="p">:</span> <span class="n">type_</span><span class="p">,</span>
+                <span class="s2">&quot;show_deleted&quot;</span> <span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;search&quot;</span> <span class="p">:</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
+                <span class="s2">&quot;adv_attributes&quot;</span> <span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+            <span class="n">count</span><span class="p">,</span> <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">browse</span><span class="p">(</span><span class="n">browse_option</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;browse found </span><span class="si">{count}</span><span class="s2"> objects. Here is the result </span><span class="si">{result}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">adv_value</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;adv_attribute&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{type_}</span><span class="s2"> object adv attributes are </span><span class="si">{adv_value}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CvAzureAd.cv_obj_change_restore"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.CvAzureAd.cv_obj_change_restore">[docs]</a>    <span class="k">def</span> <span class="nf">cv_obj_change_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sourceobjs</span><span class="p">,</span> <span class="n">job_ins</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; run retore job from base and restore to old way</span>
+<span class="sd">        args:</span>
+<span class="sd">            sourceobjs    list    auzre ad objects of source</span>
+<span class="sd">            job_ins        ins    the resetore job instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">types</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sourceobjs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">browse_time</span> <span class="o">=</span> <span class="n">job_ins</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;lastUpdateTime&#39;</span><span class="p">]</span>
+        <span class="n">jobinfo</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">jobinfo</span><span class="p">[</span><span class="s1">&#39;totalobjs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_ins</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;totalNumOfFiles&#39;</span><span class="p">]</span>
+        <span class="n">jobinfo</span><span class="p">[</span><span class="s1">&#39;totalsize&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_ins</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;sizeOfApplication&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;here is the backup job info: </span><span class="si">{jobinfo}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Backup job </span><span class="si">{job_ins.job_id}</span><span class="s2"> with browse time </span><span class="si">{browse_time}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">type_</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+            <span class="n">browse_option</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;to_time&quot;</span> <span class="p">:</span> <span class="n">browse_time</span><span class="p">,</span>
+                <span class="s2">&quot;folder&quot;</span> <span class="p">:</span> <span class="n">type_</span><span class="p">,</span>
+                <span class="s2">&quot;show_deleted&quot;</span> <span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+            <span class="n">count</span><span class="p">,</span> <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">browse</span><span class="p">(</span><span class="n">browse_option</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;found </span><span class="si">{count}</span><span class="s2"> objects. Here is the result </span><span class="si">{result}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CvAzureAd.cv_obj_restore"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.CvAzureAd.cv_obj_restore">[docs]</a>    <span class="k">def</span> <span class="nf">cv_obj_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj_</span><span class="p">,</span> <span class="n">matchobj</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; run a restore job with more options</span>
+<span class="sd">        args:</span>
+<span class="sd">            obj_    obj    azure ad object</span>
+<span class="sd">            matchobj     Boolean    decide if search by object id or name</span>
+<span class="sd">        return:</span>
+<span class="sd">            restore_job    ins    restore job instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;start to restore </span><span class="si">{obj_}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">count</span><span class="p">,</span> <span class="n">aad_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">browse</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="s2">&quot;folder&quot;</span> <span class="p">:</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">],</span>
+                                                  <span class="s2">&quot;search&quot;</span> <span class="p">:</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
+                                                  <span class="s2">&quot;show_deleted&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;restore </span><span class="si">{count}</span><span class="s2"> ojbects and the objcts list is </span><span class="si">{aad_ids}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">matchobj</span><span class="p">:</span>
+            <span class="n">match_obj</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">aad_ids</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_</span><span class="p">[</span><span class="s1">&#39;azureid&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]:</span>
+                    <span class="n">match_obj</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_</span><span class="p">)</span>
+                    <span class="k">break</span>
+            <span class="n">aad_ids</span> <span class="o">=</span> <span class="n">match_obj</span>
+        <span class="n">restore_option</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cv_restore_option_builder</span><span class="p">(</span><span class="n">aad_ids</span><span class="p">,</span> <span class="n">obj_</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">])</span>
+        <span class="n">restore_job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">(</span><span class="o">**</span><span class="n">restore_option</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;restore job </span><span class="si">{restore_job.job_id}</span><span class="s2"> started&quot;</span><span class="p">)</span>
+        <span class="n">jobresult</span> <span class="o">=</span> <span class="n">restore_job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">jobresult</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ADException</span><span class="p">(</span><span class="s2">&quot;cvaad&quot;</span><span class="p">,</span> <span class="mi">201</span><span class="p">,</span>
+                              <span class="n">f</span><span class="s2">&quot;restore job have some issue </span><span class="si">{restore_job.summary}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;restore job </span><span class="si">{restore_job.job_id}</span><span class="s2"> is completed with </span><span class="si">{jobresult}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">restore_job</span></div>
+
+<div class="viewcode-block" id="CvAzureAd.cv_obj_compare"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.CvAzureAd.cv_obj_compare">[docs]</a>    <span class="k">def</span> <span class="nf">cv_obj_compare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; find the matching objects and compare with source obj</span>
+<span class="sd">        args:</span>
+<span class="sd">            source_obj    list    azure ad object</span>
+<span class="sd">        return:</span>
+<span class="sd">            obj_match    Boolean    return compare result state</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">find_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">type_operation</span><span class="p">(</span><span class="n">source_obj</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">],</span> <span class="s2">&quot;find&quot;</span><span class="p">,</span>
+                                                  <span class="o">**</span><span class="p">{</span><span class="s2">&quot;displayname&quot;</span> <span class="p">:</span> <span class="n">source_obj</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]})</span>
+        <span class="n">obj_match</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">find_result</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;There are {len(find_result)} result found&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">find_result</span><span class="p">:</span>
+                <span class="n">find_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aad_ins</span><span class="o">.</span><span class="n">azuread_obj_mapper</span><span class="p">(</span><span class="n">_</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">find_obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">source_obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> object name </span><span class="si">{}</span><span class="s2"> with id </span><span class="si">{}</span><span class="s2"> is restored&quot;</span><span class="o">.</span>\
+                                   <span class="nb">format</span><span class="p">(</span><span class="n">source_obj</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">],</span>
+                                          <span class="n">find_obj</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span>
+                                          <span class="n">find_obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]))</span>
+                    <span class="n">obj_match</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">the restore id is not match , original id is </span><span class="si">{}</span><span class="s2"> and restored id is </span><span class="si">{}</span><span class="s2">&quot;&quot;&quot;</span><span class="o">.</span>\
+                                   <span class="nb">format</span><span class="p">(</span><span class="n">source_obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">find_obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="n">obj_match</span></div>
+
+<div class="viewcode-block" id="CvAzureAd.cv_obj_browse_check"><a class="viewcode-back" href="../../../source/Application.AD.html#Application.AD.ms_azuread.CvAzureAd.cv_obj_browse_check">[docs]</a>    <span class="k">def</span> <span class="nf">cv_obj_browse_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_objs</span><span class="p">,</span> <span class="n">job_ins</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; check backup job result and source obj</span>
+<span class="sd">        args:</span>
+<span class="sd">            source_obj    list    azure ad objects list of source data</span>
+<span class="sd">            job_ins        ins    the latest backup job instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">types</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">source_objs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="n">browse_time</span> <span class="o">=</span> <span class="n">job_ins</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;lastUpdateTime&#39;</span><span class="p">]</span>
+        <span class="n">jobinfo</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">jobinfo</span><span class="p">[</span><span class="s1">&#39;totalobjs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_ins</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;totalNumOfFiles&#39;</span><span class="p">]</span>
+        <span class="n">jobinfo</span><span class="p">[</span><span class="s1">&#39;totalsize&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">job_ins</span><span class="o">.</span><span class="n">summary</span><span class="p">[</span><span class="s1">&#39;sizeOfApplication&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;here is the backup job info: </span><span class="si">{jobinfo}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Backup job </span><span class="si">{job_ins.job_id}</span><span class="s2"> with browse time </span><span class="si">{browse_time}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">type_</span> <span class="ow">in</span> <span class="n">types</span><span class="p">:</span>
+            <span class="n">browse_option</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;to_time&quot;</span> <span class="p">:</span> <span class="n">browse_time</span><span class="p">,</span>
+                <span class="s2">&quot;folder&quot;</span> <span class="p">:</span> <span class="n">type_</span><span class="p">,</span>
+                <span class="s2">&quot;show_deleted&quot;</span> <span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+            <span class="n">count</span><span class="p">,</span> <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">browse</span><span class="p">(</span><span class="n">browse_option</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_objs</span><span class="p">[</span><span class="n">type_</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot; Browse return </span><span class="si">{count}</span><span class="s2">, it match objects in azure AD </span><span class="si">{result}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ADException</span><span class="p">(</span><span class="s2">&quot;cvaad&quot;</span><span class="p">,</span> <span class="mi">301</span><span class="p">,</span>
+                                  <span class="s2">&quot;browse return </span><span class="si">{}</span><span class="s2"> and objects in ad is </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span>\
+                                  <span class="nb">format</span><span class="p">(</span><span class="n">count</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_objs</span><span class="p">[</span><span class="n">type_</span><span class="p">])))</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

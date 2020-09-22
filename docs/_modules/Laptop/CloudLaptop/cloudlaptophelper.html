@@ -1,38 +1,39 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Laptop.CloudLaptop.cloudlaptophelper &mdash; Commvault Automation 11.20 documentation</title>
+  <title>Laptop.CloudLaptop.cloudlaptophelper &mdash; Commvault Automation 11.21 documentation</title>
   
-
-  
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
-
-    
 
   
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" /> 
 </head>
@@ -48,7 +49,7 @@
           
 
           
-            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
           
 
           
@@ -71,6 +72,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -83,6 +85,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -121,7 +124,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
         
           <li><a href="../../index.html">Module code</a> &raquo;</li>
         
@@ -142,6 +145,7 @@
             
   <h1>Source code for Laptop.CloudLaptop.cloudlaptophelper</h1><div class="highlight"><pre>
 <span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="kn">from</span> <span class="nn">win32ctypes.core</span> <span class="k">import</span> <span class="n">_winerrors</span>
 
 <span class="c1"># --------------------------------------------------------------------------</span>
 <span class="c1"># Copyright Commvault Systems, Inc.</span>
@@ -159,204 +163,86 @@
 <span class="sd">    __repr__()                  --  Representation string for the instance</span>
 <span class="sd">                                    of the cloudlaptopHelper class.</span>
 
-<span class="sd">    get_reg_key()               --  Gets the registry key value for given registry key</span>
-<span class="sd">                                    on a client.</span>
+<span class="sd">    run_backup()                --  Check for backup to be triggered and completed successfully</span>
 
-<span class="sd">    update_reg_key()            --  update the registry key value for given registry key</span>
-<span class="sd">                                    on a client.</span>
+<span class="sd">    get_osc_min_interval()      --  Get automatic schedule&#39;s minimum backupinterval minutes</span>
+
+<span class="sd">    backup_logfile()            --  Removes and renames old logfile</span>
+
+<span class="sd">    incr_backup_and_restore()   --  Validates incremental backup and restore works fine from osc schedule</span>
+
+<span class="sd">    wait_for_full_backup()      --  Validates first full backup ran for the cloud laptop</span>
+
+<span class="sd">    osc_backup_and_restore()    --  Automatic backup and restore validation for cloud laptops</span>
+
+<span class="sd">    is_macore_installed()       --  Check if storage accelerator package is installed or not.</span>
 
 <span class="sd">    validate_restore()          --  Method to validate restore jobs with meta data and checksum</span>
 
 <span class="sd">    validate_logs()             --  Method to validate log with required log line</span>
-
-<span class="sd">    run_backup()                --  Add test data and check for backup to be triggered</span>
-<span class="sd">                                    and completed successfully</span>
-
-<span class="sd">    get_automatic_schedule_wait() -- Get automatic schedule&#39;s minimum backupinterval minutes</span>
-
-<span class="sd">    rename_remove_logfile()       -- removes and renames old logfile</span>
-
-
 <span class="sd">&quot;&quot;&quot;</span>
+
 <span class="kn">import</span> <span class="nn">inspect</span>
-<span class="kn">from</span> <span class="nn">cvpysdk.schedules</span> <span class="kn">import</span> <span class="n">Schedules</span><span class="p">,</span> <span class="n">Schedule</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">machine</span>
-<span class="kn">from</span> <span class="nn">Server</span> <span class="kn">import</span> <span class="n">serverhelper</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="kn">import</span> <span class="n">OptionsSelector</span>
+<span class="kn">import</span> <span class="nn">ntpath</span>
+
+<span class="kn">from</span> <span class="nn">cvpysdk.schedules</span> <span class="k">import</span> <span class="n">Schedules</span><span class="p">,</span> <span class="n">Schedule</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="k">import</span> <span class="n">OptionsSelector</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.idautils</span> <span class="k">import</span> <span class="n">CommonUtils</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
 
 
-<div class="viewcode-block" id="CloudLaptopHelper"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper">[docs]</a><span class="k">class</span> <span class="nc">CloudLaptopHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="CloudLaptopHelper"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper">[docs]</a><span class="k">class</span> <span class="nc">CloudLaptopHelper</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;CloudLaptopHelper class to perform Cloudlaptop related operations&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Initialize instance of the CloudLaptopHelper class.&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span> <span class="o">=</span> <span class="n">testcase</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">log</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">machin</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">utility</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">server_obj</span> <span class="o">=</span> <span class="n">serverhelper</span><span class="o">.</span><span class="n">ServerTestCases</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">schedule_obj</span> <span class="o">=</span> <span class="n">Schedules</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">subclient</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">client</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wait_secs</span> <span class="o">=</span> <span class="mi">30</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">retry_count</span> <span class="o">=</span> <span class="mi">3</span>   <span class="c1"># Times</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39; Initialize instance of CloudLaptopHelper class</span>
 
-    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="sd">        Args:</span>
+<span class="sd">            testcase (object)       : Should be testcase object</span>
+
+<span class="sd">        &#39;&#39;&#39;</span>
+
+        <span class="c1"># Pre-initialized attributes applicable for all instances of the class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span> <span class="o">=</span> <span class="n">testcase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">utils</span> <span class="o">=</span> <span class="n">CommonUtils</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">utility</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_dir</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_subclient_content_dir</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Representation string for the instance of the CloudLaptopHelper class.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="s2">&quot;CloudLaptopHelper class instance&quot;</span>
 
-<div class="viewcode-block" id="CloudLaptopHelper.get_reg_key"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.get_reg_key">[docs]</a>    <span class="k">def</span> <span class="nf">get_reg_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_id</span><span class="p">,</span> <span class="n">reg_key</span><span class="p">,</span> <span class="n">flag</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Check/Gets the registry key value for given registry key on a client</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">source_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Get source data directory&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_dir</span>
+
+    <span class="nd">@source_dir</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">source_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set source data directory&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_dir</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">subclient_content_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Get subclient content directory&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subclient_content_dir</span>
+
+    <span class="nd">@subclient_content_dir</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">subclient_content_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Set subclient content directory&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_subclient_content_dir</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="CloudLaptopHelper.run_backup"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.run_backup">[docs]</a>    <span class="k">def</span> <span class="nf">run_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">clbackup_log</span><span class="p">,</span> <span class="n">logstring</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">subclient_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Check for backup triggered and completed successfully</span>
 
 <span class="sd">        Args:</span>
 
-<span class="sd">            subclient_id  (number)     --  Sub Client id</span>
+<span class="sd">            client (obj/str)          -- Machine class object for the client Or Client Name</span>
 
-<span class="sd">            reg_key    (str)           --  Registry key path. e.g -&gt; &#39;LaptopCache&#39;</span>
-
-<span class="sd">            flag       (str)           --  Reg key name to get the value. e.g -&gt; &#39;RunStatus&#39;</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            (str/int)                  --  return value of registry.</span>
-
-<span class="sd">        Raises:</span>
-<span class="sd">            Exception:</span>
-
-<span class="sd">                - if module failed to execute due to some error</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># read the registry to check the status</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machin</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">reg_key</span><span class="p">,</span> <span class="n">subclient_id</span><span class="p">)</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting </span><span class="si">{0}</span><span class="s2"> reg key value on [</span><span class="si">{1}</span><span class="s2">]&quot;</span> <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">machin</span><span class="p">))</span>
-
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">machin</span><span class="o">.</span><span class="n">check_registry_exists</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">flag</span><span class="p">):</span>
-                <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machin</span><span class="o">.</span><span class="n">get_registry_value</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">flag</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> value: [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
-                <span class="k">return</span> <span class="n">value</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> does not exist in registry&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">))</span>
-
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
-                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> validation failed </span><span class="si">{1}</span><span class="s2"> </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
-            <span class="p">)</span></div>
-
-<div class="viewcode-block" id="CloudLaptopHelper.update_reg_key"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.update_reg_key">[docs]</a>    <span class="k">def</span> <span class="nf">update_reg_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_id</span><span class="p">,</span> <span class="n">reg_key</span><span class="p">,</span> <span class="n">flag</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; update the registry key value for given registry key on a client</span>
-
-<span class="sd">        Args:</span>
-
-<span class="sd">            subclient_id  (number)     --  Sub Client id</span>
-
-<span class="sd">            reg_key    (str)           --  Registry key path. e.g -&gt; &#39;LaptopCache&#39;</span>
-
-<span class="sd">            flag       (str)           --  Reg key name to get the value. e.g -&gt; &#39;StartNewJob&#39;</span>
-
-<span class="sd">        Raises:</span>
-<span class="sd">            Exception:</span>
-
-<span class="sd">                - if module failed to execute due to some error</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># read the registry to check the status</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machin</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">reg_key</span><span class="p">,</span> <span class="n">subclient_id</span><span class="p">)</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting </span><span class="si">{0}</span><span class="s2"> reg key value on [</span><span class="si">{1}</span><span class="s2">]&quot;</span> <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">machin</span><span class="p">))</span>
-
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">machin</span><span class="o">.</span><span class="n">check_registry_exists</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">flag</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">machin</span><span class="o">.</span><span class="n">update_registry</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">flag</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> is updated successfully with value : [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">))</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> does not exist in registry&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">))</span>
-
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
-                <span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2"> validation failed </span><span class="si">{1}</span><span class="s2"> </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
-            <span class="p">)</span></div>
-
-<div class="viewcode-block" id="CloudLaptopHelper.validate_restore"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.validate_restore">[docs]</a>    <span class="k">def</span> <span class="nf">validate_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">compare_source</span><span class="p">,</span> <span class="n">compare_destination</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Method to validate restore jobs with meta data and checksum information</span>
-
-<span class="sd">           Args:</span>
-
-<span class="sd">                compare_source          (str)    --   source path that data needs to be</span>
-<span class="sd">                                                      validated on restore completion</span>
-
-<span class="sd">                compare_destination     (str)    --   destination path from data needs to be</span>
-<span class="sd">                                                      validated on restore completion</span>
-
-<span class="sd">            Raises:</span>
-<span class="sd">                Exception:</span>
-
-<span class="sd">                    if Meta data comparison failed</span>
-
-<span class="sd">                    if Checksum comparison failed</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">machine_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_name</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Client: [</span><span class="si">{0}</span><span class="s2">], Source path [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">compare_source</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Client: [</span><span class="si">{0}</span><span class="s2">], Destination path [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="n">compare_destination</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Comparing meta data for source and destination paths&quot;</span><span class="p">)</span>
-        <span class="n">result</span><span class="p">,</span> <span class="n">diff_output</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">compare_meta_data</span><span class="p">(</span><span class="n">compare_source</span><span class="p">,</span> <span class="n">compare_destination</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Performing meta data comparison on source and destination&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Meta data comparison failed&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Diff output: </span><span class="se">\n</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">diff_output</span><span class="p">))</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Meta data comparison failed&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Meta data comparison successful&quot;</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Performing checksum comparison on source and destination&quot;</span><span class="p">)</span>
-        <span class="n">result</span><span class="p">,</span> <span class="n">diff_output</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">compare_checksum</span><span class="p">(</span><span class="n">compare_source</span><span class="p">,</span> <span class="n">compare_destination</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Checksum comparison failed&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Diff output: </span><span class="se">\n</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">diff_output</span><span class="p">))</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Checksum comparison failed&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checksum comparison successful&quot;</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="CloudLaptopHelper.validate_logs"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.validate_logs">[docs]</a>    <span class="k">def</span> <span class="nf">validate_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_machine</span><span class="p">,</span> <span class="n">validatelog</span><span class="p">,</span> <span class="n">success</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Method to validate log with required log line</span>
-
-<span class="sd">           Args:</span>
-
-<span class="sd">                client_machine   (str)   -- Client name where Log file exists</span>
-
-<span class="sd">                validatelog     (str)    -- Log file name which need to be validated</span>
-
-<span class="sd">                success         (str)    -- Log line which we want to verify</span>
-
-<span class="sd">            Raises:</span>
-<span class="sd">                Exception:</span>
-
-<span class="sd">                    if backup does not start within time</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">_wait</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_automatic_schedule_wait</span><span class="p">()</span>
-            <span class="k">for</span> <span class="n">_count</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">retry_count</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">check_file_exists</span><span class="p">(</span><span class="n">validatelog</span><span class="p">):</span>
-                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">validatelog</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file_obj</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">sleep_time</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wait_secs</span><span class="p">,</span> <span class="s2">&quot;Waiting for backup log to be completed&quot;</span><span class="p">)</span>
-                        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">file_obj</span><span class="p">:</span>
-                            <span class="k">if</span> <span class="n">success</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-                                <span class="k">return</span> <span class="kc">True</span>
-                        <span class="k">return</span> <span class="kc">False</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">sleep_time</span><span class="p">(</span><span class="n">_wait</span><span class="p">,</span> <span class="s2">&quot;Waiting for backup log to be generated&quot;</span><span class="p">)</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Backup phase did not start, Please check logs&quot;</span><span class="p">)</span>
-
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
-
-<div class="viewcode-block" id="CloudLaptopHelper.run_backup"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.run_backup">[docs]</a>    <span class="k">def</span> <span class="nf">run_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clbackup_log</span><span class="p">,</span> <span class="n">logstring</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">subclient_id</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Add testdata and check for backup triggered and completed successfully</span>
-
-<span class="sd">        Args:</span>
-
-<span class="sd">            clbackup_log  (str)         -- Clbackup log to be validated after backup</span>
+<span class="sd">            clbackup_log  (str)       -- Clbackup log to be validated after backup</span>
 
 <span class="sd">            logstring   (str)         --  Logstring which we want to verify in log.</span>
 
@@ -374,46 +260,57 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">try</span><span class="p">:</span>
+            <span class="n">machine_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">client_name</span> <span class="o">=</span> <span class="n">machine_object</span><span class="o">.</span><span class="n">machine_name</span>
 
-            <span class="c1"># step4: perform CLbackup log file validation</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate_logs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">machin</span><span class="p">,</span> <span class="n">clbackup_log</span><span class="p">,</span> <span class="n">logstring</span><span class="p">)</span>
+            <span class="c1"># Perform CLbackup log file validation</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">validate_logs</span><span class="p">(</span><span class="n">machine_object</span><span class="p">,</span> <span class="n">clbackup_log</span><span class="p">,</span> <span class="n">logstring</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;job </span><span class="si">{0}</span><span class="s2"> completed successfully on client </span><span class="si">{1}</span><span class="s2">&quot;</span>
-                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_name</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;job </span><span class="si">{0}</span><span class="s2"> completed successfully on client </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">client_name</span><span class="p">))</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;job </span><span class="si">{0}</span><span class="s2"> failed on client: </span><span class="si">{1}</span><span class="s2">, Please check the logs&quot;</span>
-                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_name</span><span class="p">))</span>
-            <span class="n">full_jobid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_reg_key</span><span class="p">(</span><span class="n">subclient_id</span><span class="p">,</span> <span class="s2">&quot;LaptopCache&quot;</span><span class="p">,</span> <span class="s2">&quot;LastFullJobID&quot;</span><span class="p">)</span>
-            <span class="c1"># validate backup is running as incremental</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;job </span><span class="si">{0}</span><span class="s2"> failed on client: </span><span class="si">{1}</span><span class="s2">, Please check the logs&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">client_name</span><span class="p">))</span>
+            <span class="n">full_jobid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">check_reg_key</span><span class="p">(</span><span class="n">machine_object</span><span class="p">,</span> <span class="s2">&quot;LaptopCache</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">subclient_id</span><span class="p">,</span> <span class="s2">&quot;LastFullJobID&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Validate backup ran as incremental</span>
             <span class="k">assert</span> <span class="n">job_id</span> <span class="o">!=</span> <span class="n">full_jobid</span><span class="p">,</span> <span class="s2">&quot;Expected Incremental job but converted to full job&quot;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Current running backup job is incremental as expected&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Backup testcase validation completed successfully on client: </span><span class="si">{0}</span><span class="s2">&quot;</span>
-                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">client_name</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Backup validation completed successfully on client: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_name</span><span class="p">))</span>
+
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
 
-<div class="viewcode-block" id="CloudLaptopHelper.get_automatic_schedule_wait"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.get_automatic_schedule_wait">[docs]</a>    <span class="k">def</span> <span class="nf">get_automatic_schedule_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="CloudLaptopHelper.get_osc_min_interval"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.get_osc_min_interval">[docs]</a>    <span class="k">def</span> <span class="nf">get_osc_min_interval</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Method to get automatic schedule&#39;s minimum backupinterval minutes</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            subclient (obj):    Subclient object</span>
+<span class="sd">                                    Default: testcase object subclient</span>
 <span class="sd">            Raises:</span>
 <span class="sd">                Exception:</span>
 
 <span class="sd">                    if module failed to execute due to some error</span>
 
+<span class="sd">            Returns:</span>
+<span class="sd">                _min (min backup interval in seconds) (int)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">schedule_name</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">schedule_obj</span><span class="o">.</span><span class="n">schedules</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">schedule_obj</span> <span class="o">=</span> <span class="n">Schedule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">subclient</span><span class="p">,</span> <span class="n">schedule_name</span><span class="p">)</span>
-            <span class="n">min_backup_interval</span> <span class="o">=</span> <span class="n">schedule_obj</span><span class="o">.</span><span class="n">automatic</span><span class="p">[</span><span class="s1">&#39;min_interval_minutes&#39;</span><span class="p">]</span>
-            <span class="n">interval</span> <span class="o">=</span> <span class="n">min_backup_interval</span><span class="o">*</span><span class="mi">60</span>
-            <span class="k">return</span> <span class="n">interval</span>
+            <span class="k">if</span> <span class="n">subclient</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">subclient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testcase</span><span class="o">.</span><span class="n">subclient</span>
+            <span class="n">schedule_obj</span> <span class="o">=</span> <span class="n">Schedules</span><span class="p">(</span><span class="n">subclient</span><span class="p">)</span>
+            <span class="n">schedule_id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">schedule_obj</span><span class="o">.</span><span class="n">schedules</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">schedule_obj</span> <span class="o">=</span> <span class="n">Schedule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span> <span class="n">schedule_id</span><span class="o">=</span><span class="n">schedule_id</span><span class="p">)</span>
+            <span class="n">schedule_name</span> <span class="o">=</span> <span class="n">schedule_obj</span><span class="o">.</span><span class="n">schedule_name</span>
+            <span class="n">min_bkp_interval</span> <span class="o">=</span> <span class="n">schedule_obj</span><span class="o">.</span><span class="n">automatic</span><span class="p">[</span><span class="s1">&#39;min_interval_minutes&#39;</span><span class="p">]</span>
+            <span class="n">_min</span> <span class="o">=</span> <span class="n">min_bkp_interval</span> <span class="o">*</span> <span class="mi">60</span>  <span class="c1"># Seconds</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Automatic schedule [</span><span class="si">%s</span><span class="s2">] min back interval [</span><span class="si">%s</span><span class="s2">]min&quot;</span><span class="p">,</span> <span class="n">schedule_name</span><span class="p">,</span> <span class="n">min_bkp_interval</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">_min</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
 
-<div class="viewcode-block" id="CloudLaptopHelper.rename_remove_logfile"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.rename_remove_logfile">[docs]</a>    <span class="k">def</span> <span class="nf">rename_remove_logfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_machine</span><span class="p">,</span> <span class="n">validatelog</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; removes and renames old logfile</span>
+<div class="viewcode-block" id="CloudLaptopHelper.rename_backup_logfile"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.rename_backup_logfile">[docs]</a>    <span class="k">def</span> <span class="nf">rename_backup_logfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_machine</span><span class="p">,</span> <span class="n">validate_logfile</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Backup old logfile</span>
 
 <span class="sd">        Args:</span>
 
@@ -423,11 +320,326 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">check_file_exists</span><span class="p">(</span><span class="n">validatelog</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.log&quot;</span><span class="p">,</span> <span class="s2">&quot;_1.log&quot;</span><span class="p">)):</span>
-            <span class="n">client_machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">validatelog</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.log&quot;</span><span class="p">,</span> <span class="s2">&quot;_1.log&quot;</span><span class="p">))</span>
-        <span class="k">if</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">check_file_exists</span><span class="p">(</span><span class="n">validatelog</span><span class="p">):</span>
-            <span class="n">client_machine</span><span class="o">.</span><span class="n">rename_file_or_folder</span><span class="p">(</span>
-                <span class="n">validatelog</span><span class="p">,</span> <span class="n">validatelog</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.log&quot;</span><span class="p">,</span> <span class="s2">&quot;_1.log&quot;</span><span class="p">))</span></div></div>
+        <span class="k">if</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">check_file_exists</span><span class="p">(</span><span class="n">validate_logfile</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.log&quot;</span><span class="p">,</span> <span class="s2">&quot;_1.log&quot;</span><span class="p">)):</span>
+            <span class="n">client_machine</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">validate_logfile</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.log&quot;</span><span class="p">,</span> <span class="s2">&quot;_1.log&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">check_file_exists</span><span class="p">(</span><span class="n">validate_logfile</span><span class="p">):</span>
+            <span class="n">client_machine</span><span class="o">.</span><span class="n">rename_file_or_folder</span><span class="p">(</span><span class="n">validate_logfile</span><span class="p">,</span> <span class="n">validate_logfile</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.log&quot;</span><span class="p">,</span> <span class="s2">&quot;_1.log&quot;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CloudLaptopHelper.incr_backup_and_restore"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.incr_backup_and_restore">[docs]</a>    <span class="k">def</span> <span class="nf">incr_backup_and_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">subclient_object</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cleanup</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Validates incremental backup and restore works fine from osc schedule</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client        (str)/(Machine object)  -- Client name or Machine object</span>
+
+<span class="sd">                subclient_object      (object)        -- Sub client object</span>
+
+<span class="sd">                validate      (bool)                  -- Validate cksum/metadata for the restored subclient content.</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if:</span>
+<span class="sd">                    - failed during execution of module</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_subclient_content</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">subclient_object</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_incremental_backup</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">subclient_object</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">out_of_place_restore</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">subclient_object</span><span class="p">,</span> <span class="n">validate</span><span class="p">,</span> <span class="n">cleanup</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CloudLaptopHelper.wait_for_full_backup"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.wait_for_full_backup">[docs]</a>    <span class="k">def</span> <span class="nf">wait_for_full_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_obj</span><span class="p">,</span> <span class="n">subclient_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Validates first full backup ran for the cloud laptop</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client_obj        (str)/(Machine object)  -- Client name or Machine object</span>
+
+<span class="sd">                subclient_object      (object)            -- Sub client object</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if:</span>
+<span class="sd">                    - failed during execution of module</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">job_regkey_path</span> <span class="o">=</span> <span class="s2">&quot;LaptopCache</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">subclient_object</span><span class="o">.</span><span class="n">subclient_id</span><span class="p">)</span>
+            <span class="n">full_jobid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">check_reg_key</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="s2">&quot;JobID&quot;</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">is_regkey_set</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="s2">&quot;PhaseStatus&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">is_regkey_set</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="s2">&quot;RunStatus&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">is_regkey_set</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="s2">&quot;LastFullJobID&quot;</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">full_jobid</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;TotalFiles&#39;</span><span class="p">,</span> <span class="s1">&#39;LastSuccessfulBackup&#39;</span><span class="p">,</span> <span class="s1">&#39;JobStartTime&#39;</span><span class="p">]:</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">check_reg_key</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CloudLaptopHelper.osc_backup_and_restore"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.osc_backup_and_restore">[docs]</a>    <span class="k">def</span> <span class="nf">osc_backup_and_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">postbackup</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">skip_osc</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Validates first full backup ran for the cloud laptop</span>
+
+<span class="sd">            Validates backup works fine from osc schedule for incremental backup for devices</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client        (str)/(Machine object)  -- Client name or Machine object</span>
+
+<span class="sd">                postbackup    (bool)                  -- If true:</span>
+<span class="sd">                                                            Execute post backup and restore on the subclient by</span>
+<span class="sd">                                                            modifying the subclient content and validating incremental</span>
+<span class="sd">                                                            backups</span>
+
+<span class="sd">                skip_osc      (bool)                  -- If true:</span>
+<span class="sd">                                                            Will not wait for the first full auto trigrred backup job</span>
+
+<span class="sd">                validate      (bool)                  -- Validate cksum/metadata for the restored subclient content.</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if:</span>
+<span class="sd">                    - failed during execution of module</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">client_name</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">machine_name</span>
+            <span class="n">subclient_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">get_subclient</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">skip_osc</span><span class="p">:</span>
+                <span class="c1"># Validate Full backup started and wait for job to complete.</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">is_regkey_set</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="s1">&#39;MediaAgent&#39;</span><span class="p">,</span> <span class="s1">&#39;EnableCloudLaptopMode&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">is_regkey_set</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="s1">&#39;MediaAgent&#39;</span><span class="p">,</span> <span class="s1">&#39;LaptopBackupMode&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">is_macore_installed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span><span class="o">.</span><span class="n">client_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_full_backup</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">subclient_object</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">postbackup</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping post osc backup subclient modification.&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">True</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">incr_backup_and_restore</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">subclient_object</span><span class="p">,</span> <span class="n">validate</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CloudLaptopHelper.is_macore_installed"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.is_macore_installed">[docs]</a>    <span class="k">def</span> <span class="nf">is_macore_installed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clientid</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Check if ma core is installed or not on the client.</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                clientid (int)             -- Client id</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                True/False        (bool)   -- In case ma core is/(is not) installed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">Install.softwarecache_helper</span> <span class="k">import</span> <span class="n">SoftwareCache</span>
+        <span class="n">software_cache</span> <span class="o">=</span> <span class="n">SoftwareCache</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">commserv_client</span><span class="p">)</span>
+        <span class="n">package_status</span> <span class="o">=</span> <span class="n">software_cache</span><span class="o">.</span><span class="n">is_package_installed</span><span class="p">(</span><span class="n">clientid</span><span class="p">,</span> <span class="mi">54</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">package_status</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Storage Accelerator is installed successfully on client&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">package_status</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to install Storage Accelerator package on client&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CloudLaptopHelper.validate_restore"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.validate_restore">[docs]</a>    <span class="k">def</span> <span class="nf">validate_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">compare_source</span><span class="p">,</span> <span class="n">compare_destination</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to validate restore jobs with meta data and checksum information</span>
+
+<span class="sd">           Args:</span>
+<span class="sd">                client (obj/str)                 --   MAchine client object or client name</span>
+
+<span class="sd">                compare_source          (str)    --   source path that data needs to be</span>
+<span class="sd">                                                      validated on restore completion</span>
+
+<span class="sd">                compare_destination     (str)    --   destination path from data needs to be</span>
+<span class="sd">                                                      validated on restore completion</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if Meta data comparison failed</span>
+
+<span class="sd">                    if Checksum comparison failed</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="n">machine_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">client_name</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">machine_name</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Comparing metada on source and destination</span>
+<span class="s2">                Client: [</span><span class="si">{0}</span><span class="s2">],</span>
+<span class="s2">                    Source path [</span><span class="si">{1}</span><span class="s2">]</span>
+<span class="s2">                    Destination path [</span><span class="si">{2}</span><span class="s2">]&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">compare_source</span><span class="p">,</span> <span class="n">compare_destination</span><span class="p">))</span>
+
+            <span class="n">result</span><span class="p">,</span> <span class="n">diff_output</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">compare_meta_data</span><span class="p">(</span><span class="n">compare_source</span><span class="p">,</span> <span class="n">compare_destination</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Meta data comparison failed. Diff output: </span><span class="se">\n</span><span class="s2"> </span><span class="si">{0}</span><span class="s2">&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">diff_output</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Meta data comparison failed&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Meta data comparison successful&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Performing checksum comparison on source and destination&quot;</span><span class="p">)</span>
+            <span class="n">result</span><span class="p">,</span> <span class="n">diff_output</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">compare_checksum</span><span class="p">(</span><span class="n">compare_source</span><span class="p">,</span> <span class="n">compare_destination</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Checksum comparison failed. Diff output: </span><span class="se">\n</span><span class="si">{0}</span><span class="s2">&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">diff_output</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Checksum comparison failed&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checksum comparison successful&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CloudLaptopHelper.validate_logs"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.validate_logs">[docs]</a>    <span class="k">def</span> <span class="nf">validate_logs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_machine</span><span class="p">,</span> <span class="n">validatelog</span><span class="p">,</span> <span class="n">success</span><span class="p">,</span> <span class="n">wait_secs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">retry_count</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to validate log with required log line</span>
+
+<span class="sd">           Args:</span>
+
+<span class="sd">                client_machine   (object)-- Client&#39; Machine class object. Log file exists on this client.</span>
+
+<span class="sd">                validatelog     (str)    -- Log file name which need to be validated</span>
+
+<span class="sd">                success         (str)    -- Log line which we want to verify</span>
+
+<span class="sd">                wait_secs       (int)    -- Sleep time</span>
+
+<span class="sd">                retry_count     (int)    -- Number of retries</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if backup does not start within time</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_wait</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_osc_min_interval</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">_count</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">retry_count</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">check_file_exists</span><span class="p">(</span><span class="n">validatelog</span><span class="p">):</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">validatelog</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file_obj</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">sleep_time</span><span class="p">(</span><span class="n">wait_secs</span><span class="p">,</span> <span class="s2">&quot;Waiting for backup log to be completed&quot;</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">file_obj</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">success</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                                <span class="k">return</span> <span class="kc">True</span>
+                        <span class="k">return</span> <span class="kc">False</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">sleep_time</span><span class="p">(</span><span class="n">_wait</span><span class="p">,</span> <span class="s2">&quot;Waiting for backup log to be generated&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Backup phase did not start, Please check logs&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CloudLaptopHelper.add_subclient_content"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.add_subclient_content">[docs]</a>    <span class="k">def</span> <span class="nf">add_subclient_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">subclient_object</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Validates first full backup ran for the cloud laptop</span>
+
+<span class="sd">            Validates backup works fine from osc schedule for incremental backup for devices</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client        (str)/(Machine object)  -- Client name or Machine object</span>
+
+<span class="sd">                subclient_object (subclient object)   -- subclient object</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if:</span>
+<span class="sd">                    - failed during execution of module</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">client_name</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">machine_name</span>
+            <span class="n">subclient_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">get_subclient</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+            <span class="c1"># Create content and modify subclient content</span>
+            <span class="n">machine_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+            <span class="n">source_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">machine_obj</span><span class="p">)</span>
+            <span class="n">subclient_content_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">create_test_data</span><span class="p">(</span><span class="n">machine_obj</span><span class="p">,</span> <span class="n">source_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_source_dir</span> <span class="o">=</span> <span class="n">source_dir</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_subclient_content_dir</span> <span class="o">=</span> <span class="n">subclient_content_dir</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">sleep_time</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Adding directory [</span><span class="si">{0}</span><span class="s2">] to subclient content&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient_content_dir</span><span class="p">))</span>
+            <span class="n">subclient_object</span><span class="o">.</span><span class="n">content</span> <span class="o">+=</span> <span class="p">[</span><span class="n">subclient_content_dir</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Subclient content [</span><span class="si">{0}</span><span class="s2">] added successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subclient_content_dir</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CloudLaptopHelper.wait_for_incremental_backup"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.wait_for_incremental_backup">[docs]</a>    <span class="k">def</span> <span class="nf">wait_for_incremental_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">subclient_object</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Validates first full backup ran for the cloud laptop</span>
+
+<span class="sd">            Validates backup works fine from osc schedule for incremental backup for devices</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client        (str)/(Machine object)  -- Client name or Machine object</span>
+
+<span class="sd">                subclient_object (subclient object)   -- subclient object</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if:</span>
+<span class="sd">                    - failed during execution of module</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Wait for incremental job to start based on automatic schedule setting.</span>
+            <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">client_name</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">machine_name</span>
+            <span class="n">subclient_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">get_subclient</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+            <span class="n">subclient_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">subclient_object</span><span class="o">.</span><span class="n">subclient_id</span><span class="p">)</span>
+            <span class="n">job_regkey_path</span> <span class="o">=</span> <span class="s2">&quot;LaptopCache</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">subclient_id</span>
+            <span class="n">next_interval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_osc_min_interval</span><span class="p">(</span><span class="n">subclient_object</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">sleep_time</span><span class="p">(</span><span class="n">next_interval</span><span class="p">,</span> <span class="s2">&quot;Wait for incremental backup to start&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">sleep_time</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+            <span class="n">jobid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">check_reg_key</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="s2">&quot;JobID&quot;</span><span class="p">)</span>
+            <span class="n">fulljobid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">check_reg_key</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="s2">&quot;LastFullJobID&quot;</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">jobid</span> <span class="o">!=</span> <span class="n">fulljobid</span><span class="p">,</span> <span class="s2">&quot;Expected Incremental job did not start&quot;</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">is_regkey_set</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="s2">&quot;PhaseStatus&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">is_regkey_set</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="s2">&quot;RunStatus&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;LastFullJobRefTime_JM&#39;</span><span class="p">,</span> <span class="s1">&#39;LastIncrJobRefTime_JM&#39;</span><span class="p">,</span> <span class="s1">&#39;LastSuccessfulBackup&#39;</span><span class="p">,</span> <span class="s1">&#39;TotalFiles&#39;</span><span class="p">]:</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">check_reg_key</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="n">job_regkey_path</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Backup job [</span><span class="si">{0}</span><span class="s2">] completed successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">jobid</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CloudLaptopHelper.out_of_place_restore"><a class="viewcode-back" href="../../../source/Laptop.CloudLaptop.html#Laptop.CloudLaptop.cloudlaptophelper.CloudLaptopHelper.out_of_place_restore">[docs]</a>    <span class="k">def</span> <span class="nf">out_of_place_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">subclient_object</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cleanup</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Validates first full backup ran for the cloud laptop</span>
+
+<span class="sd">            Validates backup works fine from osc schedule for incremental backup for devices</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                client        (str)/(Machine object)  -- Client name or Machine object</span>
+
+<span class="sd">                subclient_object (subclient object)   -- subclient object</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if:</span>
+<span class="sd">                    - failed during execution of module</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="c1"># Out of place restore</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started Out of place restore&quot;</span><span class="p">)</span>
+            <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+            <span class="n">client_name</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">machine_name</span>
+            <span class="n">machine_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">sleep_time</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="s2">&quot;Wait for index play back to finish&quot;</span><span class="p">)</span>
+            <span class="n">data_path_leaf</span> <span class="o">=</span> <span class="n">ntpath</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_dir</span><span class="p">))</span>
+            <span class="n">dest_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">machine_obj</span><span class="p">)</span>
+            <span class="n">dest_path</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">os_sep</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">dest_dir</span><span class="p">,</span> <span class="n">data_path_leaf</span> <span class="o">+</span> <span class="s2">&quot;_restore&quot;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">subclient_restore_out_of_place</span><span class="p">(</span>
+                <span class="n">dest_path</span><span class="p">,</span>
+                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_subclient_content_dir</span><span class="p">],</span>
+                <span class="n">client</span><span class="o">=</span><span class="n">client_name</span><span class="p">,</span>
+                <span class="n">subclient</span><span class="o">=</span><span class="n">subclient_object</span><span class="p">,</span>
+                <span class="n">wait</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Meta data comparison</span>
+            <span class="k">if</span> <span class="n">validate</span><span class="p">:</span>
+                <span class="n">compare_destination</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">os_sep</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">dest_path</span><span class="p">,</span> <span class="n">data_path_leaf</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">validate_restore</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_dir</span><span class="p">,</span> <span class="n">compare_destination</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Restore validation completed successfully&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">] [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">stack</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">cleanup</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">machine_obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_dir</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">utility</span><span class="o">.</span><span class="n">remove_directory</span><span class="p">(</span><span class="n">machine_obj</span><span class="p">,</span> <span class="n">dest_dir</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Failed to cleanup test data</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">error</span><span class="p">))</span></div></div>
 </pre></div>
 
            </div>
@@ -440,11 +652,19 @@
 
   <div role="contentinfo">
     <p>
+        
         &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -455,7 +675,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

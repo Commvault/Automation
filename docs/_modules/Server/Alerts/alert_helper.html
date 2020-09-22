@@ -1,38 +1,39 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Server.Alerts.alert_helper &mdash; Commvault Automation 11.20 documentation</title>
+  <title>Server.Alerts.alert_helper &mdash; Commvault Automation 11.21 documentation</title>
   
-
-  
-  
-  
-  
-
-  
-  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
-        <script type="text/javascript" src="../../../_static/jquery.js"></script>
-        <script type="text/javascript" src="../../../_static/underscore.js"></script>
-        <script type="text/javascript" src="../../../_static/doctools.js"></script>
-        <script type="text/javascript" src="../../../_static/language_data.js"></script>
-    
-    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
-
-    
 
   
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" /> 
 </head>
@@ -48,7 +49,7 @@
           
 
           
-            <a href="../../../index.html" class="icon icon-home"> Commvault Automation
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
           
 
           
@@ -71,6 +72,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -83,6 +85,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -121,7 +124,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
         
           <li><a href="../../index.html">Module code</a> &raquo;</li>
         
@@ -171,6 +174,14 @@
 
 <span class="sd">    check_if_rss_feed_received() : Reads through RSS Folder to check if alert notification was received</span>
 
+<span class="sd">    check_if_html_body_contains() : Checks if the html body contains the given patterns</span>
+
+<span class="sd">    check_if_alert_saved() : Check if save to disk alert notification was saved</span>
+
+<span class="sd">    check_if_event_logged() : Reads through windows event viewer logs to check if alert notification was received</span>
+
+<span class="sd">    check_if_snmp_trap_received() : Reads through SentAlerts.log to see if SNMP Trap notification was sent</span>
+
 <span class="sd">    get_sender() : Yields the name of the Alert notification sender</span>
 
 <span class="sd">    get_notif_html() : Gets the notification HTML body required in the Alert XML</span>
@@ -179,7 +190,9 @@
 
 <span class="sd">    get_token_type_format() : Fetches the token type and token format for given token ID</span>
 
-<span class="sd">    populate_token_rule_xml() : Populates the token rule part of Alert XML body</span>
+<span class="sd">    get_ida_app_id() : Fetches the application id for an IDA for a given client</span>
+
+<span class="sd">    populate_token_rules_xml() : Populates the token rule part of Alert XML body</span>
 
 <span class="sd">    populate_entities_xml() : Populates the Associations part of Alert XML body</span>
 
@@ -209,26 +222,31 @@
 <span class="sd">    cleanup_low_disk_space_settings() : Cleans up additional settings added for low disk space situation</span>
 
 <span class="sd">    auxiliary_copy_job() : Runs an auxiliary copy job</span>
+
+<span class="sd">    no_backup_in_n_days() : Creates the situation for the criteria no backup in last n days</span>
+
+<span class="sd">    cleanup_no_backup_in_n_days() : Performs cleanup operations for the situation no backup in last n days</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">html</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">string</span>
-<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
-<span class="kn">from</span> <span class="nn">cvpysdk.exception</span> <span class="kn">import</span> <span class="n">SDKException</span>
-<span class="kn">from</span> <span class="nn">cvpysdk.policies.storage_policies</span> <span class="kn">import</span> <span class="n">StoragePolicy</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.mail_box</span> <span class="kn">import</span> <span class="n">MailBox</span><span class="p">,</span> <span class="n">EmailSearchFilter</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">constants</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="kn">import</span> <span class="n">OptionsSelector</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.exception</span> <span class="k">import</span> <span class="n">SDKException</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.policies.storage_policies</span> <span class="k">import</span> <span class="n">StoragePolicy</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.windows_machine</span> <span class="k">import</span> <span class="n">WindowsMachine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.mail_box</span> <span class="k">import</span> <span class="n">MailBox</span><span class="p">,</span> <span class="n">EmailSearchFilter</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="k">import</span> <span class="n">OptionsSelector</span>
 
 
 <div class="viewcode-block" id="AlertHelper"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper">[docs]</a><span class="k">class</span> <span class="nc">AlertHelper</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class for Alert Creation and other operations</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alert_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alert_obj</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alert_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alert_obj</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
 
 <span class="sd">            Args:</span>
@@ -253,7 +271,7 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span> <span class="o">=</span> <span class="n">category</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span> <span class="o">=</span> <span class="n">alert_type</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Alert&#39;</span><span class="p">,</span> <span class="s1">&#39;102&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;Alert Type not found in category </span><span class="si">{</span><span class="n">category</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Alert&#39;</span><span class="p">,</span> <span class="s1">&#39;102&#39;</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;Alert Type not found in category </span><span class="si">{category}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Alert&#39;</span><span class="p">,</span> <span class="s1">&#39;102&#39;</span><span class="p">,</span> <span class="s1">&#39;Alert Category not found&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -447,31 +465,53 @@
 
                 <span class="k">if</span> <span class="n">attempt</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">short_interval</span><span class="p">)</span>
+
                 <span class="n">latest_folder</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">get_latest_timestamp_file_or_folder</span><span class="p">(</span><span class="n">folder_path</span><span class="o">=</span><span class="n">base_folder</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">latest_folder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
-                    <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">alert_notif_file</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">get_files_in_path</span><span class="p">(</span><span class="n">latest_folder</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># Two cases One file or More than One file</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="n">html_body</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                            <span class="c1"># Check if Given patterns are present in HTML body or not</span>
+                            <span class="n">got_rss_feed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_if_html_body_contains</span><span class="p">(</span><span class="n">html_body</span><span class="p">,</span> <span class="n">patterns</span><span class="p">)</span>
 
-                <span class="n">alert_notif_file</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">get_files_in_path</span><span class="p">(</span><span class="n">latest_folder</span><span class="p">)</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
-                    <span class="k">break</span>
-                    <span class="c1"># Two cases One file or More than One file</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="n">html_body</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-                    <span class="c1"># Check if Given patterns are present in HTML body or not</span>
-                    <span class="n">got_rss_feed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span><span class="o">.</span><span class="n">check_if_html_body_contains</span><span class="p">(</span><span class="n">html_body</span><span class="p">,</span> <span class="n">patterns</span><span class="p">)</span>
-
-                    <span class="k">if</span> <span class="n">got_rss_feed</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Received RSS Feed Notification&#39;</span><span class="p">)</span>
-                        <span class="k">break</span>
-                    <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+                            <span class="k">if</span> <span class="n">got_rss_feed</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Received RSS Feed Notification&#39;</span><span class="p">)</span>
+                                <span class="k">break</span>
+                            <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Encountered Exception while connecting to machine : </span><span class="si">{</span><span class="n">excp</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Encountered Exception : </span><span class="si">{excp}</span><span class="s1">&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">got_rss_feed</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No alert RSS Feed was received&quot;</span><span class="p">)</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Didn&#39;t receive Alert notification&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AlertHelper.check_if_html_body_contains"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.check_if_html_body_contains">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_html_body_contains</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">patterns</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parses through the body of the Html and checks the existence</span>
+<span class="sd">            of the values in the html body</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                body    (str)  -  Html Body to check</span>
+<span class="sd">                patterns (list) - List of values to be matched in the mail body</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool - True if pattern matches else False</span>
+
+<span class="sd">            NOTE : It is on the tester on what all values he wants to check for in the Html Body. The function</span>
+<span class="sd">            performs a hard match</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pattern_match</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">for</span> <span class="n">match_criteria</span> <span class="ow">in</span> <span class="n">patterns</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">match_criteria</span><span class="p">,</span> <span class="n">body</span><span class="p">)):</span>
+                <span class="n">pattern_match</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">break</span>
+
+        <span class="k">return</span> <span class="n">pattern_match</span></div>
 
 <div class="viewcode-block" id="AlertHelper.check_if_alert_saved"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.check_if_alert_saved">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_alert_saved</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">short_interval</span><span class="p">,</span> <span class="n">patterns</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Reads through Alerts Folder to check if alert notification was saved. Used for save to disk</span>
@@ -490,36 +530,39 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Wait till Alert Notification is saved&#39;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">cs_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="p">)</span>
-            <span class="n">base_folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">commserv_client</span><span class="o">.</span><span class="n">install_directory</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">alerts</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">alert_name</span>
             <span class="k">while</span> <span class="n">attempt</span> <span class="o">&lt;=</span> <span class="n">max_attempts</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">got_saved_alert</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Attempt [</span><span class="si">%s</span><span class="s1">] Searching for Saved Alert&#39;</span><span class="p">,</span> <span class="n">attempt</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">short_interval</span><span class="p">)</span>
+                <span class="c1"># Get base folder</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">base_folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">commserv_client</span><span class="o">.</span><span class="n">install_directory</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">alerts</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">alert_name</span>
+                    <span class="n">latest_folder</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">get_latest_timestamp_file_or_folder</span><span class="p">(</span><span class="n">folder_path</span><span class="o">=</span><span class="n">base_folder</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">latest_folder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">alert_notif_file</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">get_files_in_path</span><span class="p">(</span><span class="n">latest_folder</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="c1"># Two cases One file or More than One file</span>
+                            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+                                <span class="n">html_body</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                                <span class="c1"># Check if Given patterns are present in HTML body or not</span>
+                                <span class="n">got_saved_alert</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_if_html_body_contains</span><span class="p">(</span><span class="n">html_body</span><span class="p">,</span> <span class="n">patterns</span><span class="p">)</span>
 
-                <span class="k">if</span> <span class="n">attempt</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">short_interval</span><span class="p">)</span>
-                <span class="n">latest_folder</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">get_latest_timestamp_file_or_folder</span><span class="p">(</span><span class="n">folder_path</span><span class="o">=</span><span class="n">base_folder</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">latest_folder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
-                    <span class="k">break</span>
-
-                <span class="n">alert_notif_file</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">get_files_in_path</span><span class="p">(</span><span class="n">latest_folder</span><span class="p">)</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
-                    <span class="k">break</span>
-                    <span class="c1"># Two cases One file or More than One file</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="n">html_body</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">alert_notif_file</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-                    <span class="c1"># Check if Given patterns are present in HTML body or not</span>
-                    <span class="n">got_saved_alert</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailbox</span><span class="o">.</span><span class="n">check_if_html_body_contains</span><span class="p">(</span><span class="n">html_body</span><span class="p">,</span> <span class="n">patterns</span><span class="p">)</span>
-
-                    <span class="k">if</span> <span class="n">got_saved_alert</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Received Saved Alert Notification&#39;</span><span class="p">)</span>
-                        <span class="k">break</span>
+                                <span class="k">if</span> <span class="n">got_saved_alert</span><span class="p">:</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Received Saved Alert Notification&#39;</span><span class="p">)</span>
+                                    <span class="k">break</span>
+                                <span class="c1"># HTML body doesn&#39;t contain the patterns</span>
+                                <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">base_folder_excp</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Encountered exception while getting folder : </span><span class="si">{base_folder_excp}</span><span class="s1">&#39;</span><span class="p">)</span>
                     <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Encountered Exception while connecting to machine : </span><span class="si">{</span><span class="n">excp</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Encountered Exception while connecting to machine : </span><span class="si">{excp}</span><span class="s1">&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">got_saved_alert</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No alert RSS Feed was received&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No saved alert was found&quot;</span><span class="p">)</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Didn&#39;t receive Alert notification&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="AlertHelper.check_if_event_logged"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.check_if_event_logged">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_event_logged</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">short_interval</span><span class="p">,</span> <span class="n">patterns</span><span class="p">):</span>
@@ -562,12 +605,44 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Received Event Viewer Alert Notification&#39;</span><span class="p">)</span>
                     <span class="k">break</span>
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">command_execute_excp</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Encountered Exception while executing command : </span><span class="si">{</span><span class="n">command_execute_excp</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Encountered Exception while executing command : </span><span class="si">{command_execute_excp}</span><span class="s1">&#39;</span><span class="p">)</span>
                 <span class="n">attempt</span> <span class="o">+=</span> <span class="mi">1</span>
 
         <span class="k">if</span> <span class="n">got_saved_alert</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No alert RSS Feed was received&quot;</span><span class="p">)</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Didn&#39;t receive Alert notification&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AlertHelper.check_if_snmp_trap_received"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.check_if_snmp_trap_received">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_snmp_trap_received</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wait_interval</span><span class="p">,</span> <span class="n">patterns</span><span class="p">,</span> <span class="n">lines_to_search</span><span class="o">=</span><span class="mi">20</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads through EvMgrs log file to check if SNMP Trap was sent or not</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                wait_interval (int)  -  time interval (in seconds) to wait for before searching for alert notification</span>
+<span class="sd">                patterns (list) - List containing of patterns to search for in the SNMP Trap</span>
+<span class="sd">                lines_to_search (int) - Searches through the last n lines of EvMgrs log for trap notification</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool - If snmp trap was sent or not</span>
+
+<span class="sd">            Note : The function does a hard wait after which it opens the log file to check if trap was sent or not</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cs_machine_obj</span> <span class="o">=</span> <span class="n">WindowsMachine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="p">)</span>
+        <span class="n">got_snmp_trap</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Wait till Alert SNMP Trap Notification is Sent&#39;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">wait_interval</span><span class="p">)</span>
+        <span class="c1"># Open evmgrs logfile in cs machine</span>
+        <span class="n">evmgrs_log</span> <span class="o">=</span> <span class="n">cs_machine_obj</span><span class="o">.</span><span class="n">get_log_file</span><span class="p">(</span><span class="n">log_file_name</span><span class="o">=</span><span class="s1">&#39;SentAlerts.log&#39;</span><span class="p">)</span>
+        <span class="c1"># Get last lines_to_search lines, we split on each line</span>
+        <span class="n">evmgrs_log</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">evmgrs_log</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="n">lines_to_search</span><span class="p">:])</span>
+        <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">patterns</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">evmgrs_log</span><span class="p">)):</span>
+                <span class="n">got_snmp_trap</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">break</span>
+
+        <span class="k">if</span> <span class="n">got_snmp_trap</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Sent SNMP Trap Alert Notification&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Didn</span><span class="se">\&#39;</span><span class="s1">t send SNMP Trap&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s2">&quot;Alert&quot;</span><span class="p">,</span> <span class="s2">&quot;102&quot;</span><span class="p">,</span> <span class="s2">&quot;Didnt send SNMP Trap notification&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="AlertHelper.get_sender"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.get_sender">[docs]</a>    <span class="k">def</span> <span class="nf">get_sender</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
@@ -595,13 +670,15 @@
         <span class="k">if</span> <span class="n">notif_type</span> <span class="ow">in</span> <span class="n">supported_html</span><span class="p">:</span>
             <span class="n">message_format_type</span> <span class="o">=</span> <span class="mi">1</span>
         <span class="n">alert_type</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">ALERT_CATEGORY_TYPE</span><span class="p">[</span><span class="n">string</span><span class="o">.</span><span class="n">capwords</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span><span class="p">)</span>
-        <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;select * from NTnotificationTemplate where ntalerttypeid=</span><span class="si">{</span><span class="n">alert_type</span><span class="si">}</span><span class="s2">&quot;</span> \
-                <span class="sa">f</span><span class="s2">&quot; and locale=0 and messageType=</span><span class="si">{</span><span class="n">notif_type</span><span class="si">}</span><span class="s2"> and messageFormatType = </span><span class="si">{</span><span class="n">message_format_type</span><span class="si">}</span><span class="s2">;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;select * from NTnotificationTemplate where ntalerttypeid=</span><span class="si">{alert_type}</span><span class="s2">&quot;</span> \
+                <span class="n">f</span><span class="s2">&quot; and locale=0 and messageType=</span><span class="si">{notif_type}</span><span class="s2"> and messageFormatType = </span><span class="si">{message_format_type}</span><span class="s2">;&quot;</span>
         <span class="n">db_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">update_commserve_db</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="c1"># Get index for required column</span>
+        <span class="n">column_index</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;defaultformatString&#39;</span><span class="p">)</span>
         <span class="c1"># Extract The format html from the response</span>
-        <span class="n">notif_html</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;defaultformatString&#39;</span><span class="p">]</span>
+        <span class="n">notif_html</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">column_index</span><span class="p">]</span>
         <span class="c1"># Escape this html to make it suitable for XML request body</span>
-        <span class="n">escaped_html</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;&#39;&#39;</span><span class="si">{</span><span class="n">notif_html</span><span class="si">}</span><span class="s1">&#39;&#39;&#39;</span><span class="p">)</span>
+        <span class="n">escaped_html</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;&#39;&#39;</span><span class="si">{notif_html}</span><span class="s1">&#39;&#39;&#39;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">notif_html</span><span class="p">,</span> <span class="n">escaped_html</span></div>
 
@@ -615,13 +692,15 @@
 <span class="sd">            Returns:</span>
 <span class="sd">                (int) - Returns Token ID for given rule group</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;select MessageID from evlocalemsgs where   localeid=0 and message =&#39;&lt;</span><span class="si">{</span><span class="n">token_rule_group</span><span class="si">}</span><span class="s1">&gt;&#39;;&#39;&#39;&#39;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;select MessageID from evlocalemsgs where localeid=0 and message =&#39;&lt;</span><span class="si">{token_rule_group}</span><span class="s1">&gt;&#39;;&#39;&#39;&#39;</span>
         <span class="n">db_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">update_commserve_db</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="c1"># Get index for required column</span>
+        <span class="n">column_index</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;MessageID&#39;</span><span class="p">)</span>
         <span class="c1"># Extract the MessageID value from the response</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Response returned more than 1 rows&#39;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
-        <span class="n">token_id</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;MessageID&#39;</span><span class="p">]</span>
+        <span class="n">token_id</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">column_index</span><span class="p">]</span>
 
         <span class="k">return</span> <span class="n">token_id</span></div>
 
@@ -635,49 +714,86 @@
 <span class="sd">            Returns:</span>
 <span class="sd">                (tuple) - Returns Token type and token format values</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;select * from NTmessageTokensForAlert where tokenID=</span><span class="si">{</span><span class="n">token_id</span><span class="si">}</span><span class="s1">;&#39;&#39;&#39;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;select * from NTmessageTokensForAlert where tokenID=</span><span class="si">{token_id}</span><span class="s1">;&#39;&#39;&#39;</span>
         <span class="n">db_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">update_commserve_db</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="c1"># get index for columns</span>
+        <span class="n">token_type_col</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;tokenType&#39;</span><span class="p">)</span>
+        <span class="n">token_input_format_col</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;tokenInputFormat&#39;</span><span class="p">)</span>
         <span class="c1"># Extract data from the first row</span>
-        <span class="k">return</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;tokenType&#39;</span><span class="p">],</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;tokenInputFormat&#39;</span><span class="p">]</span></div>
+        <span class="k">return</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">token_type_col</span><span class="p">],</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">token_input_format_col</span><span class="p">]</span></div>
 
-<div class="viewcode-block" id="AlertHelper.populate_token_rule_xml"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.populate_token_rule_xml">[docs]</a>    <span class="k">def</span> <span class="nf">populate_token_rule_xml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_rule</span><span class="p">):</span>
+<div class="viewcode-block" id="AlertHelper.get_ida_app_id"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.get_ida_app_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_ida_app_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app_name</span><span class="p">,</span> <span class="n">client_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Fetches the application ida for given IDA for given client</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                app_name (string)  --  Application name</span>
+<span class="sd">                client_id (string) --  Client Id for which given IDA id is to be fetched</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                (string) - Returns IDA App ID for given client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;select type from APP_iDAType where name=&#39;</span><span class="si">{app_name}</span><span class="s1">&#39; and type in (select appTypeId from APP_IDAName where clientId = </span><span class="si">{client_id}</span><span class="s1">);&#39;&#39;&#39;</span>
+        <span class="n">db_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">update_commserve_db</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="c1"># Get column index</span>
+        <span class="n">type_index</span> <span class="o">=</span> <span class="n">db_response</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">)</span>
+        <span class="c1"># Extract data</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s1">&#39;Response&#39;</span><span class="p">,</span> <span class="s1">&#39;102&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">db_response</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">type_index</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="AlertHelper.populate_token_rules_xml"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.populate_token_rules_xml">[docs]</a>    <span class="k">def</span> <span class="nf">populate_token_rules_xml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_rules</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Populates the token rule part of Alert XML body</span>
 
 <span class="sd">            Args:</span>
-<span class="sd">                token_rule (dict)  --  Token Rule dictionary passed in **kwargs in get_alert_xml()</span>
+<span class="sd">                token_rules (list)  --  List of Token Rule dictionaries passed in **kwargs in get_alert_xml()</span>
 
 <span class="sd">                example arguments :</span>
-<span class="sd">                    token_rule={&#39;rule&#39;: &#39;LEVEL&#39;,&#39;value&#39;: &#39;FULL&#39;,&#39;operator&#39;: 0}</span>
+<span class="sd">                    token_rule=[{&#39;rule&#39;: &#39;LEVEL&#39;,&#39;value&#39;: &#39;FULL&#39;,&#39;operator&#39;: 0}]</span>
 <span class="sd">            Returns:</span>
 <span class="sd">                string - Token rule part for alert xml</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">rule</span> <span class="o">=</span> <span class="n">token_rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;rule&#39;</span><span class="p">)</span>
-        <span class="n">operator</span> <span class="o">=</span> <span class="n">token_rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;operator&#39;</span><span class="p">)</span>
-        <span class="n">value</span> <span class="o">=</span> <span class="n">token_rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
-        <span class="c1"># Fetch Token ID for given Token Rule</span>
-        <span class="n">token_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_token_id</span><span class="p">(</span><span class="n">rule</span><span class="p">)</span>
-        <span class="c1"># Fetch token type and format</span>
-        <span class="n">token_type</span><span class="p">,</span> <span class="n">token_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_token_type_format</span><span class="p">(</span><span class="n">token_id</span><span class="p">)</span>
-        <span class="n">rule_group_xml</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&amp;lt;?xml version=&#39;1.0&#39; encoding=&#39;UTF-8&#39;?&amp;gt;&amp;lt;CVGui_AlertTokenRuleGroup </span>
+        <span class="n">header</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;&amp;lt;?xml version=&#39;1.0&#39; encoding=&#39;UTF-8&#39;?&amp;gt;&amp;lt;CVGui_AlertTokenRuleGroup </span>
 <span class="s1">                             groupOperator=&amp;quot;0&amp;quot;&amp;gt;&amp;lt;rules groupOperator=&amp;quot;0&amp;quot;&amp;gt;&amp;lt;rules </span>
-<span class="s1">                             groupOperator=&amp;quot;2&amp;quot;&amp;gt;&amp;lt;alertTokenRule tokenMessage=&amp;quot;</span><span class="si">{</span><span class="n">rule</span><span class="si">}</span><span class="s1">&amp;quot; </span>
-<span class="s1">                             tokenId=&amp;quot;</span><span class="si">{</span><span class="n">token_id</span><span class="si">}</span><span class="s1">&amp;quot; tokenType=&amp;quot;</span><span class="si">{</span><span class="n">token_type</span><span class="si">}</span><span class="s1">&amp;quot;</span>
-<span class="s1">                             tokenFormat=&amp;quot;</span><span class="si">{</span><span class="n">token_format</span><span class="si">}</span><span class="s1">&amp;quot; </span>
-<span class="s1">                             value=&amp;quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s1">&amp;quot; tokenOperator=&amp;quot;</span><span class="si">{</span><span class="n">operator</span><span class="si">}</span><span class="s1">&amp;quot;</span>
-<span class="s1">                             /&amp;gt;&amp;lt;/rules&amp;gt;&amp;lt;/rules&amp;gt;</span>
-<span class="s1">                             &amp;lt;/CVGui_AlertTokenRuleGroup&amp;gt;&#39;&#39;&#39;</span>
-        <span class="k">return</span> <span class="n">rule_group_xml</span></div>
+<span class="s1">                             groupOperator=&amp;quot;2&amp;quot;&amp;gt;&amp;lt;&#39;&#39;&#39;</span>
 
-<div class="viewcode-block" id="AlertHelper.populate_entities_xml"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.populate_entities_xml">[docs]</a>    <span class="k">def</span> <span class="nf">populate_entities_xml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rule_group_xml</span><span class="p">,</span> <span class="n">entities</span><span class="p">):</span>
+        <span class="n">token_xml_part</span> <span class="o">=</span> <span class="n">header</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">token_rule</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">token_rules</span><span class="p">):</span>
+            <span class="n">rule</span> <span class="o">=</span> <span class="n">token_rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;rule&#39;</span><span class="p">)</span>
+            <span class="n">operator</span> <span class="o">=</span> <span class="n">token_rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;operator&#39;</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">token_rule</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+            <span class="c1"># Fetch token ID for given token rule</span>
+            <span class="n">token_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_token_id</span><span class="p">(</span><span class="n">rule</span><span class="p">)</span>
+            <span class="c1"># Fetch token type and format</span>
+            <span class="n">token_type</span><span class="p">,</span> <span class="n">token_format</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_token_type_format</span><span class="p">(</span><span class="n">token_id</span><span class="p">)</span>
+            <span class="c1"># Check if last token in token rule or not, the xml body part differs for both</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">token_rules</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="c1"># Last token rule</span>
+                <span class="n">token_xml</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;alertTokenRule tokenMessage=&amp;quot;</span><span class="si">{rule}</span><span class="s1">&amp;quot; tokenId=&amp;quot;</span><span class="si">{token_id}</span><span class="s1">&amp;quot; </span>
+<span class="s1">                                tokenType=&amp;quot;</span><span class="si">{token_type}</span><span class="s1">&amp;quot; tokenFormat=&amp;quot;</span><span class="si">{token_format}</span><span class="s1">&amp;quot; </span>
+<span class="s1">                                value=&amp;quot;</span><span class="si">{value}</span><span class="s1">&amp;quot; tokenOperator=&amp;quot;</span><span class="si">{operator}</span><span class="s1">&amp;quot;&#39;&#39;&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">token_xml</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;alertTokenRule tokenMessage=&amp;quot;</span><span class="si">{rule}</span><span class="s1">&amp;quot; tokenId=&amp;quot;</span><span class="si">{token_id}</span><span class="s1">&amp;quot; </span>
+<span class="s1">                                tokenType=&amp;quot;</span><span class="si">{token_type}</span><span class="s1">&amp;quot; tokenFormat=&amp;quot;</span><span class="si">{token_format}</span><span class="s1">&amp;quot; </span>
+<span class="s1">                                value=&amp;quot;</span><span class="si">{value}</span><span class="s1">&amp;quot; tokenOperator=&amp;quot;</span><span class="si">{operator}</span><span class="s1">&amp;quot;</span>
+<span class="s1">                                /&amp;gt;&amp;lt;/rules&amp;gt;&amp;lt;rules groupOperator=&amp;quot;2&amp;quot;&amp;gt;&amp;lt;&#39;&#39;&#39;</span>
+            <span class="n">token_xml_part</span> <span class="o">+=</span> <span class="n">token_xml</span>
+
+        <span class="n">footer</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39; /&amp;gt;&amp;lt;/rules&amp;gt;&amp;lt;/rules&amp;gt;&amp;lt;/CVGui_AlertTokenRuleGroup&amp;gt;&#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="n">token_xml_part</span> <span class="o">+</span> <span class="n">footer</span></div>
+
+<div class="viewcode-block" id="AlertHelper.populate_entities_xml"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.populate_entities_xml">[docs]</a>    <span class="k">def</span> <span class="nf">populate_entities_xml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rule_group_xml</span><span class="p">,</span> <span class="n">entities</span><span class="p">,</span> <span class="n">ida_types</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Populates the Associations part of Alert XML body</span>
 
 <span class="sd">            Args:</span>
 <span class="sd">                rule_group_xml (string)  --  Rule group XML generated through populate_token_rule_xml()</span>
+<span class="sd">                entities (dict) -- Entites dictionary to be associated with the alert</span>
+<span class="sd">                ida_types (list) -- List of IDA types for which the alert is to created</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                string - Associations part for alert xml</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">associations</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;alertDetail alertSeverity=&quot;0&quot; alertTokenRuleGroupXml=&quot;</span><span class="si">{</span><span class="n">rule_group_xml</span><span class="si">}</span><span class="s1">&quot; </span>
+        <span class="n">associations</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;alertDetail alertSeverity=&quot;0&quot; alertTokenRuleGroupXml=&quot;</span><span class="si">{rule_group_xml}</span><span class="s1">&quot; </span>
 <span class="s1">                            checkForEventParams=&quot;0&quot; </span>
 <span class="s1">                            customQueryDetailsXml=&quot;&quot; escalationSeverity=&quot;0&quot; eventCriteriaXML=&quot;&quot; </span>
 <span class="s1">        minJobCountForJobAnomaly=&quot;0&quot; periodicNotificationInterval=&quot;0&quot; recipient=&quot;&quot; senderDisplayName=&quot;&quot; senderEmailId=&quot;&quot;</span>
@@ -686,10 +802,22 @@
         <span class="k">for</span> <span class="n">entity</span> <span class="ow">in</span> <span class="n">entities_list</span><span class="p">:</span>
             <span class="n">name_attribute</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">id_attribute</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">association_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;associations </span><span class="si">{</span><span class="n">name_attribute</span><span class="si">}</span><span class="s2">=&amp;quot;</span><span class="si">{</span><span class="n">entity</span><span class="p">[</span><span class="n">name_attribute</span><span class="p">]</span><span class="si">}</span><span class="s2">&amp;quot; &quot;</span> \
-                                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">id_attribute</span><span class="si">}</span><span class="s2">=&amp;quot;</span><span class="si">{</span><span class="n">entity</span><span class="p">[</span><span class="n">id_attribute</span><span class="p">]</span><span class="si">}</span><span class="s2">&amp;quot; _type_=&amp;quot;</span><span class="si">{</span><span class="n">entity</span><span class="p">[</span><span class="s1">&#39;_type_&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span> \
-                                 <span class="sa">f</span><span class="s2">&quot;&amp;quot;&amp;gt;&amp;lt;flags exclude=&amp;quot;0&amp;quot; /&amp;gt;&amp;lt;/associations&amp;gt;&amp;lt;&quot;</span>
-            <span class="n">associations</span> <span class="o">+=</span> <span class="n">association_string</span>
+            <span class="c1"># Check if entity is for a client and if ida types has been specified</span>
+            <span class="k">if</span> <span class="s1">&#39;client&#39;</span> <span class="ow">in</span> <span class="n">name_attribute</span> <span class="ow">and</span> <span class="n">ida_types</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Iterate through ida types and populate associations by getting appId</span>
+                <span class="k">for</span> <span class="n">ida_type</span> <span class="ow">in</span> <span class="n">ida_types</span><span class="p">:</span>  <span class="c1"># IDA Types only apply for clients</span>
+                    <span class="c1"># Get APP id for each ida for that particular client</span>
+                    <span class="n">application_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_ida_app_id</span><span class="p">(</span><span class="n">app_name</span><span class="o">=</span><span class="n">ida_type</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="n">id_attribute</span><span class="p">)</span>
+                    <span class="n">association_string</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;associations applicationId=&amp;quot;</span><span class="si">{application_id}</span><span class="s2">&amp;quot; clientName=&amp;quot;</span><span class="si">{entity[name_attribute]}</span><span class="s2">&amp;quot; &quot;</span> \
+                                         <span class="n">f</span><span class="s2">&quot;clientId=&amp;quot;</span><span class="si">{entity[id_attribute]}</span><span class="s2">&amp;quot; _type_=&amp;quot;</span><span class="si">{entity[&#39;_type_&#39;]}</span><span class="s2">&amp;quot; &quot;</span> \
+                                         <span class="n">f</span><span class="s2">&quot;appName=&amp;quot;</span><span class="si">{ida_type}</span><span class="s2">&amp;quot;&amp;gt;&amp;lt;flags &quot;</span> \
+                                         <span class="n">f</span><span class="s2">&quot;exclude=&amp;quot;0&amp;quot; /&amp;gt;&amp;lt;/associations&amp;gt;&amp;lt;&quot;</span>
+                    <span class="n">associations</span> <span class="o">+=</span> <span class="n">association_string</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">association_string</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;associations </span><span class="si">{name_attribute}</span><span class="s2">=&amp;quot;</span><span class="si">{entity[name_attribute]}</span><span class="s2">&amp;quot; &quot;</span> \
+                                     <span class="n">f</span><span class="s2">&quot;</span><span class="si">{id_attribute}</span><span class="s2">=&amp;quot;</span><span class="si">{entity[id_attribute]}</span><span class="s2">&amp;quot; _type_=&amp;quot;</span><span class="si">{entity[&#39;_type_&#39;]}</span><span class="s2">&quot;</span> \
+                                     <span class="n">f</span><span class="s2">&quot;&amp;quot;&amp;gt;&amp;lt;flags exclude=&amp;quot;0&amp;quot; /&amp;gt;&amp;lt;/associations&amp;gt;&amp;lt;&quot;</span>
+                <span class="n">associations</span> <span class="o">+=</span> <span class="n">association_string</span>
         <span class="n">associations</span> <span class="o">+=</span> <span class="s1">&#39;/CVGui_CommCellTreeNode&amp;gt;&quot;&gt;&#39;</span>
         <span class="k">return</span> <span class="n">associations</span></div>
 
@@ -741,30 +869,30 @@
                     <span class="n">reporting_enum_escalation</span> <span class="o">+=</span> <span class="mi">4</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-            <span class="n">current_criteria</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&lt;criteria criteriaId=&quot;</span><span class="si">{</span><span class="n">criteria</span><span class="si">}</span><span class="s1">&quot; criteriaSeverity=&quot;0&quot; delayTimeSeconds=&quot;</span><span class="si">{</span><span class="n">delay_time_seconds</span><span class="si">}</span><span class="s1">&quot;&#39;</span> \
-                               <span class="sa">f</span><span class="s1">&#39; esclationLevel=&quot;1&quot; persistTimeSeconds=&quot;</span><span class="si">{</span><span class="n">persist_time_seconds</span><span class="si">}</span><span class="s1">&quot; reportId=&quot;0&quot;&#39;</span> \
-                               <span class="sa">f</span><span class="s1">&#39; reportingOptions=&quot;</span><span class="si">{</span><span class="n">reporting_options</span><span class="si">}</span><span class="s1">&quot; taskId=&quot;0&quot; value=&quot;&quot; /&gt;&#39;</span>
+            <span class="n">current_criteria</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&lt;criteria criteriaId=&quot;</span><span class="si">{criteria}</span><span class="s1">&quot; criteriaSeverity=&quot;0&quot; delayTimeSeconds=&quot;</span><span class="si">{delay_time_seconds}</span><span class="s1">&quot;&#39;</span> \
+                               <span class="n">f</span><span class="s1">&#39; esclationLevel=&quot;1&quot; persistTimeSeconds=&quot;</span><span class="si">{persist_time_seconds}</span><span class="s1">&quot; reportId=&quot;0&quot;&#39;</span> \
+                               <span class="n">f</span><span class="s1">&#39; reportingOptions=&quot;</span><span class="si">{reporting_options}</span><span class="s1">&quot; taskId=&quot;0&quot; value=&quot;&quot; /&gt;&#39;</span>
             <span class="k">if</span> <span class="n">escalate_criteria</span><span class="p">:</span>
-                <span class="n">current_criteria</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&lt;criteria criteriaId=&quot;</span><span class="si">{</span><span class="n">criteria</span><span class="si">}</span><span class="s1">&quot; criteriaSeverity=&quot;0&quot; &#39;</span> \
-                                    <span class="sa">f</span><span class="s1">&#39;delayTimeSeconds=&quot;</span><span class="si">{</span><span class="n">delay_time_seconds_escalation</span><span class="si">}</span><span class="s1">&quot;&#39;</span> \
-                                       <span class="sa">f</span><span class="s1">&#39; esclationLevel=&quot;2&quot; &#39;</span> \
-                                    <span class="sa">f</span><span class="s1">&#39;persistTimeSeconds=&quot;</span><span class="si">{</span><span class="n">persist_time_seconds_escalation</span><span class="si">}</span><span class="s1">&quot; reportId=&quot;0&quot;&#39;</span> \
-                                       <span class="sa">f</span><span class="s1">&#39; reportingOptions=&quot;</span><span class="si">{</span><span class="n">reporting_enum_escalation</span><span class="si">}</span><span class="s1">&quot; taskId=&quot;0&quot; value=&quot;&quot; /&gt;&#39;</span>
+                <span class="n">current_criteria</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&lt;criteria criteriaId=&quot;</span><span class="si">{criteria}</span><span class="s1">&quot; criteriaSeverity=&quot;0&quot; &#39;</span> \
+                                    <span class="n">f</span><span class="s1">&#39;delayTimeSeconds=&quot;</span><span class="si">{delay_time_seconds_escalation}</span><span class="s1">&quot;&#39;</span> \
+                                       <span class="n">f</span><span class="s1">&#39; esclationLevel=&quot;2&quot; &#39;</span> \
+                                    <span class="n">f</span><span class="s1">&#39;persistTimeSeconds=&quot;</span><span class="si">{persist_time_seconds_escalation}</span><span class="s1">&quot; reportId=&quot;0&quot;&#39;</span> \
+                                       <span class="n">f</span><span class="s1">&#39; reportingOptions=&quot;</span><span class="si">{reporting_enum_escalation}</span><span class="s1">&quot; taskId=&quot;0&quot; value=&quot;&quot; /&gt;&#39;</span>
             <span class="n">criterias</span> <span class="o">+=</span> <span class="n">current_criteria</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># If notification_criteria is in additional settings then set values</span>
 
             <span class="k">for</span> <span class="n">criteria_id</span> <span class="ow">in</span> <span class="n">criteria</span><span class="p">:</span>
-                <span class="n">current_criteria</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&lt;criteria criteriaId=&quot;</span><span class="si">{</span><span class="n">criteria_id</span><span class="si">}</span><span class="s1">&quot; criteriaSeverity=&quot;0&quot; &#39;</span> \
-                                   <span class="sa">f</span><span class="s1">&#39;delayTimeSeconds=&quot;</span><span class="si">{</span><span class="n">delay_time_seconds</span><span class="si">}</span><span class="s1">&quot;&#39;</span> \
-                                   <span class="sa">f</span><span class="s1">&#39; esclationLevel=&quot;1&quot; persistTimeSeconds=&quot;</span><span class="si">{</span><span class="n">persist_time_seconds</span><span class="si">}</span><span class="s1">&quot; reportId=&quot;0&quot;&#39;</span> \
-                                   <span class="sa">f</span><span class="s1">&#39; reportingOptions=&quot;</span><span class="si">{</span><span class="n">reporting_options</span><span class="si">}</span><span class="s1">&quot; taskId=&quot;0&quot; value=&quot;&quot; /&gt;&#39;</span>
+                <span class="n">current_criteria</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&lt;criteria criteriaId=&quot;</span><span class="si">{criteria_id}</span><span class="s1">&quot; criteriaSeverity=&quot;0&quot; &#39;</span> \
+                                   <span class="n">f</span><span class="s1">&#39;delayTimeSeconds=&quot;</span><span class="si">{delay_time_seconds}</span><span class="s1">&quot;&#39;</span> \
+                                   <span class="n">f</span><span class="s1">&#39; esclationLevel=&quot;1&quot; persistTimeSeconds=&quot;</span><span class="si">{persist_time_seconds}</span><span class="s1">&quot; reportId=&quot;0&quot;&#39;</span> \
+                                   <span class="n">f</span><span class="s1">&#39; reportingOptions=&quot;</span><span class="si">{reporting_options}</span><span class="s1">&quot; taskId=&quot;0&quot; value=&quot;&quot; /&gt;&#39;</span>
                 <span class="k">if</span> <span class="n">escalate_criteria</span><span class="p">:</span>
-                    <span class="n">current_criteria</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&lt;criteria criteriaId=&quot;</span><span class="si">{</span><span class="n">criteria</span><span class="si">}</span><span class="s1">&quot; criteriaSeverity=&quot;0&quot; &#39;</span> \
-                                        <span class="sa">f</span><span class="s1">&#39;delayTimeSeconds=&quot;</span><span class="si">{</span><span class="n">delay_time_seconds_escalation</span><span class="si">}</span><span class="s1">&quot;&#39;</span> \
-                                        <span class="sa">f</span><span class="s1">&#39; esclationLevel=&quot;2&quot; persistTimeSeconds=&quot;</span><span class="si">{</span><span class="n">persist_time_seconds_escalation</span><span class="si">}</span><span class="s1">&quot; &#39;</span> \
-                                        <span class="sa">f</span><span class="s1">&#39;reportId=&quot;0&quot;&#39;</span> \
-                                        <span class="sa">f</span><span class="s1">&#39; reportingOptions=&quot;</span><span class="si">{</span><span class="n">reporting_enum_escalation</span><span class="si">}</span><span class="s1">&quot; taskId=&quot;0&quot; value=&quot;&quot; /&gt;&#39;</span>
+                    <span class="n">current_criteria</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&lt;criteria criteriaId=&quot;</span><span class="si">{criteria}</span><span class="s1">&quot; criteriaSeverity=&quot;0&quot; &#39;</span> \
+                                        <span class="n">f</span><span class="s1">&#39;delayTimeSeconds=&quot;</span><span class="si">{delay_time_seconds_escalation}</span><span class="s1">&quot;&#39;</span> \
+                                        <span class="n">f</span><span class="s1">&#39; esclationLevel=&quot;2&quot; persistTimeSeconds=&quot;</span><span class="si">{persist_time_seconds_escalation}</span><span class="s1">&quot; &#39;</span> \
+                                        <span class="n">f</span><span class="s1">&#39;reportId=&quot;0&quot;&#39;</span> \
+                                        <span class="n">f</span><span class="s1">&#39; reportingOptions=&quot;</span><span class="si">{reporting_enum_escalation}</span><span class="s1">&quot; taskId=&quot;0&quot; value=&quot;&quot; /&gt;&#39;</span>
                 <span class="n">criterias</span> <span class="o">+=</span> <span class="n">current_criteria</span>
 
         <span class="k">return</span> <span class="n">criterias</span></div>
@@ -774,6 +902,7 @@
 
 <span class="sd">            Args:</span>
 <span class="sd">                notif_type (list) - List of notification types to keep for the alert</span>
+<span class="sd">                escalate_notification (bool) - Whether the use wants to escalate the notification</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                string - Notifications part for alert xml</span>
@@ -787,18 +916,18 @@
             <span class="k">if</span> <span class="n">notification</span> <span class="o">==</span> <span class="mi">1024</span><span class="p">:</span>  <span class="c1"># RSS Feed</span>
                 <span class="n">base_location</span> <span class="o">=</span> <span class="s1">&#39;http://&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">commserv_hostname</span> <span class="o">+</span> <span class="s1">&#39;:81/rss&#39;</span>
                 <span class="n">selected_channel</span> <span class="o">=</span> <span class="s1">&#39;alerts.rss&#39;</span>
-                <span class="n">current</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;1&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; </span>
-<span class="s1">                               notifMessage=&quot;</span><span class="si">{</span><span class="n">notif_html</span><span class="si">}</span><span class="s1">&quot; notifMessageHtml=&quot;&quot;</span>
-<span class="s1">                               notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{</span><span class="n">notification</span><span class="si">}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;1&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; </span>
+<span class="s1">                               notifMessage=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot; notifMessageHtml=&quot;&quot;</span>
+<span class="s1">                               notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
 <span class="s1">                               cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
-<span class="s1">                               &lt;feeds baseLocation=&quot;</span><span class="si">{</span><span class="n">base_location</span><span class="si">}</span><span class="s1">&quot; rssFeedLocation=&quot;&quot; </span>
-<span class="s1">                               selectedChannel=&quot;</span><span class="si">{</span><span class="n">selected_channel</span><span class="si">}</span><span class="s1">&quot; seperateIndex=&quot;0&quot; /&gt;</span>
+<span class="s1">                               &lt;feeds baseLocation=&quot;</span><span class="si">{base_location}</span><span class="s1">&quot; rssFeedLocation=&quot;&quot; </span>
+<span class="s1">                               selectedChannel=&quot;</span><span class="si">{selected_channel}</span><span class="s1">&quot; seperateIndex=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;entity _type_=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;/notifMsgs&gt;&#39;&#39;&#39;</span>
                 <span class="k">if</span> <span class="n">escalate_notification</span><span class="p">:</span>
-                    <span class="n">current</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;2&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; </span>
-<span class="s1">                                    notifMessage=&quot;</span><span class="si">{</span><span class="n">notif_html</span><span class="si">}</span><span class="s1">&quot; notifMessageHtml=&quot;&quot;</span>
-<span class="s1">                                    notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{</span><span class="n">notification</span><span class="si">}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
+                    <span class="n">current</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;2&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; </span>
+<span class="s1">                                    notifMessage=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot; notifMessageHtml=&quot;&quot;</span>
+<span class="s1">                                    notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
 <span class="s1">                                    cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
 <span class="s1">                                    &lt;feeds baseLocation=&quot;&quot; rssFeedLocation=&quot;&quot; selectedChannel=&quot;&quot; seperateIndex=&quot;0&quot; /&gt;</span>
 <span class="s1">                                    &lt;entity _type_=&quot;0&quot; /&gt;</span>
@@ -806,48 +935,64 @@
 
             <span class="k">elif</span> <span class="n">notification</span> <span class="o">==</span> <span class="mi">512</span><span class="p">:</span>  <span class="c1"># Save to Disk</span>
                 <span class="n">base_location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">commserv_client</span><span class="o">.</span><span class="n">install_directory</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">alerts&#39;</span>
-                <span class="n">current</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;1&quot; localeId=&quot;0&quot; messageFormat=&quot;1&quot; </span>
-<span class="s1">                               notifMessageHtml=&quot;</span><span class="si">{</span><span class="n">notif_html</span><span class="si">}</span><span class="s1">&quot;</span>
-<span class="s1">                               notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{</span><span class="n">notification</span><span class="si">}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk </span>
-<span class="s1">                               alertLocation=&quot;</span><span class="si">{</span><span class="n">base_location</span><span class="si">}</span><span class="s1">&quot;</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;1&quot; localeId=&quot;0&quot; messageFormat=&quot;1&quot; </span>
+<span class="s1">                               notifMessageHtml=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot;</span>
+<span class="s1">                               notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk </span>
+<span class="s1">                               alertLocation=&quot;</span><span class="si">{base_location}</span><span class="s1">&quot;</span>
 <span class="s1">                               cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;feeds baseLocation=&quot;&quot; rssFeedLocation=&quot;&quot; selectedChannel=&quot;&quot; seperateIndex=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;entity _type_=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;/notifMsgs&gt;&#39;&#39;&#39;</span>
                 <span class="k">if</span> <span class="n">escalate_notification</span><span class="p">:</span>
-                    <span class="n">current</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;2&quot; localeId=&quot;0&quot; messageFormat=&quot;1&quot; </span>
-<span class="s1">                                   notifMessageHtml=&quot;</span><span class="si">{</span><span class="n">notif_html</span><span class="si">}</span><span class="s1">&quot;</span>
-<span class="s1">                                   notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{</span><span class="n">notification</span><span class="si">}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
+                    <span class="n">current</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;2&quot; localeId=&quot;0&quot; messageFormat=&quot;1&quot; </span>
+<span class="s1">                                   notifMessageHtml=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot;</span>
+<span class="s1">                                   notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
 <span class="s1">                                   cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
 <span class="s1">                                   &lt;feeds baseLocation=&quot;&quot; rssFeedLocation=&quot;&quot; selectedChannel=&quot;&quot; seperateIndex=&quot;0&quot; /&gt;</span>
 <span class="s1">                                   &lt;entity _type_=&quot;0&quot; /&gt;</span>
 <span class="s1">                                   &lt;/notifMsgs&gt;&#39;&#39;&#39;</span>
             <span class="k">elif</span> <span class="n">notification</span> <span class="o">==</span> <span class="mi">8</span><span class="p">:</span>  <span class="c1"># Event Viewer</span>
-                <span class="n">current</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;1&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; notifMessage=&quot;</span><span class="si">{</span><span class="n">notif_html</span><span class="si">}</span><span class="s1">&quot; </span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;1&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; notifMessage=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot; </span>
 <span class="s1">                               notifMessageHtml=&quot;&amp;lt;p&amp;gt; &amp;lt;/p&amp;gt;&quot;</span>
-<span class="s1">                               notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{</span><span class="n">notification</span><span class="si">}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
+<span class="s1">                               notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
 <span class="s1">                               cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;feeds baseLocation=&quot;&quot; rssFeedLocation=&quot;&quot; selectedChannel=&quot;&quot; seperateIndex=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;entity _type_=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;/notifMsgs&gt;&#39;&#39;&#39;</span>
                 <span class="k">if</span> <span class="n">escalate_notification</span><span class="p">:</span>
-                    <span class="n">current</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;2&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; notifMessage=&quot;</span><span class="si">{</span><span class="n">notif_html</span><span class="si">}</span><span class="s1">&quot; </span>
+                    <span class="n">current</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;2&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; notifMessage=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot; </span>
 <span class="s1">                                    notifMessageHtml=&quot;&amp;lt;p&amp;gt; &amp;lt;/p&amp;gt;&quot;</span>
-<span class="s1">                                    notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{</span><span class="n">notification</span><span class="si">}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
+<span class="s1">                                    notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
+<span class="s1">                                    cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
+<span class="s1">                                    &lt;feeds baseLocation=&quot;&quot; rssFeedLocation=&quot;&quot; selectedChannel=&quot;&quot; seperateIndex=&quot;0&quot; /&gt;</span>
+<span class="s1">                                    &lt;entity _type_=&quot;0&quot; /&gt;</span>
+<span class="s1">                                    &lt;/notifMsgs&gt;&#39;&#39;&#39;</span>
+            <span class="k">elif</span> <span class="n">notification</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>  <span class="c1"># SNMP Trap</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;1&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; notifMessage=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot; </span>
+<span class="s1">                               notifMessageHtml=&quot;&amp;lt;p&amp;gt; &amp;lt;/p&amp;gt;&quot;</span>
+<span class="s1">                               notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
+<span class="s1">                               cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
+<span class="s1">                               &lt;feeds baseLocation=&quot;&quot; rssFeedLocation=&quot;&quot; selectedChannel=&quot;&quot; seperateIndex=&quot;0&quot; /&gt;</span>
+<span class="s1">                               &lt;entity _type_=&quot;0&quot; /&gt;</span>
+<span class="s1">                               &lt;/notifMsgs&gt;&#39;&#39;&#39;</span>
+                <span class="k">if</span> <span class="n">escalate_notification</span><span class="p">:</span>
+                    <span class="n">current</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;2&quot; localeId=&quot;0&quot; messageFormat=&quot;0&quot; notifMessage=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot; </span>
+<span class="s1">                                    notifMessageHtml=&quot;&amp;lt;p&amp;gt; &amp;lt;/p&amp;gt;&quot;</span>
+<span class="s1">                                    notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
 <span class="s1">                                    cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
 <span class="s1">                                    &lt;feeds baseLocation=&quot;&quot; rssFeedLocation=&quot;&quot; selectedChannel=&quot;&quot; seperateIndex=&quot;0&quot; /&gt;</span>
 <span class="s1">                                    &lt;entity _type_=&quot;0&quot; /&gt;</span>
 <span class="s1">                                    &lt;/notifMsgs&gt;&#39;&#39;&#39;</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">current</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;1&quot; localeId=&quot;0&quot; messageFormat=&quot;1&quot; notifMessageHtml=&quot;</span><span class="si">{</span><span class="n">notif_html</span><span class="si">}</span><span class="s1">&quot;</span>
-<span class="s1">                               notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{</span><span class="n">notification</span><span class="si">}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
+                <span class="n">current</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;1&quot; localeId=&quot;0&quot; messageFormat=&quot;1&quot; notifMessageHtml=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot;</span>
+<span class="s1">                               notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
 <span class="s1">                               cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;feeds baseLocation=&quot;&quot; rssFeedLocation=&quot;&quot; selectedChannel=&quot;&quot; seperateIndex=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;entity _type_=&quot;0&quot; /&gt;</span>
 <span class="s1">                               &lt;/notifMsgs&gt;&#39;&#39;&#39;</span>
                 <span class="k">if</span> <span class="n">escalate_notification</span><span class="p">:</span>
-                    <span class="n">current</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;2&quot; localeId=&quot;0&quot; messageFormat=&quot;1&quot; notifMessageHtml=&quot;</span><span class="si">{</span><span class="n">notif_html</span><span class="si">}</span><span class="s1">&quot;</span>
-<span class="s1">                                    notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{</span><span class="n">notification</span><span class="si">}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
+                    <span class="n">current</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;notifMsgs esclationLevel=&quot;2&quot; localeId=&quot;0&quot; messageFormat=&quot;1&quot; notifMessageHtml=&quot;</span><span class="si">{notif_html}</span><span class="s1">&quot;</span>
+<span class="s1">                                    notifOptions=&quot;0&quot; notifType=&quot;</span><span class="si">{notification}</span><span class="s1">&quot;&gt;&lt;saveAlertToDisk alertLocation=&quot;&quot;</span>
 <span class="s1">                                    cvpassword=&quot;&quot; impersonateUser=&quot;0&quot; loginName=&quot;&quot; password=&quot;&quot; useNetworkShare=&quot;0&quot; /&gt;</span>
 <span class="s1">                                    &lt;feeds baseLocation=&quot;&quot; rssFeedLocation=&quot;&quot; selectedChannel=&quot;&quot; seperateIndex=&quot;0&quot; /&gt;</span>
 <span class="s1">                                    &lt;entity _type_=&quot;0&quot; /&gt;</span>
@@ -868,6 +1013,8 @@
 <span class="sd">                    entities={&#39;clients&#39;: self.tcinputs[&#39;ClientName&#39;]}</span>
 
 <span class="sd">                criteria (list) - List of Criteria IDs to be selected for the alert</span>
+<span class="sd">                to_users_mail (list) - List of Users to include in To for the alert notification mail</span>
+<span class="sd">                to_usergroups_mail (list) - List of Usergroups to include in To for the alert notification mail</span>
 <span class="sd">                mail_recipent (list) - List of extra mail recipents to receive the alert notification</span>
 <span class="sd">                **kwargs (dict) - Additional arguments which the user may want for his alert</span>
 
@@ -892,34 +1039,60 @@
         <span class="k">if</span> <span class="s1">&#39;token_rule&#39;</span> <span class="ow">in</span> <span class="n">additional_settings</span><span class="p">:</span>
             <span class="c1"># Only supports one token Rule at present</span>
             <span class="n">token_rule</span> <span class="o">=</span> <span class="n">additional_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;token_rule&#39;</span><span class="p">)</span>
-            <span class="n">rule_group_xml</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">populate_token_rule_xml</span><span class="p">(</span><span class="n">token_rule</span><span class="o">=</span><span class="n">token_rule</span><span class="p">)</span>
+            <span class="n">rule_group_xml</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">populate_token_rules_xml</span><span class="p">(</span><span class="n">token_rules</span><span class="o">=</span><span class="n">token_rule</span><span class="p">)</span>
 
         <span class="c1"># ENTITY ASSOCIATIONS</span>
-        <span class="n">associations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">populate_entities_xml</span><span class="p">(</span><span class="n">rule_group_xml</span><span class="p">,</span> <span class="n">entities</span><span class="p">)</span>
+        <span class="n">ida_types</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s1">&#39;ida_types&#39;</span> <span class="ow">in</span> <span class="n">additional_settings</span><span class="p">:</span>
+            <span class="n">ida_types</span> <span class="o">=</span> <span class="n">additional_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ida_types&#39;</span><span class="p">)</span>
+        <span class="n">associations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">populate_entities_xml</span><span class="p">(</span><span class="n">rule_group_xml</span><span class="p">,</span> <span class="n">entities</span><span class="p">,</span> <span class="n">ida_types</span><span class="o">=</span><span class="n">ida_types</span><span class="p">)</span>
 
         <span class="c1"># SOME ADDITIONAL OPTIONS ARE SET HERE AS WELL AS BASIC ALERT DETAILS</span>
         <span class="n">status</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># Default value for not having send individual notifications for this alert</span>
         <span class="k">if</span> <span class="s1">&#39;send_individual_notif&#39;</span> <span class="ow">in</span> <span class="n">additional_settings</span><span class="p">:</span>
             <span class="n">status</span> <span class="o">=</span> <span class="mi">16</span>
         <span class="n">current_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
-        <span class="n">alert_options</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;alert GUID=&quot;&quot; createdTime=&quot;</span><span class="si">{</span><span class="n">current_time</span><span class="si">}</span><span class="s1">&quot; description=&quot;&quot; escNotifType=&quot;0&quot; </span>
-<span class="s1">                             notifType=&quot;</span><span class="si">{</span><span class="nb">sum</span><span class="p">(</span><span class="n">notif_type</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot; organizationId=&quot;0&quot; origCCId=&quot;0&quot; status=&quot;</span><span class="si">{</span><span class="n">status</span><span class="si">}</span><span class="s1">&quot;&gt;</span>
-<span class="s1">                             &lt;alert id=&quot;0&quot; name=&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot; /&gt;</span>
-<span class="s1">                             &lt;alertCategory id=&quot;</span><span class="si">{</span><span class="n">constants</span><span class="o">.</span><span class="n">CATEGORY_ID</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span><span class="p">]</span><span class="si">}</span><span class="s1">&quot; name=&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span><span class="si">}</span><span class="s1">&quot; /&gt;</span>
-<span class="s1">                             &lt;alertType id=&quot;</span><span class="si">{</span><span class="n">constants</span><span class="o">.</span><span class="n">ALERT_CATEGORY_TYPE</span><span class="p">[</span><span class="n">string</span><span class="o">.</span><span class="n">capwords</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                             <span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot; name=&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span><span class="si">}</span><span class="s1">&quot; /&gt;</span>
+        <span class="n">alert_options</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;alert GUID=&quot;&quot; createdTime=&quot;</span><span class="si">{current_time}</span><span class="s1">&quot; description=&quot;&quot; escNotifType=&quot;0&quot; </span>
+<span class="s1">                             notifType=&quot;{sum(notif_type)}&quot; organizationId=&quot;0&quot; origCCId=&quot;0&quot; status=&quot;</span><span class="si">{status}</span><span class="s1">&quot;&gt;</span>
+<span class="s1">                             &lt;alert id=&quot;0&quot; name=&quot;</span><span class="si">{name}</span><span class="s1">&quot; /&gt;</span>
+<span class="s1">                             &lt;alertCategory id=&quot;</span><span class="si">{constants.CATEGORY_ID[self.alert_category]}</span><span class="s1">&quot; name=&quot;</span><span class="si">{self.alert_category}</span><span class="s1">&quot; /&gt;</span>
+<span class="s1">                             &lt;alertType id=&quot;{constants.ALERT_CATEGORY_TYPE[string.capwords(self.alert_category)].get(</span>
+<span class="s1">                             self.alert_type)}&quot; name=&quot;</span><span class="si">{self.alert_type}</span><span class="s1">&quot; /&gt;</span>
 <span class="s1">                             &lt;creator id=&quot;1&quot; name=&quot;admin&quot; /&gt;</span>
-<span class="s1">                             &lt;/alert&gt;</span>
-<span class="s1">                             &lt;userList id1=&quot;1&quot; id2=&quot;1&quot; name=&quot;admin&quot; /&gt;&#39;&#39;&#39;</span>
+<span class="s1">                             &lt;/alert&gt;&#39;&#39;&#39;</span>
+
+        <span class="c1"># EMAIL TO : USERS, USERGROUPS</span>
+        <span class="k">if</span> <span class="s1">&#39;to_users_mail&#39;</span> <span class="ow">in</span> <span class="n">additional_settings</span><span class="p">:</span>
+            <span class="n">to_recipents_xml</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">additional_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;to_users_mail&#39;</span><span class="p">):</span>
+                <span class="c1"># Try fetching id for user and populating into to_recipents_xml</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">user_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">user</span><span class="p">)</span><span class="o">.</span><span class="n">user_id</span>
+                    <span class="n">to_recipents_xml</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;userList id1=&quot;</span><span class="si">{user_id}</span><span class="s1">&quot; id2=&quot;1&quot; name=&quot;</span><span class="si">{user}</span><span class="s1">&quot; /&gt;&#39;&#39;&#39;</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">fetch_excp</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Couldn</span><span class="se">\&#39;</span><span class="s1">t fetch user id for user </span><span class="si">{user}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="n">alert_options</span> <span class="o">+=</span> <span class="n">to_recipents_xml</span>
+
+        <span class="k">if</span> <span class="s1">&#39;to_usergroups_mail&#39;</span> <span class="ow">in</span> <span class="n">additional_settings</span><span class="p">:</span>
+            <span class="n">to_recipents_xml</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+            <span class="k">for</span> <span class="n">user_group</span> <span class="ow">in</span> <span class="n">additional_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;to_usergroups_mail&#39;</span><span class="p">):</span>
+                <span class="c1"># Try fetching usergroup id for usergroup and populating into to_recipents_xml</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">usergroup_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">user_groups</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">user_group</span><span class="p">)</span><span class="o">.</span><span class="n">user_group_id</span>
+                    <span class="n">to_recipents_xml</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;userGroupList id1=&quot;</span><span class="si">{usergroup_id}</span><span class="s1">&quot; id2=&quot;1&quot; name=&quot;</span><span class="si">{user_group}</span><span class="s1">&quot; /&gt;&#39;&#39;&#39;</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">fetch_excp</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Couldn</span><span class="se">\&#39;</span><span class="s1">t fetch usergroup id for usergroup </span><span class="si">{user_group}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">alert_options</span> <span class="o">+=</span> <span class="n">to_recipents_xml</span>
 
         <span class="c1"># ESCALATION RECIPENTS</span>
         <span class="k">if</span> <span class="s1">&#39;escalation_recipent&#39;</span> <span class="ow">in</span> <span class="n">additional_settings</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">additional_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;escalation_recipent&#39;</span><span class="p">),</span> <span class="nb">str</span><span class="p">):</span>
-                <span class="n">alert_options</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;nonGalaxyUserList id1=&quot;0&quot; id2=&quot;2&quot; </span>
-<span class="s1">                                     name=&quot;</span><span class="si">{</span><span class="n">additional_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;escalation_recipent&#39;</span><span class="p">)</span><span class="si">}</span><span class="s1">&quot; /&gt;&#39;&#39;&#39;</span>
+                <span class="n">alert_options</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;nonGalaxyUserList id1=&quot;0&quot; id2=&quot;2&quot; </span>
+<span class="s1">                                     name=&quot;{additional_settings.get(&#39;escalation_recipent&#39;)}&quot; /&gt;&#39;&#39;&#39;</span>
             <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">additional_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;escalation_recipent&#39;</span><span class="p">),</span> <span class="nb">list</span><span class="p">):</span>
                 <span class="k">for</span> <span class="n">to_recipent</span> <span class="ow">in</span> <span class="n">additional_settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;escalation_recipent&#39;</span><span class="p">):</span>
-                    <span class="n">alert_options</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;nonGalaxyUserList id1=&quot;0&quot; id2=&quot;2&quot; name=&quot;</span><span class="si">{</span><span class="n">to_recipent</span><span class="si">}</span><span class="s1">&quot; /&gt;&#39;&#39;&#39;</span>
+                    <span class="n">alert_options</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;nonGalaxyUserList id1=&quot;0&quot; id2=&quot;2&quot; name=&quot;</span><span class="si">{to_recipent}</span><span class="s1">&quot; /&gt;&#39;&#39;&#39;</span>
 
         <span class="c1"># ALERT CRITERIAS</span>
         <span class="n">criterias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">populate_criterias_xml</span><span class="p">(</span><span class="n">additional_settings</span><span class="p">,</span> <span class="n">criteria</span><span class="p">)</span>
@@ -938,9 +1111,10 @@
         <span class="c1"># EXTRA MAIL NOTIFICATION RECIPENTS</span>
         <span class="n">recipents</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
         <span class="c1"># These are mail recipents in the cc</span>
-        <span class="k">for</span> <span class="n">cc_recipent</span> <span class="ow">in</span> <span class="n">mail_recipent</span><span class="p">:</span>
-            <span class="n">recipent_string</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&#39;&#39;&lt;nonGalaxyUserListCc id1=&quot;0&quot; id2=&quot;1&quot; name=&quot;</span><span class="si">{</span><span class="n">cc_recipent</span><span class="si">}</span><span class="s1">&quot; /&gt;&#39;&#39;&#39;</span>
-            <span class="n">recipents</span> <span class="o">+=</span> <span class="n">recipent_string</span>
+        <span class="k">if</span> <span class="n">mail_recipent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">cc_recipent</span> <span class="ow">in</span> <span class="n">mail_recipent</span><span class="p">:</span>
+                <span class="n">recipent_string</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;&#39;&#39;&lt;nonGalaxyUserListCc id1=&quot;0&quot; id2=&quot;1&quot; name=&quot;</span><span class="si">{cc_recipent}</span><span class="s1">&quot; /&gt;&#39;&#39;&#39;</span>
+                <span class="n">recipents</span> <span class="o">+=</span> <span class="n">recipent_string</span>
 
         <span class="c1"># FOOTER</span>
         <span class="n">footer</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;&lt;/alertDetail&gt;</span>
@@ -1042,7 +1216,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Alert Deletion Successful&#39;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">True</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Alert Deletion encountered an exception </span><span class="si">{</span><span class="n">excp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Alert Deletion encountered an exception </span><span class="si">{excp}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="AlertHelper.cleanup"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Performs cleanup specific to alerts, notification parsing objects</span>
@@ -1063,7 +1237,7 @@
 
 <span class="sd">    Define different functions corresponding to different situations that may be required</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alert_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alert_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
 
 <span class="sd">            Args:</span>
@@ -1073,6 +1247,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span> <span class="o">=</span> <span class="n">commcell_object</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">alert_category</span> <span class="o">=</span> <span class="n">category</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">alert_type</span> <span class="o">=</span> <span class="n">alert_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cs_machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">commserv_client</span><span class="p">)</span>
 
 <div class="viewcode-block" id="AlertSituations.backup_job"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertSituations.backup_job">[docs]</a>    <span class="k">def</span> <span class="nf">backup_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">subclient</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
@@ -1140,7 +1315,8 @@
             <span class="n">drive</span> <span class="o">=</span> <span class="n">options_selector</span><span class="o">.</span><span class="n">get_drive</span><span class="p">(</span><span class="n">client_machine</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">drive</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;No free space to genereate test data&quot;</span><span class="p">)</span>
-            <span class="n">test_data_path</span> <span class="o">=</span> <span class="n">drive</span> <span class="o">+</span> <span class="s1">&#39;TestData&#39;</span>
+            <span class="c1"># Generate folder with current timestamp in drive</span>
+            <span class="n">test_data_path</span> <span class="o">=</span> <span class="n">client_machine</span><span class="o">.</span><span class="n">create_current_timestamp_folder</span><span class="p">(</span><span class="n">folder_path</span><span class="o">=</span><span class="n">drive</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Add test data path to subclient content&#39;</span><span class="p">)</span>
             <span class="n">subclient</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="p">[</span><span class="n">test_data_path</span><span class="p">]</span>
@@ -1184,6 +1360,10 @@
                                                     <span class="n">key_name</span><span class="o">=</span><span class="s1">&#39;nMinFreeSpacePercentage&#39;</span><span class="p">,</span>
                                                     <span class="n">data_type</span><span class="o">=</span><span class="s1">&#39;INTEGER&#39;</span><span class="p">,</span>
                                                     <span class="n">value</span><span class="o">=</span><span class="s1">&#39;99&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">add_additional_setting</span><span class="p">(</span><span class="n">category</span><span class="o">=</span><span class="s1">&#39;CommServeDB.GxGlobalParam&#39;</span><span class="p">,</span>
+                                                    <span class="n">key_name</span><span class="o">=</span><span class="s1">&#39;Client Offline Alert Notification Interval&#39;</span><span class="p">,</span>
+                                                    <span class="n">data_type</span><span class="o">=</span><span class="s1">&#39;INTEGER&#39;</span><span class="p">,</span>
+                                                    <span class="n">value</span><span class="o">=</span><span class="s1">&#39;0&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting added successfully&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="AlertSituations.cleanup_low_disk_space_settings"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertSituations.cleanup_low_disk_space_settings">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_low_disk_space_settings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1198,6 +1378,8 @@
                                                        <span class="n">key_name</span><span class="o">=</span><span class="s1">&#39;nTimer_DirSpaceCheck&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">delete_additional_setting</span><span class="p">(</span><span class="n">category</span><span class="o">=</span><span class="s1">&#39;QMachineMaint&#39;</span><span class="p">,</span>
                                                        <span class="n">key_name</span><span class="o">=</span><span class="s1">&#39;nMinFreeSpacePercentage&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">delete_additional_setting</span><span class="p">(</span><span class="n">category</span><span class="o">=</span><span class="s1">&#39;CommServeDB.GxGlobalParam&#39;</span><span class="p">,</span>
+                                                       <span class="n">key_name</span><span class="o">=</span><span class="s1">&#39;Client Offline Alert Notification Interval&#39;</span><span class="p">,)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Settings Removed successfully&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="AlertSituations.auxiliary_copy_job"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertSituations.auxiliary_copy_job">[docs]</a>    <span class="k">def</span> <span class="nf">auxiliary_copy_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage_policy_name</span><span class="p">,</span> <span class="n">copy_name</span><span class="p">):</span>
@@ -1213,7 +1395,49 @@
                 <span class="s1">&#39;Failed to run Auxillary Copy Job with error </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
             <span class="p">)</span>
         <span class="n">cache</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;job_id&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)}</span>
-        <span class="k">return</span> <span class="n">cache</span></div></div>
+        <span class="k">return</span> <span class="n">cache</span></div>
+
+<div class="viewcode-block" id="AlertSituations.no_backup_in_n_days"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertSituations.no_backup_in_n_days">[docs]</a>    <span class="k">def</span> <span class="nf">no_backup_in_n_days</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates situation for criteria : No backup in last N days</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                n (int)  - N value for criteria, no backup in last N days</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Creates the alert situation required to trigger this criteria</span>
+
+<span class="sd">            Note : For triggering this properly make sure windows time service startup type is set to disabled</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Add Additional Setting to the commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Adding Additional Setting&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">add_additional_setting</span><span class="p">(</span><span class="n">category</span><span class="o">=</span><span class="s1">&#39;CommServDB.GxGlobalParam&#39;</span><span class="p">,</span>
+                                                    <span class="n">key_name</span><span class="o">=</span><span class="s1">&#39;client Offline Alert Notification Interval&#39;</span><span class="p">,</span>
+                                                    <span class="n">data_type</span><span class="o">=</span><span class="s1">&#39;INTEGER&#39;</span><span class="p">,</span>
+                                                    <span class="n">value</span><span class="o">=</span><span class="s1">&#39;0&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting added Successfully&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Stop windows time service on CS Machine</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initialize Commserve Machine Object&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Disabling Windows Time service and stopping Time service on Commserve machine&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cs_machine_obj</span><span class="o">.</span><span class="n">toggle_time_service</span><span class="p">(</span><span class="n">stop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Changing Date on Commserve machine&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Set Windows Time service startup type to &quot;disabled&quot; before this so that time change retains</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cs_machine_obj</span><span class="o">.</span><span class="n">add_days_to_system_time</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">time_change_excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">time_change_excp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AlertSituations.cleanup_no_backup_in_n_days"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertSituations.cleanup_no_backup_in_n_days">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup_no_backup_in_n_days</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs cleanup operations after triggering situation for no backup in last n days&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting startup type of Windows Time Service to Automatic and Starting Time Service&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Disabling Windows Time service and stopping Time service on Commserve machine&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cs_machine_obj</span><span class="o">.</span><span class="n">toggle_time_service</span><span class="p">(</span><span class="n">stop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Remove Additional Setting</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Removing Additional Setting&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">delete_additional_setting</span><span class="p">(</span><span class="n">category</span><span class="o">=</span><span class="s1">&#39;CommServDB.GxGlobalParam&#39;</span><span class="p">,</span>
+                                                       <span class="n">key_name</span><span class="o">=</span><span class="s1">&#39;client Offline Alert Notification Interval&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting removed successfully&#39;</span><span class="p">)</span></div></div>
 
 
 </pre></div>
@@ -1228,11 +1452,19 @@
 
   <div role="contentinfo">
     <p>
+        
         &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -1243,7 +1475,6 @@
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

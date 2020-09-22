@@ -1,0 +1,540 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Testcases.58893 &mdash; Commvault Automation 11.21 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>Testcases.58893</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Testcases.58893</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Validate Front End Backup Size in Daily/weekly/monthly Chargeback.</span>
+
+<span class="sd">    Input Example:</span>
+
+<span class="sd">    &quot;testCases&quot;: {</span>
+
+<span class="sd">        &quot;58893&quot;: {</span>
+<span class="sd">            &quot;ClientName&quot;: &quot;metrics2_2&quot;,</span>
+<span class="sd">            &quot;AgentName&quot; : &quot;file system&quot;,</span>
+<span class="sd">            &quot;BackupsetName&quot;: &quot;defaultbackupset&quot;,</span>
+<span class="sd">            &quot;SubclientName&quot;: &quot;sc1&quot;</span>
+<span class="sd">}</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="k">import</span> <span class="n">CVTestCase</span>
+<span class="kn">from</span> <span class="nn">Reports.utils</span> <span class="k">import</span> <span class="n">TestCaseUtils</span>
+<span class="kn">from</span> <span class="nn">Reports.reportsutils</span> <span class="k">import</span> <span class="n">get_startdt_string</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">Web.Common.exceptions</span> <span class="k">import</span> <span class="p">(</span><span class="n">CVTestCaseInitFailure</span><span class="p">,</span> <span class="n">CVTestStepFailure</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">Web.Common.page_object</span> <span class="k">import</span> <span class="n">TestStep</span>
+<span class="kn">from</span> <span class="nn">cvpysdk.metricsreport</span> <span class="k">import</span> <span class="n">PrivateMetrics</span>
+<span class="kn">from</span> <span class="nn">Reports.metricsutils</span> <span class="k">import</span> <span class="n">MetricsServer</span>
+
+
+<div class="viewcode-block" id="TestCase"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58893.TestCase">[docs]</a><span class="k">class</span> <span class="nc">TestCase</span><span class="p">(</span><span class="n">CVTestCase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; TestCase class used to execute the test case from here.&quot;&quot;&quot;</span>
+    <span class="n">test_step</span> <span class="o">=</span> <span class="n">TestStep</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TestCase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;Chargeback: validation of Capacity usage in cs and metrics&quot;</span>
+            <span class="s2">&quot; for FS Clients and VSA Agents&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">utils</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metrics_server</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;ClientName&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;SubclientName&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;BackupsetName&quot;</span><span class="p">:</span> <span class="kc">None</span>
+        <span class="p">}</span>
+
+<div class="viewcode-block" id="TestCase.setup"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58893.TestCase.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes Private metrics object required for this test case&quot;&quot;&quot;</span>
+        <span class="n">private_metrics_name</span> <span class="o">=</span> <span class="n">PrivateMetrics</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span><span class="o">.</span><span class="n">private_metrics_server_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metrics_server</span> <span class="o">=</span> <span class="n">MetricsServer</span><span class="p">(</span><span class="n">private_metrics_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCase.init_tc"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58893.TestCase.init_tc">[docs]</a>    <span class="k">def</span> <span class="nf">init_tc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initial configuration for connecting to DB&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">utils</span> <span class="o">=</span> <span class="n">TestCaseUtils</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputJSONnode</span><span class="p">[</span><span class="s2">&quot;commcell&quot;</span><span class="p">][</span><span class="s2">&quot;commcellUsername&quot;</span><span class="p">],</span>
+                                       <span class="bp">self</span><span class="o">.</span><span class="n">inputJSONnode</span><span class="p">[</span><span class="s2">&quot;commcell&quot;</span><span class="p">][</span><span class="s2">&quot;commcellPassword&quot;</span><span class="p">])</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">_exception</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVTestCaseInitFailure</span><span class="p">(</span>
+                <span class="s2">&quot;Testcase init failure on host [</span><span class="si">%s</span><span class="s2">] with exception:[</span><span class="si">%s</span><span class="s2">]&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">webconsole_hostname</span><span class="p">,</span> <span class="n">_exception</span><span class="p">)</span>
+            <span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCase.get_column"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58893.TestCase.get_column">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_column</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">matrix</span><span class="p">]</span></div>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">get_subclient_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get subclient id using the client name and subclient name&quot;&quot;&quot;</span>
+
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT ID FROM app_application </span>
+<span class="s2">        WHERE clientId = (</span>
+<span class="s2">            select id from app_client where name like &#39;</span><span class="si">{self.tcinputs[&quot;ClientName&quot;]}</span><span class="s2">&#39;)</span>
+<span class="s2">        and subclientname like &#39;</span><span class="si">{self.tcinputs[&quot;SubclientName&quot;]}</span><span class="s2">&#39;&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">yesterday_subclient_front_end_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the value of yesterday&#39;s front end size&quot;&quot;&quot;</span>
+        <span class="n">app_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_subclient_id</span><span class="p">()</span>
+        <span class="n">yesterday_dates</span> <span class="o">=</span> <span class="n">get_startdt_string</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT TOP 1 frontEndSize FROM RptCapacityUsage </span>
+<span class="s2">        WHERE startDT = &#39;</span><span class="si">{yesterday_dates}</span><span class="s2">&#39; and appId = &#39;</span><span class="si">{app_id}</span><span class="s2">&#39; </span>
+<span class="s2">        order by startDt desc &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">yesterday_subclient_backup_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the value of yesterday&#39;s backup size&quot;&quot;&quot;</span>
+        <span class="n">app_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_subclient_id</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT B.totalUnCompBytes FROM  JMBkpStats B WITH(NOLOCK) </span>
+<span class="s2">        INNER JOIN (SELECT appId, MAX(jobId)</span>
+<span class="s2">                    AS lastFullJobId FROM  JMBkpStats WITH(NOLOCK) WHERE status IN (1,3,14) AND </span>
+<span class="s2">                    bkpLevel IN (1, 64,128,1024, 16384, 32768) AND commCellId = 2 GROUP BY appId) T</span>
+<span class="s2">        ON B.jobId = T.lastFullJobId AND </span>
+<span class="s2">        B.commCellId = 2 and B.appId = </span><span class="si">{app_id}</span><span class="s2">&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">verify_subclient_frontend_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compare front end size and latest back up size&quot;&quot;&quot;</span>
+        <span class="n">latest_front_end_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">yesterday_subclient_front_end_size</span><span class="p">()</span>
+        <span class="n">latest_backup_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">yesterday_subclient_backup_size</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">latest_front_end_size</span> <span class="o">!=</span> <span class="n">latest_backup_size</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVTestStepFailure</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Yesterday&#39;s front end size of [</span><span class="si">{latest_front_end_size}</span><span class="s2">] does not match the &quot;</span>
+                <span class="n">f</span><span class="s2">&quot;latest backup size of </span><span class="si">{latest_backup_size}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Front End Size info has been validated&quot;</span><span class="p">)</span>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">verify_subclient_weekly</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Weekly value is the largest of all the daily values&quot;&quot;&quot;</span>
+        <span class="n">app_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_subclient_id</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting the weekly front end size&quot;</span><span class="p">)</span>
+        <span class="n">recent_week</span> <span class="o">=</span> <span class="n">get_startdt_string</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT TOP 1 frontEndSize FROM RptCapacityUsage </span>
+<span class="s2">        WHERE type=3 and appId = &#39;</span><span class="si">{app_id}</span><span class="s2">&#39; and startDT = &#39;</span><span class="si">{recent_week}</span><span class="s2">&#39; </span>
+<span class="s2">        order by startDt desc&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="n">weekly_front_end_size</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">last_completed_week</span> <span class="o">=</span> <span class="n">get_startdt_string</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting the largest daily front end size&quot;</span><span class="p">)</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT TOP 1 frontendSize FROM RptCapacityUsage </span>
+<span class="s2">        WHERE type = 1 and appId = </span><span class="si">%s</span><span class="s2"> and startDT BETWEEN {ts &#39;</span><span class="si">%s</span><span class="s2">&#39;} AND {ts &#39;</span><span class="si">%s</span><span class="s2">&#39;} </span>
+<span class="s2">        order by frontendSize desc&quot;&quot;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">app_id</span><span class="p">,</span> <span class="n">last_completed_week</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">last_completed_week</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="n">largest_daily_front_end_size</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Weekly Front End Size [</span><span class="si">{weekly_front_end_size}</span><span class="s2">]&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="n">f</span><span class="s2">&quot;Largest daily front end size over the last week [</span><span class="si">{largest_daily_front_end_size}</span><span class="s2">]&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">weekly_front_end_size</span> <span class="o">&lt;</span> <span class="n">largest_daily_front_end_size</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVTestStepFailure</span><span class="p">(</span><span class="s2">&quot;weekly value is not the largest of the daily values&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Weekly data matches that of the daily values&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TestCase.get_vm_info"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58893.TestCase.get_vm_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_vm_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the id of the VM with the largest guest size&quot;&quot;&quot;</span>
+
+        <span class="n">query</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;CREATE TABLE #LastFullVSAJob (jobId INT, appId INT)</span>
+<span class="s1">    INSERT	INTO #LastFullVSAJob</span>
+<span class="s1">    SELECT	MAX(jobId), appId</span>
+<span class="s1">    FROM	JMBkpStats WITH(NOLOCK)</span>
+<span class="s1">    WHERE	appType = 106 AND status IN (1,14) AND bkpLevel IN (1, 64, 128, 1024, 16384, 32768)</span>
+<span class="s1">    GROUP BY appId</span>
+
+<span class="s1">    SELECT	TOP 1 T.VMClientId, T.jobId AS LastFullJob,</span>
+<span class="s1">            CAST(GuestSize/1024/1024/1024 AS DECIMAL(20,2)) AS GuestSizeGB</span>
+<span class="s1">    FROM	APP_Client CL WITH(NOLOCK)</span>
+<span class="s1">            INNER JOIN (</span>
+<span class="s1">                SELECT	VM.VMClientId, VM.jobId, LJ.appId AS vsaAppId, CAST(VM.attrVal AS FLOAT) AS GuestSize,</span>
+<span class="s1">                        ROW_NUMBER() OVER (PARTITION BY VM.VMClientId ORDER BY VM.jobId DESC) AS RowId</span>
+<span class="s1">                FROM	APP_VMProp VM WITH(NOLOCK)</span>
+<span class="s1">                        INNER JOIN #LastFullVSAJob LJ ON VM.jobId = LJ.jobId</span>
+<span class="s1">                WHERE	VM.attrName = &#39;vmGuestSize&#39;</span>
+<span class="s1">            ) T ON CL.id = T.VMClientId</span>
+<span class="s1">            INNER JOIN APP_Application A WITH(NOLOCK) ON T.vsaAppId = A.id</span>
+<span class="s1">            INNER JOIN APP_Client C ON A.clientId = C.id</span>
+<span class="s1">            INNER JOIN APP_InstanceName INS ON A.instance = INS.id</span>
+<span class="s1">            INNER JOIN APP_BackupsetName BS ON A.backupset = BS.id</span>
+<span class="s1">    WHERE	T.RowId = 1</span>
+<span class="s1">    ORDER BY LastFullJob desc</span>
+<span class="s1">    DROP TABLE #LastFullVSAJob</span>
+<span class="s1">    &#39;&#39;&#39;</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">cre_api</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]]</span></div>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">yesterday_vm_backup_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the largest front end size from yesterday for that VM&quot;&quot;&quot;</span>
+        <span class="n">vm_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_vm_info</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT TOP 1 frontendSize FROM RptCapacityUsage WHERE vmClientId = </span><span class="si">{vm_id}</span><span class="s2"> </span>
+<span class="s2">        order by startDt desc&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="n">backup_size_gb</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">//</span> <span class="mi">1073741824</span>
+        <span class="k">return</span> <span class="n">backup_size_gb</span>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">verify_vm_frontend_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compare guest size and latest front end size&quot;&quot;&quot;</span>
+        <span class="n">vm_id</span><span class="p">,</span> <span class="n">guest_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_vm_info</span><span class="p">()</span>
+        <span class="n">largest_guest_size</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">guest_size</span><span class="p">))</span>
+        <span class="n">latest_backup_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">yesterday_vm_backup_size</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Largest guest size is: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">largest_guest_size</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Latest backup size is: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">latest_backup_size</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">largest_guest_size</span> <span class="o">!=</span> <span class="n">latest_backup_size</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVTestStepFailure</span><span class="p">(</span>
+                <span class="n">f</span><span class="s2">&quot;Largest guest size [</span><span class="si">{largest_guest_size}</span><span class="s2">] does not match the &quot;</span>
+                <span class="n">f</span><span class="s2">&quot;latest backup size of [</span><span class="si">{latest_backup_size}</span><span class="s2">] VM id: </span><span class="si">{vm_id}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Latest backup size is equal to the largest guest size&quot;</span><span class="p">)</span>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">verify_vm_weekly</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;verify weekly data for VMs&quot;&quot;&quot;</span>
+        <span class="n">vm_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_vm_info</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT TOP 1 frontEndSize FROM RptCapacityUsage WHERE type=3 and vmClientId = &#39;</span><span class="si">{vm_id}</span><span class="s2">&#39;</span>
+<span class="s2">        order by startDt desc&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="n">weekly_front_end_size</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">last_completed_week</span> <span class="o">=</span> <span class="n">get_startdt_string</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting DAILY data&quot;</span><span class="p">)</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;SELECT TOP 1 frontendSize FROM RptCapacityUsage</span>
+<span class="s2">        WHERE type = 1 and vmClientId = </span><span class="si">{vm_id}</span><span class="s2"> and startDT = &#39;</span><span class="si">{last_completed_week[0]}</span><span class="s2">&#39;</span>
+<span class="s2">        order by frontendSize desc&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="n">largest_daily_front_end_size</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;The latest weekly value is&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">weekly_front_end_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;The largest daily value in that week is&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">largest_daily_front_end_size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">weekly_front_end_size</span> <span class="o">!=</span> <span class="n">largest_daily_front_end_size</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;weekly value is not the largest of the daily values&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Weekly data matches that of the daily values&quot;</span><span class="p">)</span>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">compare_with_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compare values in RptCapacity Usage and SurveyMonthlyChargeback&quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        select top 5 appID from RptCapacityUsage where type=2 and startDT = (SELECT MAX(startDT)</span>
+<span class="s2">        FROM RptStorageUsage WITH (NOLOCK) WHERE type = 2 ) and vmClientId =0</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+        <span class="n">top_five_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_column</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;comparison is done with appid </span><span class="si">{top_five_id}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">capacity_daily_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">capacity_weekly_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">capacity_monthly_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">survey_daily_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">survey_weekly_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">survey_monthly_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">topId</span> <span class="ow">in</span> <span class="n">top_five_id</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">valueType</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                SELECT TOP 1 frontEndSize FROM RptCapacityUsage </span>
+<span class="s2">                WHERE appId = </span><span class="si">{topId}</span><span class="s2"> and type = </span><span class="si">{valueType}</span><span class="s2"> </span>
+<span class="s2">                order by startDT desc&quot;&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+                <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                    <span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
+                <span class="k">if</span> <span class="n">valueType</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">capacity_daily_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="n">valueType</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="n">capacity_monthly_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="n">valueType</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                    <span class="n">capacity_weekly_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Getting Commserve unique id of commcell </span><span class="si">{self.commcell.commserv_name}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT ID FROM cf_Commcellidnamemap where commservname = &#39;</span><span class="si">{self.commcell.commserv_name}</span><span class="s2">&#39;</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+        <span class="n">metrics_cre_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics_server</span><span class="o">.</span><span class="n">metrics_server_api</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">metrics_cre_api</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">database_name</span><span class="o">=</span><span class="s2">&quot;CVCloud&quot;</span><span class="p">)</span>
+        <span class="n">cc_id</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">topId</span> <span class="ow">in</span> <span class="n">top_five_id</span><span class="p">:</span>
+            <span class="c1"># 4 is daily, 1 is monthly, 2 is weekly</span>
+            <span class="k">for</span> <span class="n">instance_type</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]:</span>
+
+                <span class="n">query</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                Select TOP 1 frontEndSize FROM cf_SurveyMonthlyChargeback </span>
+<span class="s2">                WHERE appId = </span><span class="si">{topId}</span><span class="s2"> and type = </span><span class="si">{instance_type}</span><span class="s2"> and CommservUniqueId = </span><span class="si">{cc_id}</span><span class="s2"> </span>
+<span class="s2">                order by StartDate desc</span>
+<span class="s2">                &quot;&quot;&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing the query: [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="n">metrics_cre_api</span><span class="o">.</span><span class="n">execute_sql</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">database_name</span><span class="o">=</span><span class="s2">&quot;CVCloud&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">response</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">instance_type</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                        <span class="n">survey_daily_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+                    <span class="k">elif</span> <span class="n">instance_type</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">survey_monthly_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+                    <span class="k">elif</span> <span class="n">instance_type</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                        <span class="n">survey_weekly_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+
+        <span class="k">if</span> <span class="n">capacity_daily_list</span> <span class="o">!=</span> <span class="n">survey_daily_list</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;RptCapacityUsage daily data </span><span class="si">{capacity_daily_list}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;cf_SurveyMonthlyChargeback daily data </span><span class="si">{survey_daily_list}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">CVTestStepFailure</span><span class="p">(</span>
+                <span class="s2">&quot;RptCapacityUsage and surveyMonthlyChargeback list do not match for daily data&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Values in both tables are accurate for daily data&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">capacity_monthly_list</span> <span class="o">!=</span> <span class="n">survey_monthly_list</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;RptCapacityUsage monthly data </span><span class="si">{capacity_monthly_list}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;cf_SurveyMonthlyChargeback monthly data </span><span class="si">{survey_monthly_list}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">CVTestStepFailure</span><span class="p">(</span>
+                <span class="s2">&quot;RPT Capacity and the surveyMonthlyChargeback list do not match for monthly data&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Values in both tables are accurate for monthly data&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">capacity_weekly_list</span> <span class="o">!=</span> <span class="n">survey_weekly_list</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;RptCapacityUsage weekly data </span><span class="si">{capacity_weekly_list}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;cf_SurveyMonthlyChargeback weekly data </span><span class="si">{survey_weekly_list}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">CVTestStepFailure</span><span class="p">(</span>
+                <span class="s2">&quot;RPT Capacity and the surveyMonthlyChargeback list do not match for weekly data&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Values in both tables are accurate for weekly data&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TestCase.run"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.58893.TestCase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_tc</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_subclient_frontend_size</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_vm_frontend_size</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">verify_vm_weekly</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">compare_with_metrics</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">handle_testcase_exception</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

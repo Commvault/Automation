@@ -1,0 +1,790 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>FileSystem.FSUtils.ibmicvc &mdash; Commvault Automation 11.21 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>FileSystem.FSUtils.ibmicvc</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for FileSystem.FSUtils.ibmicvc</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Helper file for performing IBMi File System operations through cvc</span>
+<span class="sd">IBMiCVC: Helper class to perform cvc operations which derives from the UnixFSHelper.</span>
+
+<span class="sd">IBMiCVC</span>
+<span class="sd">==========</span>
+
+<span class="sd">    __init__()              --  initializes IBMi cvc helper object</span>
+
+<span class="sd">    add_kwargs()            --  append token file and security to command.</span>
+
+<span class="sd">    login()                --  login to CS from IBMi command line.</span>
+
+<span class="sd">    logout()               --  logout from CS through IBMi command line.</span>
+
+<span class="sd">    create_sc()            --  Create subclient in specific backupSet from IBMi command line.</span>
+
+<span class="sd">    update_sc()            --  Update subclient in specific backupSet from IBMi command line.</span>
+
+<span class="sd">    delete_sc()            --  Delete subclient in specific backupSet from IBMi command line.</span>
+
+<span class="sd">    start_backup()         --  Start backup from IBMi command line.</span>
+
+<span class="sd">    job_status()           --  Get job status from IBMi command line.</span>
+
+<span class="sd">    start_restore()        --  start restore from IBMi command line.</span>
+
+<span class="sd">Attributes</span>
+<span class="sd">----------</span>
+
+<span class="sd">    **num_libraries**               --  The number of libraries created for this testcase</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">FileSystem.FSUtils.unixfshelper</span> <span class="k">import</span> <span class="n">UnixFSHelper</span>
+<span class="kn">from</span> <span class="nn">FileSystem.FSUtils.ibmihelper</span> <span class="k">import</span> <span class="n">IBMiHelper</span>
+
+<div class="viewcode-block" id="IBMiCVC"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC">[docs]</a><span class="k">class</span> <span class="nc">IBMiCVC</span><span class="p">(</span><span class="n">IBMiHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper class to perform cvc operations&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize instance of the IBMi Helper class.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">IBMiCVC</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">testcase</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_python</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;whichPython&#39;</span><span class="p">,</span> <span class="s2">&quot;python&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sdkpath</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;sdkPath&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cs</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">testcase</span><span class="o">.</span><span class="n">inputJSONnode</span><span class="p">[</span><span class="s1">&#39;commcell&#39;</span><span class="p">][</span><span class="s1">&#39;webconsoleHostname&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cs_user</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">testcase</span><span class="o">.</span><span class="n">inputJSONnode</span><span class="p">[</span><span class="s1">&#39;commcell&#39;</span><span class="p">][</span><span class="s1">&#39;commcellUsername&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cs_password</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">testcase</span><span class="o">.</span><span class="n">inputJSONnode</span><span class="p">[</span><span class="s1">&#39;commcell&#39;</span><span class="p">][</span><span class="s1">&#39;commcellPassword&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">tcinputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ClientName&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{0}</span><span class="se">\&quot;</span><span class="s2"> </span><span class="se">\&quot;</span><span class="si">{1}</span><span class="s2">/cvcmd/cvc.py</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_python</span><span class="p">,</span>
+                                                                  <span class="bp">self</span><span class="o">.</span><span class="n">_sdkpath</span><span class="p">)</span>
+
+<div class="viewcode-block" id="IBMiCVC.add_kwargs"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.add_kwargs">[docs]</a>    <span class="k">def</span> <span class="nf">add_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">is_login</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add kwargs to command and return the new command.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            command                 (str)   : command to add kwargs</span>
+
+<span class="sd">            **kwargs            (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile       (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key    (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+<span class="sd">        :return:</span>
+<span class="sd">           command</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s1">&#39;tokenfile&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">is_login</span><span class="p">:</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -f </span><span class="se">\&quot;</span><span class="si">{1}</span><span class="s2">/</span><span class="si">{2}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sdkpath</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tokenfile&#39;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -tf </span><span class="se">\&quot;</span><span class="si">{1}</span><span class="s2">/</span><span class="si">{2}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sdkpath</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;tokenfile&#39;</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="s1">&#39;security_key&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;security_key&#39;</span><span class="p">))</span> <span class="o">==</span> <span class="mi">16</span><span class="p">:</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -k </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;security_key&#39;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Length of encryption key should be of length 16 characters&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">command</span></div>
+
+<div class="viewcode-block" id="IBMiCVC.login"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.login">[docs]</a>    <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        login to CS from IBMi command line.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            validate            (bool)  :   Validate the login operation</span>
+
+<span class="sd">            **kwargs            (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile          (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key        (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">        return:</span>
+<span class="sd">        command output or status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> login -wch </span><span class="si">{1}</span><span class="s2"> -u </span><span class="si">{2}</span><span class="s2"> -p &#39;</span><span class="si">{3}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">init_command</span><span class="p">,</span>
+                                                              <span class="bp">self</span><span class="o">.</span><span class="n">_cs</span><span class="p">,</span>
+                                                              <span class="bp">self</span><span class="o">.</span><span class="n">_cs_user</span><span class="p">,</span>
+                                                              <span class="bp">self</span><span class="o">.</span><span class="n">_cs_password</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">run_ibmi_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_kwargs</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">is_login</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+                                                               <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">validate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+
+        <span class="k">if</span> <span class="s2">&quot;Login Successful&quot;</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC Login is successful&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CVC login has failed with exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="IBMiCVC.logout"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.logout">[docs]</a>    <span class="k">def</span> <span class="nf">logout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        logout from CS through IBMi command line.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            validate            (bool)  : Validate the logout operation</span>
+
+<span class="sd">            **kwargs            (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile          (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key        (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">        return:</span>
+<span class="sd">           command output or status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> logout&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">init_command</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">run_ibmi_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_kwargs</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span> <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">validate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+
+        <span class="k">if</span> <span class="s2">&quot;Logout Successful&quot;</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC logout is successful&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CVC logout has failed with exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="IBMiCVC.create_sc"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.create_sc">[docs]</a>    <span class="k">def</span> <span class="nf">create_sc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span>
+                  <span class="n">content</span><span class="p">,</span>
+                  <span class="n">storage_policy</span><span class="p">,</span>
+                  <span class="n">backupset_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">exception_content</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                  <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create subclient in specific backupSet from IBMi command line.</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            subclient_name          (str)   :   Name of the new subclient</span>
+
+<span class="sd">            content                 (list)  : list of the content for this testcase</span>
+
+<span class="sd">            storage_policy          (str)   :   Name of the storage policy to use</span>
+
+<span class="sd">            backupset_name          (str)   : name of the backupSet.</span>
+<span class="sd">                default: NONE</span>
+
+<span class="sd">            exception_content       (list) : List of exceptions</span>
+<span class="sd">                default : None</span>
+
+<span class="sd">            validate            (bool)  : Validate subclient creation.</span>
+
+<span class="sd">            **kwargs            (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile          (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key        (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">           command output or status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> subclient -create -c </span><span class="si">{1}</span><span class="s2"> -sc </span><span class="si">{2}</span><span class="s2"> -dsp </span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_command</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span>
+            <span class="n">subclient_name</span><span class="p">,</span>
+            <span class="n">storage_policy</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">backupset_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -bk </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">each</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -path </span><span class="se">\&quot;</span><span class="si">{1}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">each</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">exception_content</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">each</span> <span class="ow">in</span> <span class="n">exception_content</span><span class="p">:</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -excludepath </span><span class="se">\&quot;</span><span class="si">{1}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">each</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">run_ibmi_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_kwargs</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span> <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">validate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+        <span class="k">if</span> <span class="s2">&quot;Subclient creation completed&quot;</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC subclient creation is successful&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CVC subclient creation has failed with exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="IBMiCVC.update_sc"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.update_sc">[docs]</a>    <span class="k">def</span> <span class="nf">update_sc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span>
+                  <span class="n">content</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">storage_policy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">backupset_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">exception_content</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                  <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                  <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        update subclient in specific backupSet from IBMi command line.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subclient_name          (str)   :   Name of the new subclient</span>
+
+<span class="sd">            content                 (list)  : list of the content for this testcase</span>
+
+<span class="sd">            storage_policy          (str)   :   Name of the storage policy to use</span>
+
+<span class="sd">            backupset_name          (str)   : name of the backupSet.</span>
+<span class="sd">                default: NONE</span>
+
+<span class="sd">            exception_content       (list) : List of exceptions</span>
+<span class="sd">                default : None</span>
+
+<span class="sd">            overwrite              (bool) : overwrite conetnt and/or exceptions</span>
+<span class="sd">                default : False</span>
+
+<span class="sd">            validate            (bool)  : Validate subclient update operation</span>
+
+<span class="sd">            **kwargs            (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile          (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key        (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">           command output or status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> subclient -update -c </span><span class="si">{1}</span><span class="s2"> -sc </span><span class="si">{2}</span><span class="s2"> -overwrite </span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_command</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span>
+            <span class="n">subclient_name</span><span class="p">,</span>
+            <span class="n">overwrite</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">backupset_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -bk </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">content</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">each</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -path </span><span class="se">\&quot;</span><span class="si">{1}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">each</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">exception_content</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">each</span> <span class="ow">in</span> <span class="n">exception_content</span><span class="p">:</span>
+                <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -excludepath </span><span class="se">\&quot;</span><span class="si">{1}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">each</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">storage_policy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -dsp </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">storage_policy</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">run_ibmi_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_kwargs</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+                                                               <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">validate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+
+        <span class="k">if</span> <span class="s2">&quot;Subclient update completed&quot;</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC subclient update is successful&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CVC subclient updation has failed with exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="IBMiCVC.delete_sc"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.delete_sc">[docs]</a>    <span class="k">def</span> <span class="nf">delete_sc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span> <span class="n">backupset_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete subclient in specific backupSet from IBMi command line.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subclient_name          (str)   :   Name of the new subclient</span>
+
+<span class="sd">            backupset_name          (str)   : name of the backupSet.</span>
+<span class="sd">                default: NONE</span>
+
+<span class="sd">            validate            (bool)  : Validate subclient delete operation.</span>
+<span class="sd">            	default: True</span>
+
+<span class="sd">            **kwargs            (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile          (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key        (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">           command output or status.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> subclient -delete -c </span><span class="si">{1}</span><span class="s2"> -sc </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_command</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span>
+            <span class="n">subclient_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">backupset_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -bk </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">run_ibmi_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_kwargs</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+                                                               <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">validate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+
+        <span class="k">if</span> <span class="s2">&quot;Subclient deletion completed&quot;</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC: subclient deletion is successful&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CVC subclientdeletion has failed with exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="IBMiCVC.start_backup"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.start_backup">[docs]</a>    <span class="k">def</span> <span class="nf">start_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span>
+                     <span class="n">backupset_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                     <span class="n">backup_type</span><span class="o">=</span><span class="s2">&quot;full&quot;</span><span class="p">,</span>
+                     <span class="n">wait</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                     <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                     <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        start backup from IBMi command line.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            subclient_name          (str)   :   Name of the new subclient</span>
+
+<span class="sd">            backupset_name          (str)   : name of the backupSet.</span>
+<span class="sd">                default: NONE</span>
+
+<span class="sd">            backup_type             (str)   :   Name of the new subclient</span>
+
+<span class="sd">            wait                    (bool)  :   wait till backup completes.</span>
+<span class="sd">            	default: False</span>
+
+<span class="sd">            validate                (bool)  : Validate the backup operation</span>
+<span class="sd">            	default: True</span>
+
+<span class="sd">            **kwargs                (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile       (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key    (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+<span class="sd">        :return:</span>
+<span class="sd">           command output or status or job_id</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">backup_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;incremental&#39;</span><span class="p">,</span> <span class="s1">&#39;synthetic_full&#39;</span><span class="p">,</span> <span class="s1">&#39;differential&#39;</span><span class="p">],</span> \
+            <span class="s2">&quot;Backup type cannot be </span><span class="si">{0}</span><span class="s2">. Backup Type should be &quot;</span> \
+            <span class="s2">&quot;full/incremental/synthetic_full/differential&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">)</span>
+
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> backup -c </span><span class="si">{1}</span><span class="s2"> -sc </span><span class="si">{2}</span><span class="s2"> -l </span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">init_command</span><span class="p">,</span>
+                                                            <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span>
+                                                            <span class="n">subclient_name</span><span class="p">,</span>
+                                                            <span class="n">backup_type</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="n">backupset_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -bk </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">run_ibmi_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_kwargs</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+                                                               <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">validate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+
+        <span class="n">job_id</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;&lt;JobID&gt;(\d+)&lt;/JobID&gt;&#39;</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">job_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CVC subclient backup has failed to start with exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">wait</span><span class="o">=</span><span class="n">wait</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> backup job#</span><span class="si">{1}</span><span class="s2"> is </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">backup_type</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">),</span> <span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">job</span></div>
+
+<div class="viewcode-block" id="IBMiCVC.job_status"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.job_status">[docs]</a>    <span class="k">def</span> <span class="nf">job_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">wait</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get job status from IBMi command line.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_id                  (int)   :   job ID</span>
+
+<span class="sd">            wait                    (bool)  : wait for job completion</span>
+<span class="sd">                default: False</span>
+
+<span class="sd">            validate                (bool)  : Validate the backup operation</span>
+<span class="sd">                default: True</span>
+
+<span class="sd">            **kwargs            (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile       (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key    (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+<span class="sd">        :return:</span>
+<span class="sd">           command output or (directory with status and  job_id)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> job_status -jid </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">init_command</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">run_ibmi_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_kwargs</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+                                                                   <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;&lt;job_status&gt;([a-zA-Z/\s]+)&lt;/job_status&gt;&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">validate</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+
+            <span class="k">if</span> <span class="s2">&quot;Pending&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> <span class="s2">&quot;Completed&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> \
+                    <span class="s2">&quot;Failed&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> \
+                    <span class="s2">&quot;Completed w/ one or more errors&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> \
+                    <span class="n">wait</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Job status is </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">status</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">job_id</span><span class="p">,</span> <span class="s1">&#39;status&#39;</span><span class="p">:</span> <span class="n">status</span><span class="p">[</span><span class="mi">0</span><span class="p">]}</span>
+        <span class="k">if</span> <span class="n">job</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC: Job status for job ID </span><span class="si">{0}</span><span class="s2"> is </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">status</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="k">if</span> <span class="s2">&quot;Completed&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">status</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">wait</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Job#</span><span class="si">{0}</span><span class="s2"> is </span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">),</span> <span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">)))</span>
+            <span class="k">return</span> <span class="n">job</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CVC get job status command execution has exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="IBMiCVC.start_restore"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.start_restore">[docs]</a>    <span class="k">def</span> <span class="nf">start_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_paths</span><span class="p">,</span>
+                      <span class="n">backupset_name</span><span class="p">,</span>
+                      <span class="n">destination_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                      <span class="n">subclient_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                      <span class="n">destination_client</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                      <span class="n">from_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                      <span class="n">to_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                      <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                      <span class="n">wait</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                      <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                      <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        start restore from IBMi command line.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            source_paths            (list)  : List of source paths</span>
+
+<span class="sd">            backupset_name          (str)   : name of the backupSet.</span>
+
+<span class="sd">            destination_path        (str)  : destination path</span>
+<span class="sd">                default: None</span>
+
+<span class="sd">            subclient_name          (str)   : Name of the new subclient</span>
+<span class="sd">                default: None</span>
+
+<span class="sd">            destination_client      (str)   : Name of the destination client</span>
+<span class="sd">                default: None</span>
+
+<span class="sd">            from_time               (str)   : restore from time</span>
+<span class="sd">                default: None</span>
+
+<span class="sd">            to_time               (str)   : restore till time</span>
+<span class="sd">                default: None</span>
+
+<span class="sd">            wait                    (bool)  :   wait till backup completes.</span>
+<span class="sd">                default: False</span>
+
+<span class="sd">            validate                (bool)  : Validate the backup operation</span>
+<span class="sd">                default: True</span>
+
+<span class="sd">            **kwargs            (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile       (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key    (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+<span class="sd">        :return:</span>
+<span class="sd">           command output or (directory with status and  job_id)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">  restore -c </span><span class="si">{1}</span><span class="s2"> -bk </span><span class="si">{2}</span><span class="s2"> -uo </span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">init_command</span><span class="p">,</span>
+                                                               <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span>
+                                                               <span class="n">backupset_name</span><span class="p">,</span>
+                                                               <span class="n">overwrite</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">subclient_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -sc </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">each</span> <span class="ow">in</span> <span class="n">source_paths</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -path </span><span class="se">\&quot;</span><span class="si">{1}</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">each</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">destination_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -dp </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">destination_path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">destination_client</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -dc </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">destination_client</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">from_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -ftime </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">from_time</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">to_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -ttime </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">to_time</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">run_ibmi_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_kwargs</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+                                                               <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">validate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+
+        <span class="n">job_id</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;&lt;JobID&gt;(\d+)&lt;/JobID&gt;&#39;</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">job_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CVC subclient backup has failed to start with exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_status</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">wait</span><span class="o">=</span><span class="n">wait</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Restore job#</span><span class="si">{0}</span><span class="s2"> is </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">),</span> <span class="n">job</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">job</span></div>
+
+<div class="viewcode-block" id="IBMiCVC.find"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.ibmicvc.IBMiCVC.find">[docs]</a>    <span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span>
+             <span class="n">backupset_name</span><span class="p">,</span>
+             <span class="n">subclient_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">from_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">to_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+             <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        find backup object from IBMi command line.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            file_name            (str)  : List of source paths</span>
+
+<span class="sd">            backupset_name          (str)   : name of the backupSet.</span>
+
+<span class="sd">            subclient_name          (str)   : Name of the new subclient</span>
+<span class="sd">                default: None</span>
+
+<span class="sd">            from_time               (str)   : restore from time</span>
+<span class="sd">                default: None</span>
+
+<span class="sd">            to_time               (str)   : restore till time</span>
+<span class="sd">                default: None</span>
+
+<span class="sd">            validate            (bool)  :   Validate the login operation</span>
+<span class="sd">                default: True</span>
+
+<span class="sd">            **kwargs            (dict)  : dictionary of optional arguments</span>
+<span class="sd">            options:</span>
+<span class="sd">                    tokenfile       (str)    : name of token file to be created.</span>
+<span class="sd">                        default: None</span>
+
+<span class="sd">                    security_key    (str)   : 16 character encryption key.</span>
+<span class="sd">                        default: None</span>
+<span class="sd">        :return:</span>
+<span class="sd">           result</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> find -c </span><span class="si">{1}</span><span class="s2"> -bk </span><span class="si">{2}</span><span class="s2"> -f </span><span class="si">{3}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">init_command</span><span class="p">,</span>
+                                                          <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span><span class="p">,</span>
+                                                          <span class="n">backupset_name</span><span class="p">,</span>
+                                                          <span class="n">file_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">subclient_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -sc </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">from_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -ftime </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">from_time</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">to_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> -ttime </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">to_time</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">run_ibmi_command</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_kwargs</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+                                                               <span class="n">validate</span><span class="o">=</span><span class="n">validate</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">validate</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;result is </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC: find operation output is  </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;CVC find operation backup has failed with exception [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">))</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

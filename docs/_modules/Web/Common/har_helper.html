@@ -1,0 +1,390 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Web.Common.har_helper &mdash; Commvault Automation 11.21 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Web.Common.har_helper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Web.Common.har_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper class for HAR related operations</span>
+
+<span class="sd">    HarHelper:</span>
+
+<span class="sd">        __init__()                      --      initialize the HarHelper class</span>
+
+<span class="sd">        refresh()                       --      refreshes the properties associated with</span>
+<span class="sd">                                                HarHelper class</span>
+
+<span class="sd">        upload_har_report()             --      uploads the HAR csv file to open data source</span>
+
+<span class="sd">        export_har()                    --      dumps browser HAR content to json and csv files</span>
+
+<span class="sd">        json_csv()                      --      parser to parse HAR json to csv file</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">constants</span> <span class="k">as</span> <span class="n">automation_constants</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">dynamicindex.Datacube.data_source_helper</span> <span class="k">import</span> <span class="n">DataSourceHelper</span>
+
+
+<div class="viewcode-block" id="HarHelper"><a class="viewcode-back" href="../../../source/Web.Common.html#Web.Common.har_helper.HarHelper">[docs]</a><span class="k">class</span> <span class="nc">HarHelper</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;HarHelper class for HAR related operations&quot;&quot;&quot;</span>
+
+    <span class="n">FIELD_NAMES</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;BuildId&#39;</span><span class="p">,</span> <span class="s1">&#39;ServerIP&#39;</span><span class="p">,</span> <span class="s1">&#39;PageName&#39;</span><span class="p">,</span> <span class="s1">&#39;URL&#39;</span><span class="p">,</span> <span class="s1">&#39;Requesttype&#39;</span><span class="p">,</span> <span class="s1">&#39;Responsecode&#39;</span><span class="p">,</span> <span class="s1">&#39;Starttime&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;Waittime&#39;</span><span class="p">,</span> <span class="s1">&#39;Totaltime&#39;</span><span class="p">]</span>
+    <span class="n">FIELD_TYPES</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="s1">&#39;int&#39;</span><span class="p">,</span> <span class="s1">&#39;utcdatetime&#39;</span><span class="p">,</span> <span class="s1">&#39;int&#39;</span><span class="p">,</span> <span class="s1">&#39;int&#39;</span><span class="p">]</span>
+    <span class="n">FIELD_SCHEMA</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;indexed&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s2">&quot;stored&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s2">&quot;multiValued&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">&quot;searchDefault&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s2">&quot;autocomplete&quot;</span><span class="p">:</span> <span class="kc">False</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes the HarHelper object&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span> <span class="o">=</span> <span class="n">commcell_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">open_data_source_name</span> <span class="o">=</span> <span class="s2">&quot;harReportDataSource&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_source_helper</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_cube</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_sources</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+
+<div class="viewcode-block" id="HarHelper.refresh"><a class="viewcode-back" href="../../../source/Web.Common.html#Web.Common.har_helper.HarHelper.refresh">[docs]</a>    <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;refreshes the properties associated with HarHelper class&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_source_helper</span> <span class="o">=</span> <span class="n">DataSourceHelper</span><span class="p">(</span><span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_cube</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">datacube</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_sources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_cube</span><span class="o">.</span><span class="n">datasources</span></div>
+
+<div class="viewcode-block" id="HarHelper.upload_har_report"><a class="viewcode-back" href="../../../source/Web.Common.html#Web.Common.har_helper.HarHelper.upload_har_report">[docs]</a>    <span class="k">def</span> <span class="nf">upload_har_report</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">csv_file</span><span class="p">,</span> <span class="n">index_server_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to upload the HAR csv file to open data source</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                csv_file            (str)       --  HAR csv file location to be uploaded</span>
+
+<span class="sd">                index_server_name   (str)       --  Index server name to be used a</span>
+<span class="sd">                                                    create an Open Data Source</span>
+<span class="sd">                                                        Default=None</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if index_server_name is not passed to create new Open data source</span>
+
+<span class="sd">                    if failed to upload csv file</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_sources</span><span class="o">.</span><span class="n">has_datasource</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">open_data_source_name</span><span class="p">):</span>
+            <span class="n">har_ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_sources</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">open_data_source_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">index_server_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Index server name is required to create new open data source&quot;</span><span class="p">)</span>
+            <span class="n">har_ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_source_helper</span><span class="o">.</span><span class="n">create_open_data_source</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">open_data_source_name</span><span class="p">,</span> <span class="n">index_server_name</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_source_helper</span><span class="o">.</span><span class="n">update_data_source_schema</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">open_data_source_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">FIELD_NAMES</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">FIELD_TYPES</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">FIELD_SCHEMA</span>
+            <span class="p">)</span>
+        <span class="n">report_post_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">_services</span><span class="p">[</span><span class="s1">&#39;DATACUBE_IMPORT_DATA&#39;</span><span class="p">]</span> <span class="o">%</span> <span class="p">(</span><span class="s2">&quot;csv&quot;</span><span class="p">,</span> <span class="n">har_ds</span><span class="o">.</span><span class="n">datasource_id</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">csv_data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">build_id</span> <span class="o">=</span> <span class="n">csv_data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">report_view_url</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;http://</span><span class="si">{self.commcell.webconsole_hostname}</span><span class="s2">/webconsole/dcube.do?type=blank&amp;dn=&quot;</span> \
+                          <span class="n">f</span><span class="s2">&quot;harReportDataSource&amp;id=</span><span class="si">{har_ds.datasource_id}</span><span class="s2">&amp;cn=</span><span class="si">{har_ds.datasource_id}</span><span class="s2">&amp;&quot;</span> \
+                          <span class="n">f</span><span class="s2">&quot;action=rv&amp;fv=1&amp;input.dsId=</span><span class="si">{har_ds.datasource_id}</span><span class="s2">&amp;input.dsType=blank&amp;&quot;</span> \
+                          <span class="n">f</span><span class="s2">&quot;Filter.filter.include.BuildId=</span><span class="si">{build_id}</span><span class="s2">&quot;</span>
+        <span class="n">csv_data</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">csv_data</span><span class="p">)</span>
+        <span class="n">flag</span><span class="p">,</span> <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">_cvpysdk_object</span><span class="o">.</span><span class="n">make_request</span><span class="p">(</span>
+            <span class="s1">&#39;POST&#39;</span><span class="p">,</span> <span class="n">report_post_url</span><span class="p">,</span> <span class="n">csv_data</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">flag</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                <span class="k">if</span> <span class="s2">&quot;errorCode&quot;</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s1">&#39;errorCode&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;HAR report uploaded&quot;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;HAR report URL :</span><span class="se">\n</span><span class="si">{report_view_url}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+                        <span class="k">return</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Problem occurred while uploading HAR report.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HarHelper.export_har"><a class="viewcode-back" href="../../../source/Web.Common.html#Web.Common.har_helper.HarHelper.export_har">[docs]</a>    <span class="k">def</span> <span class="nf">export_har</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cvbrowser</span><span class="p">,</span> <span class="n">build_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to dump browser HAR content to json and csv files</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                cvbrowser           (obj)       --      cvbrowser class instance</span>
+
+<span class="sd">                build_id            (str)       --      unique build id string</span>
+<span class="sd">                                                        Default=None</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                str     --      location of parsed csv file with HAR entries</span>
+
+<span class="sd">            Raises:</span>
+
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if Browser Mob Proxy not initialized</span>
+
+<span class="sd">                    if csv file does not exist</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cvbrowser</span><span class="o">.</span><span class="n">bmp_proxy_server</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Browser Mob Proxy not initialized&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">automation_constants</span><span class="o">.</span><span class="n">AUTOMATION_DIRECTORY</span><span class="p">,</span> <span class="s2">&quot;temp&quot;</span><span class="p">,</span> <span class="s2">&quot;network_dump.json&quot;</span><span class="p">),</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">cvbrowser</span><span class="o">.</span><span class="n">bmp_proxy_server</span><span class="o">.</span><span class="n">har</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_to_csv</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">automation_constants</span><span class="o">.</span><span class="n">AUTOMATION_DIRECTORY</span><span class="p">,</span> <span class="s2">&quot;temp&quot;</span><span class="p">,</span> <span class="s2">&quot;network_dump.json&quot;</span><span class="p">),</span>
+                                <span class="n">build_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HarHelper.json_to_csv"><a class="viewcode-back" href="../../../source/Web.Common.html#Web.Common.har_helper.HarHelper.json_to_csv">[docs]</a>    <span class="k">def</span> <span class="nf">json_to_csv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">build_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parser to parse HAR json to csv file</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                filename        (str)       --      HAR json file location</span>
+
+<span class="sd">                build_id        (str)       --      unique build id string</span>
+<span class="sd">                                                    Default=None</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                str     --      location of parsed csv file</span>
+
+<span class="sd">            Raises:</span>
+
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if csv file does not exist</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">url_entries</span> <span class="o">=</span> <span class="n">json_data</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">][</span><span class="s1">&#39;entries&#39;</span><span class="p">]</span>
+        <span class="n">csv_headers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">FIELD_NAMES</span>
+        <span class="n">csv_data</span> <span class="o">=</span> <span class="p">[</span><span class="n">csv_headers</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">build_id</span><span class="p">:</span>
+            <span class="n">build_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">timestamp</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">url_entries</span><span class="p">:</span>
+            <span class="n">request_detail</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s1">&#39;request&#39;</span><span class="p">]</span>
+            <span class="n">response_detail</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s1">&#39;response&#39;</span><span class="p">]</span>
+            <span class="n">timings</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s1">&#39;timings&#39;</span><span class="p">]</span>
+            <span class="n">csv_row</span> <span class="o">=</span> <span class="p">[</span><span class="n">build_id</span><span class="p">,</span> <span class="n">entry</span><span class="p">[</span><span class="s1">&#39;serverIPAddress&#39;</span><span class="p">],</span> <span class="n">entry</span><span class="p">[</span><span class="s1">&#39;pageref&#39;</span><span class="p">],</span> <span class="n">request_detail</span><span class="p">[</span><span class="s1">&#39;url&#39;</span><span class="p">],</span>
+                       <span class="n">request_detail</span><span class="p">[</span><span class="s1">&#39;method&#39;</span><span class="p">],</span> <span class="n">response_detail</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">],</span> <span class="n">entry</span><span class="p">[</span><span class="s1">&#39;startedDateTime&#39;</span><span class="p">],</span>
+                       <span class="n">timings</span><span class="p">[</span><span class="s1">&#39;wait&#39;</span><span class="p">],</span> <span class="n">entry</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]]</span>
+            <span class="n">csv_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">csv_row</span><span class="p">)</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.json&#39;</span><span class="p">,</span> <span class="s1">&#39;.csv&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">out_file</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">csv_writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">csv_row</span> <span class="ow">in</span> <span class="n">csv_data</span><span class="p">:</span>
+                <span class="n">csv_writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">csv_row</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out_file</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
