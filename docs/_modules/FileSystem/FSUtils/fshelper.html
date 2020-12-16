@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>FileSystem.FSUtils.fshelper &mdash; Commvault Automation 11.21 documentation</title>
+  <title>FileSystem.FSUtils.fshelper &mdash; Commvault Automation 11.22 documentation</title>
   
 
   
@@ -288,6 +288,8 @@
 
 <span class="sd">    do_failover()                       -- To do cluster failover</span>
 
+<span class="sd">    identify_master()                   --  Identifies the master node in multi-node backup</span>
+
 
 <span class="sd">FSHelper Instance Attributes:</span>
 <span class="sd">=============================</span>
@@ -298,21 +300,21 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">from</span> <span class="nn">base64</span> <span class="k">import</span> <span class="n">b64encode</span>
-<span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="n">floor</span>
-<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
-<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
-<span class="kn">from</span> <span class="nn">difflib</span> <span class="k">import</span> <span class="n">Differ</span>
-<span class="kn">from</span> <span class="nn">enum</span> <span class="k">import</span> <span class="n">Enum</span>
-<span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">time</span>
-<span class="kn">from</span> <span class="nn">zipfile</span> <span class="k">import</span> <span class="n">ZipFile</span>
-<span class="kn">from</span> <span class="nn">past.builtins</span> <span class="k">import</span> <span class="n">basestring</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">logger</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="k">import</span> <span class="n">CVTestCase</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.windows_machine</span> <span class="k">import</span> <span class="n">WindowsMachine</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.unix_machine</span> <span class="k">import</span> <span class="n">UnixMachine</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="k">import</span> <span class="n">get_csdb</span>
+<span class="kn">from</span> <span class="nn">base64</span> <span class="kn">import</span> <span class="n">b64encode</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">floor</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">difflib</span> <span class="kn">import</span> <span class="n">Differ</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">time</span>
+<span class="kn">from</span> <span class="nn">zipfile</span> <span class="kn">import</span> <span class="n">ZipFile</span>
+<span class="kn">from</span> <span class="nn">past.builtins</span> <span class="kn">import</span> <span class="n">basestring</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="kn">import</span> <span class="n">CVTestCase</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.windows_machine</span> <span class="kn">import</span> <span class="n">WindowsMachine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.unix_machine</span> <span class="kn">import</span> <span class="n">UnixMachine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="kn">import</span> <span class="n">get_csdb</span>
 
 
 <div class="viewcode-block" id="ScanType"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.ScanType">[docs]</a><span class="k">class</span> <span class="nc">ScanType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
@@ -364,7 +366,7 @@
 <div class="viewcode-block" id="FSHelper"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper">[docs]</a><span class="k">class</span> <span class="nc">FSHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Helper class to perform file system operations&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialize instance of the FSHelper class.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span> <span class="o">=</span> <span class="n">testcase</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
@@ -635,19 +637,19 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="p">,</span> <span class="n">WindowsMachine</span><span class="p">):</span>
             <span class="n">cv_testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">os_list</span><span class="o">.</span><span class="n">WINDOWS</span>
             <span class="n">cv_testcase</span><span class="o">.</span><span class="n">slash_format</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span>
-            <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.winfshelper</span> <span class="k">import</span> <span class="n">WinFSHelper</span>
+            <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.winfshelper</span> <span class="kn">import</span> <span class="n">WinFSHelper</span>
             <span class="n">cv_testcase</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">WinFSHelper</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">cv_testcase</span><span class="o">.</span><span class="n">slash_format</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span>
             <span class="n">cv_testcase</span><span class="o">.</span><span class="n">applicable_os</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">os_list</span><span class="o">.</span><span class="n">UNIX</span>
             <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span> <span class="o">!=</span> <span class="s1">&#39;OS400&#39;</span><span class="p">:</span>
-                <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.unixfshelper</span> <span class="k">import</span> <span class="n">UnixFSHelper</span>
+                <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.unixfshelper</span> <span class="kn">import</span> <span class="n">UnixFSHelper</span>
                 <span class="n">cv_testcase</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">UnixFSHelper</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.ibmihelper</span> <span class="k">import</span> <span class="n">IBMiHelper</span>
+                <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.ibmihelper</span> <span class="kn">import</span> <span class="n">IBMiHelper</span>
                 <span class="n">cv_testcase</span><span class="o">.</span><span class="n">helper</span> <span class="o">=</span> <span class="n">IBMiHelper</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">sdkPath</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.ibmicvc</span> <span class="k">import</span> <span class="n">IBMiCVC</span>
+                    <span class="kn">from</span> <span class="nn">FileSystem.FSUtils.ibmicvc</span> <span class="kn">import</span> <span class="n">IBMiCVC</span>
                     <span class="n">cv_testcase</span><span class="o">.</span><span class="n">cvc</span> <span class="o">=</span> <span class="n">IBMiCVC</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -4105,7 +4107,29 @@
         <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;failover failed to node </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">failover_node</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running failover to node </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">failover_node</span><span class="p">))</span></div></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Running failover to node </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">failover_node</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="FSHelper.identify_master"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.identify_master">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">identify_master</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">all_machines</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Identifies Master node using clBackup.log of nodes</span>
+<span class="sd">            Args:</span>
+<span class="sd">                job (Job Instance) - job for which master node to be identified</span>
+
+<span class="sd">                all_machines (dict) - dictionary of machines instacnes with their name as key</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                node name/None - Node if master node found else None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">all_machines</span><span class="p">:</span>
+            <span class="n">temp_machine</span> <span class="o">=</span> <span class="n">all_machines</span><span class="p">[</span><span class="n">node</span><span class="p">]</span>
+            <span class="n">logs</span> <span class="o">=</span> <span class="n">temp_machine</span><span class="o">.</span><span class="n">get_logs_for_job_from_file</span><span class="p">(</span><span class="n">log_file_name</span><span class="o">=</span><span class="s2">&quot;clBackup.log&quot;</span><span class="p">,</span>
+                                                           <span class="n">job_id</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span>
+                                                           <span class="n">search_term</span><span class="o">=</span><span class="s2">&quot;DistributedIDA::CMaster&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">logs</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">node</span>
+
+        <span class="k">return</span> <span class="kc">None</span></div></div>
 </pre></div>
 
            </div>
@@ -4119,7 +4143,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

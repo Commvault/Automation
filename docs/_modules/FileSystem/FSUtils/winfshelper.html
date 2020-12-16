@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>FileSystem.FSUtils.winfshelper &mdash; Commvault Automation 11.21 documentation</title>
+  <title>FileSystem.FSUtils.winfshelper &mdash; Commvault Automation 11.22 documentation</title>
   
 
   
@@ -190,6 +190,8 @@
 
 <span class="sd">    get_no_of_qualified_objects_from_filescan() --  Returns number of objects qualified for backup from FileScan.log.</span>
 
+<span class="sd">    get_volume_guid()                           --  Returns the volume guid for given drive letter.</span>
+
 
 <span class="sd">WinFSHelper Instance Attributes:</span>
 <span class="sd">================================</span>
@@ -203,15 +205,15 @@
 <span class="kn">import</span> <span class="nn">subprocess</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="k">import</span> <span class="n">machine</span>
-<span class="kn">from</span> <span class="nn">FileSystem.FSUtils.fshelper</span> <span class="k">import</span> <span class="n">FSHelper</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="k">import</span> <span class="n">BMR_VERIFY_VMWARE</span><span class="p">,</span><span class="n">BMR_VERIFY_HYPERV</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">machine</span>
+<span class="kn">from</span> <span class="nn">FileSystem.FSUtils.fshelper</span> <span class="kn">import</span> <span class="n">FSHelper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="kn">import</span> <span class="n">BMR_VERIFY_VMWARE</span><span class="p">,</span><span class="n">BMR_VERIFY_HYPERV</span>
 
 
 <div class="viewcode-block" id="WinFSHelper"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.winfshelper.WinFSHelper">[docs]</a><span class="k">class</span> <span class="nc">WinFSHelper</span><span class="p">(</span><span class="n">FSHelper</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Helper class to perform file system operations&quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">testcase</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialize instance of the WinFSHelper class.&quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">WinFSHelper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">testcase</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_log_files_dir</span> <span class="o">=</span> <span class="kc">None</span>
@@ -428,7 +430,7 @@
         <span class="k">if</span> <span class="n">log_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">log_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\n</span><span class="s2">&quot;</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">snap_failure_term</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;VSS snap creation failed indicated by below log line </span><span class="se">\n</span><span class="s2"> </span><span class="si">{line}</span><span class="s2">.&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;VSS snap creation failed indicated by below log line </span><span class="se">\n</span><span class="s2"> </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">exit_on_vss_snap_failure</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Persistent VSS snap creation failed.&quot;</span><span class="p">)</span>
 
@@ -462,7 +464,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">res</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Checking if CopyId </span><span class="si">{copyid}</span><span class="s2"> is persistent&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Checking if CopyId </span><span class="si">{</span><span class="n">copyid</span><span class="si">}</span><span class="s2"> is persistent&quot;</span><span class="p">)</span>
         <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;Get-WMIObject Win32_ShadowCopy | WHERE {{$_.ID -eq &#39;{{</span><span class="si">{}</span><span class="s2">}}&#39;}} | FT -Property @{{e={{$_.Persistent}}}}&quot;</span>
         <span class="n">cmd_op</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">cmd</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">copyid</span><span class="p">))</span><span class="o">.</span><span class="n">formatted_output</span>
 
@@ -695,7 +697,27 @@
                     <span class="n">qualified_objects_count</span><span class="p">[</span><span class="s1">&#39;folders&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sch</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;folders&#39;</span><span class="p">)</span>
                     <span class="n">qualified_objects_count</span><span class="p">[</span><span class="s1">&#39;total&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sch</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;total&#39;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">qualified_objects_count</span></div></div>
+        <span class="k">return</span> <span class="n">qualified_objects_count</span></div>
+
+<div class="viewcode-block" id="WinFSHelper.get_volume_guid"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.winfshelper.WinFSHelper.get_volume_guid">[docs]</a>    <span class="k">def</span> <span class="nf">get_volume_guid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">drive_letter</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns Db path for given volume.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                drive_letter     (str)   --  Volume Letter without Colon</span>
+<span class="sd">                                            (E for E: volume)</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                str    -   guid Id for given drive letter on client machine</span>
+<span class="sd">                None   -   If drive letter is not valid or not able to extract guid from output</span>
+
+<span class="sd">            &quot;&quot;&quot;</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Get-Volume -DriveLetter </span><span class="si">{</span><span class="n">drive_letter</span><span class="si">}</span><span class="s2"> | FT Path&quot;</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\{.*\}&#39;</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div></div>
 </pre></div>
 
            </div>
@@ -709,7 +731,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

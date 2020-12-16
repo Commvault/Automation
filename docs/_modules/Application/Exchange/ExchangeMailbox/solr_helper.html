@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Application.Exchange.ExchangeMailbox.solr_helper &mdash; Commvault Automation 11.21 documentation</title>
+  <title>Application.Exchange.ExchangeMailbox.solr_helper &mdash; Commvault Automation 11.22 documentation</title>
   
 
   
@@ -243,6 +243,12 @@
 
 <span class="sd">    check_all_items_played_successfully()   -- Check if playback was successfully completed</span>
 
+<span class="sd">	is_content_indexed()                    -- Check if items for a client are content indexed</span>
+<span class="sd">	</span>
+<span class="sd">	get_items_for_users()                   -- Method to get documents for user guids</span>
+
+<span class="sd">    validate_retention()                    -- Method to validate retention</span>
+
 
 <span class="sd">    Example of solr queries:</span>
 <span class="sd">    To get all mailbox name where owner name is John Doe</span>
@@ -290,16 +296,16 @@
 <span class="kn">import</span> <span class="nn">urllib.request</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">,</span> <span class="n">timezone</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">,</span> <span class="n">timezone</span>
 <span class="kn">import</span> <span class="nn">requests</span>
-<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="k">import</span> <span class="n">Machine</span>
-<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">SOLR_TYPE_DICT</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="kn">import</span> <span class="n">SOLR_TYPE_DICT</span>
 
 
 <div class="viewcode-block" id="SolrHelper"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.solr_helper.SolrHelper">[docs]</a><span class="k">class</span> <span class="nc">SolrHelper</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Base class to execute solr related operations &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cvsolr</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cvsolr</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Decides which instance object needs to be created</span>
 <span class="sd">            Args:</span>
 <span class="sd">                ex_object(obj)      -- Exchange Mailbox Object</span>
@@ -318,11 +324,13 @@
                 <span class="s2">&quot;(NOLOCK) ON C.pseudoClientId = CL2.id WHERE S.CloudType IN (1,4,5) AND &quot;</span>
                 <span class="s2">&quot;CL2.name = &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span>
                 <span class="n">ex_object</span><span class="o">.</span><span class="n">index_server</span><span class="p">)</span>
+            <span class="n">ex_object</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;query: </span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="n">ex_object</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
             <span class="n">results</span> <span class="o">=</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">csdb</span><span class="o">.</span><span class="n">fetch_all_rows</span><span class="p">()</span>
             <span class="n">ind_details</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="n">solr_instance</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;No records found for the index server: </span><span class="si">%s</span><span class="s2">&quot;</span>
                                     <span class="o">%</span> <span class="n">ex_object</span><span class="o">.</span><span class="n">index_server</span><span class="p">)</span>
@@ -366,17 +374,19 @@
                 <span class="s2">&quot;Exception while creating Solr Object. Reason: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
                 <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange_obj</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exchange_obj</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cvsolr</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initializes the Solr object</span>
 <span class="sd">            Args:</span>
 <span class="sd">                exchange_obj(object)      -- instance of the exchange object</span>
 <span class="sd">                searchURL(str)            -- Search URL with collection names already added</span>
+<span class="sd">                cvsolr (Bool)       -- To check if the index server is cvsolr</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_exch_obj</span> <span class="o">=</span> <span class="n">exchange_obj</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exch_obj</span><span class="o">.</span><span class="n">tc_object</span><span class="o">.</span><span class="n">log</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span> <span class="o">=</span> <span class="n">searchURL</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_keyword_for_client_id</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">default_attrib_list</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cvsolr</span> <span class="o">=</span> <span class="n">cvsolr</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">exch_obj</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -430,8 +440,8 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVODS is running&quot;</span><span class="p">)</span>
                     <span class="k">return</span> <span class="kc">True</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                    <span class="s2">&quot;CVODS is not launched. Will check again after 1 min&quot;</span><span class="p">)</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+                    <span class="s2">&quot;CVODS is not launched. Will check again after 1.5 min&quot;</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">90</span><span class="p">)</span>
                 <span class="n">cnt</span> <span class="o">+=</span> <span class="mi">1</span>
             <span class="k">return</span> <span class="kc">False</span>
 
@@ -446,14 +456,14 @@
 <span class="sd">            Returns:</span>
 <span class="sd">                Total Count of items in each user mailbox core</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span> <span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SolrHelper.check_all_items_played_successfully"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.solr_helper.SolrHelper.check_all_items_played_successfully">[docs]</a>    <span class="k">def</span> <span class="nf">check_all_items_played_successfully</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">attr_list</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Method to get the total count of items in each core for user mailbox</span>
 <span class="sd">            Returns:</span>
 <span class="sd">                Total Count of items in each user mailbox core</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span> <span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method Not Implemented by the Child Class&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="SolrHelper.get_number_of_items_inbackup_job"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.solr_helper.SolrHelper.get_number_of_items_inbackup_job">[docs]</a>    <span class="k">def</span> <span class="nf">get_number_of_items_inbackup_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Method to set the solr search query</span>
@@ -501,29 +511,29 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating solr URL&quot;</span><span class="p">)</span>
-            <span class="n">search_query</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;q=&#39;</span>
+            <span class="n">search_query</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;q=&#39;</span>
             <span class="n">simple_search</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="k">if</span> <span class="n">select_dict</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">select_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
                         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                            <span class="n">search_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;(</span><span class="si">{key[0]}</span><span class="s1">:{str(value[0])}&#39;</span>
+                            <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s1">&#39;</span>
                             <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
-                                <span class="n">search_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39; OR </span><span class="si">{key[0]}</span><span class="s1">:{str(val)}&#39;</span>
+                                <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39; OR </span><span class="si">{</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
                         <span class="k">else</span><span class="p">:</span>
-                            <span class="n">search_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;(</span><span class="si">{key[0]}</span><span class="s1">:</span><span class="si">{value}</span><span class="s1">&#39;</span>
+                            <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s1">&#39;</span>
                         <span class="k">for</span> <span class="n">key_val</span> <span class="ow">in</span> <span class="n">key</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
                             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                                <span class="n">search_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39; OR </span><span class="si">{key_val}</span><span class="s1">:{str(value[0])}&#39;</span>
+                                <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39; OR </span><span class="si">{</span><span class="n">key_val</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s1">&#39;</span>
                                 <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
-                                    <span class="n">search_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39; OR </span><span class="si">{key_val}</span><span class="s1">:{str(val)}&#39;</span>
+                                    <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39; OR </span><span class="si">{</span><span class="n">key_val</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
                             <span class="k">else</span><span class="p">:</span>
-                                <span class="n">search_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39; OR </span><span class="si">{key_val}</span><span class="s1">:</span><span class="si">{value}</span><span class="s1">&#39;</span>
+                                <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39; OR </span><span class="si">{</span><span class="n">key_val</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s1">&#39;</span>
                         <span class="n">search_query</span> <span class="o">+=</span> <span class="s1">&#39;) AND &#39;</span>
                     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                        <span class="n">search_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;(</span><span class="si">{key}</span><span class="s1">:{str(value[0])}&#39;</span>
+                        <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;(</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s1">&#39;</span>
                         <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
-                            <span class="n">search_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39; OR </span><span class="si">{key}</span><span class="s1">:{str(val)}&#39;</span>
+                            <span class="n">search_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39; OR </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
                         <span class="n">search_query</span> <span class="o">+=</span> <span class="s2">&quot;) AND &quot;</span>
                     <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;keyword&quot;</span><span class="p">:</span>
                         <span class="n">search_query</span> <span class="o">+=</span> <span class="s2">&quot;(&quot;</span> <span class="o">+</span> <span class="n">value</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span>
@@ -531,7 +541,7 @@
                         <span class="k">break</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">search_query</span> <span class="o">=</span> <span class="n">search_query</span> <span class="o">+</span> \
-                            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{key}</span><span class="s1">:{str(value)} AND &#39;</span>
+                            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s1"> AND &#39;</span>
 
             <span class="k">if</span> <span class="n">simple_search</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">search_query</span> <span class="o">=</span> <span class="n">search_query</span><span class="p">[:</span><span class="o">-</span><span class="mi">5</span><span class="p">]</span>
@@ -540,7 +550,7 @@
             <span class="k">if</span> <span class="n">attr_list</span><span class="p">:</span>
                 <span class="n">field_query</span> <span class="o">=</span> <span class="s2">&quot;&amp;fl=&quot;</span>
                 <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">attr_list</span><span class="p">:</span>
-                    <span class="n">field_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;{str(item)},&#39;</span>
+                    <span class="n">field_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="si">}</span><span class="s1">,&#39;</span>
                 <span class="n">field_query</span> <span class="o">=</span> <span class="n">field_query</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Field query formed: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">field_query</span><span class="p">)</span>
             <span class="n">ex_query</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
@@ -550,12 +560,12 @@
                 <span class="n">op_params</span><span class="p">[</span><span class="s1">&#39;wt&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;json&quot;</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">op_params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">ex_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&amp;</span><span class="si">{key}</span><span class="s1">&#39;</span>
+                    <span class="n">ex_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&amp;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">&#39;</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">ex_query</span> <span class="o">+=</span> <span class="n">f</span><span class="s1">&#39;&amp;</span><span class="si">{key}</span><span class="s1">={str(value)}&#39;</span>
+                    <span class="n">ex_query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s1">&#39;&amp;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">=</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Optional parameters are: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">ex_query</span><span class="p">)</span>
 
-            <span class="n">final_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}{search_query}{field_query}{ex_query}</span><span class="s1">&#39;</span>
+            <span class="n">final_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}{</span><span class="n">search_query</span><span class="si">}{</span><span class="n">field_query</span><span class="si">}{</span><span class="n">ex_query</span><span class="si">}</span><span class="s1">&#39;</span>
             <span class="k">return</span> <span class="n">final_url</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
@@ -643,14 +653,14 @@
                     <span class="s2">&quot;Total number of files played(</span><span class="si">%d</span><span class="s2">) is not equal to total items in &quot;</span>
                     <span class="s2">&quot;job(</span><span class="si">%d</span><span class="s2">). Waiting for 1 minute and retrying&quot;</span> <span class="o">%</span>
                     <span class="p">(</span><span class="n">new_results</span><span class="p">,</span> <span class="n">total_results</span><span class="p">))</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">90</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">new_results</span> <span class="o">!=</span> <span class="n">old_results</span><span class="p">:</span>
                     <span class="n">old_results</span> <span class="o">=</span> <span class="n">new_results</span>
                     <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">solr_url</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">check_if_error_in_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
                     <span class="n">new_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_count_from_json</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">90</span><span class="p">)</span>
                     <span class="n">tot_time</span> <span class="o">+=</span> <span class="mi">1</span>
                     <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">solr_url</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">check_if_error_in_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
@@ -885,9 +895,9 @@
 <span class="sd">                Dictionary of column names as key and their schema as value</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;select?&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="n">solr_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{val[0]}</span><span class="s1">admin/luke?numTerms=0&#39;</span>
+        <span class="n">solr_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">admin/luke?numTerms=0&#39;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">val</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
-            <span class="n">solr_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{solr_url}</span><span class="s1">&amp;</span><span class="si">{val[1][:-1]}</span><span class="s1">&#39;</span>
+            <span class="n">solr_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">solr_url</span><span class="si">}</span><span class="s1">&amp;</span><span class="si">{</span><span class="n">val</span><span class="p">[</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span>
         <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">solr_url</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">check_if_error_in_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
         <span class="n">results</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
@@ -945,10 +955,10 @@
             <span class="n">valid_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span>
                 <span class="n">tz</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">number_of_days</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
             <span class="n">mtm_valid</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">f</span><span class="s1">&#39;</span><span class="si">{valid_time.year}</span><span class="s1">-</span><span class="si">{valid_time.month}</span><span class="s1">-</span><span class="si">{valid_time.day}</span><span class="s1">T</span><span class="si">{valid_time.hour}</span><span class="s1">&#39;</span>
-                <span class="n">f</span><span class="s1">&#39;:</span><span class="si">{valid_time.minute}</span><span class="s1">:</span><span class="si">{valid_time.second}</span><span class="s1">Z&#39;</span><span class="p">)</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">valid_time</span><span class="o">.</span><span class="n">year</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">valid_time</span><span class="o">.</span><span class="n">month</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">valid_time</span><span class="o">.</span><span class="n">day</span><span class="si">}</span><span class="s1">T</span><span class="si">{</span><span class="n">valid_time</span><span class="o">.</span><span class="n">hour</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;:</span><span class="si">{</span><span class="n">valid_time</span><span class="o">.</span><span class="n">minute</span><span class="si">}</span><span class="s1">:</span><span class="si">{</span><span class="n">valid_time</span><span class="o">.</span><span class="n">second</span><span class="si">}</span><span class="s1">Z&#39;</span><span class="p">)</span>
             <span class="n">s_dict</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">keyword_for_client_id</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_id</span><span class="p">,</span>
-                      <span class="n">keyword</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="n">f</span><span class="s1">&#39;[* TO </span><span class="si">{mtm_valid}</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="n">keyword</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="mi">2</span><span class="p">}</span>
+                      <span class="n">keyword</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="sa">f</span><span class="s1">&#39;[* TO </span><span class="si">{</span><span class="n">mtm_valid</span><span class="si">}</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="n">keyword</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="mi">2</span><span class="p">}</span>
             <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_url_and_get_response</span><span class="p">(</span>
                 <span class="n">s_dict</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;rows&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span>
             <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_count_from_json</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
@@ -976,8 +986,8 @@
                 <span class="s2">&quot;Running CvExAutomatedtask process on </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">exch_obj</span><span class="o">.</span><span class="n">proxies</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
             <span class="n">command</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">f</span><span class="s1">&#39;CvExAutomatedtask.exe -vm </span><span class="si">{machine.instance}</span><span class="s1"> -SubmitRet -IS &#39;</span>
-                <span class="n">f</span><span class="s1">&#39;&quot;</span><span class="si">{self.client_id}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+                <span class="sa">f</span><span class="s1">&#39;CvExAutomatedtask.exe -vm </span><span class="si">{</span><span class="n">machine</span><span class="o">.</span><span class="n">instance</span><span class="si">}</span><span class="s1"> -SubmitRet -IS &#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">client_id</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
             <span class="n">machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
             <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">120</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
@@ -995,7 +1005,7 @@
 <div class="viewcode-block" id="SolrStandAlone"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.solr_helper.SolrStandAlone">[docs]</a><span class="k">class</span> <span class="nc">SolrStandAlone</span><span class="p">(</span><span class="n">SolrHelper</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Class to execute solr standalone related operations &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cvsolr</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initializes the Solr StandAlone object</span>
 <span class="sd">            Args:</span>
 <span class="sd">                ex_object(object)      -- instance of the exchange object</span>
@@ -1038,12 +1048,12 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting count of all results in each core&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[0][&quot;server_url&quot;]}</span><span class="s1">/solr/&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;server_url&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/solr/&#39;</span>
             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
-                <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">usermbx</span><span class="si">{i}</span><span class="s1">/select?q=*:*&amp;rows=0&amp;wt=json&#39;</span>
+                <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">usermbx</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">/select?q=*:*&amp;rows=0&amp;wt=json&#39;</span>
                 <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">check_if_error_in_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-                <span class="n">result</span><span class="p">[</span><span class="n">f</span><span class="s1">&#39;core{str(i)}&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_count_from_json</span><span class="p">(</span>
+                <span class="n">result</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;core</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_count_from_json</span><span class="p">(</span>
                     <span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">result</span>
@@ -1077,7 +1087,7 @@
             <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting count of all results in journalmbx core&quot;</span><span class="p">)</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">journalmbx/select?q=*:*&amp;rows=0&amp;wt=json&#39;</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">journalmbx/select?q=*:*&amp;rows=0&amp;wt=json&#39;</span>
             <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
             <span class="n">result</span><span class="p">[</span><span class="s2">&quot;journalmbx&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_count_from_json</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;journalmbx&quot;</span><span class="p">])</span>
@@ -1094,14 +1104,14 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting the base url for solr queries&quot;</span><span class="p">)</span>
             <span class="n">temp_base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;http://&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_obj</span><span class="o">.</span><span class="n">subclient_name</span> <span class="o">==</span> <span class="s2">&quot;usermailbox&quot;</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">usermbx0/select?shards=&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">usermbx0/select?shards=&#39;</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}{temp_base}</span><span class="s1">usermbx</span><span class="si">{i}</span><span class="s1">&#39;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}{</span><span class="n">temp_base</span><span class="si">}</span><span class="s1">usermbx</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span>
                     <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">7</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">,&#39;</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">&amp;&#39;</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">,&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">&amp;&#39;</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">journalmbx/select?&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">journalmbx/select?&#39;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Base url for solr queries is: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
@@ -1227,7 +1237,7 @@
 <div class="viewcode-block" id="SolrCloud"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.solr_helper.SolrCloud">[docs]</a><span class="k">class</span> <span class="nc">SolrCloud</span><span class="p">(</span><span class="n">SolrHelper</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Class to execute solr cloud related operations &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cvsolr</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initializes the Solr Cloud object</span>
 <span class="sd">            Args:</span>
 <span class="sd">                ex_object(object)      -- instance of the exchange object</span>
@@ -1267,16 +1277,16 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting the base url for solr queries&quot;</span><span class="p">)</span>
-            <span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[0][&quot;server_url&quot;]}</span><span class="s1">/solr/&#39;</span>
+            <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;server_url&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/solr/&#39;</span>
             <span class="n">valid</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_obj</span><span class="o">.</span><span class="n">subclient_name</span> <span class="o">==</span> <span class="s2">&quot;usermailbox&quot;</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">)):</span>
                     <span class="n">response</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span>
-                        <span class="n">f</span><span class="s1">&#39;</span><span class="si">{base_url}</span><span class="s1">#/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">getcode</span><span class="p">()</span>
+                        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s1">#/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">getcode</span><span class="p">()</span>
                     <span class="k">if</span> <span class="n">response</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="p">(</span>
-                            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{base_url}</span><span class="s1">UM_</span><span class="si">{self.index_details[i][&quot;engine_name&quot;]}</span><span class="s1">_&#39;</span>
-                            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[i][&quot;backupset_guid&quot;]}</span><span class="s1">/select?&#39;</span><span class="p">)</span>
+                            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s1">UM_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;engine_name&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">_&#39;</span>
+                            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;backupset_guid&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/select?&#39;</span><span class="p">)</span>
                         <span class="n">valid</span> <span class="o">=</span> <span class="kc">False</span>
                         <span class="k">break</span>
             <span class="k">else</span><span class="p">:</span>
@@ -1284,12 +1294,12 @@
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_obj</span><span class="o">.</span><span class="n">subclient_name</span> <span class="o">==</span> <span class="s2">&quot;journalmailbox&quot;</span><span class="p">:</span>
                     <span class="n">mb_type</span> <span class="o">=</span> <span class="s1">&#39;JM_&#39;</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">)):</span>
-                    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{base_url}</span><span class="s1">#/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">status_code</span>
+                    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s1">#/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">status_code</span>
                     <span class="k">if</span> <span class="n">response</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="p">(</span>
-                            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{base_url}{mb_type}</span><span class="s1">&#39;</span>
-                            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[i][&quot;engine_name&quot;]}</span><span class="s1">_&#39;</span>
-                            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[i][&quot;backupset_guid&quot;]}</span><span class="s1">/select?&#39;</span><span class="p">)</span>
+                            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}{</span><span class="n">mb_type</span><span class="si">}</span><span class="s1">&#39;</span>
+                            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;engine_name&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">_&#39;</span>
+                            <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;backupset_guid&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/select?&#39;</span><span class="p">)</span>
                         <span class="n">valid</span> <span class="o">=</span> <span class="kc">False</span>
                         <span class="k">break</span>
             <span class="k">if</span> <span class="n">valid</span><span class="p">:</span>
@@ -1309,7 +1319,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">q=*:*&amp;rows=0&amp;wt=json&#39;</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">q=*:*&amp;rows=0&amp;wt=json&#39;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                 <span class="s2">&quot;Getting the count of all items for the solr cloud. URL = </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
                 <span class="n">url</span><span class="p">)</span>
@@ -1446,7 +1456,7 @@
 <div class="viewcode-block" id="CVSolr"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.solr_helper.CVSolr">[docs]</a><span class="k">class</span> <span class="nc">CVSolr</span><span class="p">(</span><span class="n">SolrHelper</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Class to execute solr cvsolr related operations &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ex_object</span><span class="p">,</span> <span class="n">searchURL</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initializes the cvsolr object</span>
 <span class="sd">            Args:</span>
 <span class="sd">                ex_object(object)      -- instance of the exchange object</span>
@@ -1467,7 +1477,7 @@
             <span class="s1">&#39;entity_ssn&#39;</span><span class="p">,</span>
             <span class="s1">&#39;CAState&#39;</span><span class="p">,</span>
             <span class="s1">&#39;cijid&#39;</span><span class="p">,</span>
-            <span class="s1">&#39;cistatus&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;ContentIndexingStatus&#39;</span><span class="p">,</span>
             <span class="s1">&#39;afid&#39;</span><span class="p">,</span>
             <span class="s1">&#39;afof&#39;</span><span class="p">}</span>
         <span class="k">if</span> <span class="n">searchURL</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1487,15 +1497,14 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting the base url for solr queries&quot;</span><span class="p">)</span>
-            <span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[0][&quot;server_url&quot;]}</span><span class="s1">/solr/&#39;</span>
+            <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;server_url&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/solr/&#39;</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_obj</span><span class="o">.</span><span class="n">subclient_name</span> <span class="o">==</span> <span class="s2">&quot;usermailbox&quot;</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
-                    <span class="n">response</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span>
-                        <span class="n">f</span><span class="s1">&#39;</span><span class="si">{base_url}</span><span class="s1">#/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">getcode</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="n">response</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="p">(</span>
-                            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{base_url}</span><span class="s1">UM_</span><span class="si">{self.index_details[0][&quot;engine_name&quot;]}</span><span class="s1">_&#39;</span>
-                            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[0][&quot;backupset_guid&quot;]}</span><span class="s1">_shard_</span><span class="si">{i}</span><span class="s1">/select?&#39;</span><span class="p">)</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s1">#/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">getcode</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">response</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s1">UM_&#39;</span>
+                        <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;backupset_guid&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">_multinode/select?&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Base url for solr queries is: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
@@ -1511,21 +1520,21 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[0][&quot;server_url&quot;]}</span><span class="s1">/solr/&#39;</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+            <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;server_url&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/solr/&#39;</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exch_obj</span><span class="o">.</span><span class="n">subclient_name</span> <span class="o">==</span> <span class="s2">&quot;usermailbox&quot;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="n">f</span><span class="s1">&#39;</span><span class="si">{base_url}</span><span class="s1">UM_</span><span class="si">{self.index_details[0][&quot;engine_name&quot;]}</span><span class="s1">_&#39;</span>
-                    <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[0][&quot;backupset_guid&quot;]}</span><span class="s1">_shard_</span><span class="si">{i}</span><span class="s1">/select?&#39;</span><span class="p">)</span>
-                <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">q=*:*&amp;rows=0&amp;wt=json&#39;</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                    <span class="s2">&quot;Getting the count of all items for the cvsolr URL = </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
-                    <span class="n">url</span><span class="p">)</span>
-                <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">check_if_error_in_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-                <span class="n">result</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;engine_name&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">get_count_from_json</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">))</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
-                <span class="k">return</span> <span class="n">result</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s1">UM_&#39;</span>
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;backupset_guid&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">_multinode/select?&#39;</span><span class="p">)</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">q=*:*&amp;rows=0&amp;wt=json&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Getting the count of all items for the cvsolr URL = </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                <span class="n">url</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_if_error_in_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+            <span class="n">result</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;engine_name&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_count_from_json</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                 <span class="s2">&quot;Exception occurred while getting total count. </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
@@ -1538,12 +1547,12 @@
 <span class="sd">                Total Count of items in each user mailbox core</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">result</span><span class="o">=</span><span class="p">{}</span>
-            <span class="n">base_url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[0][&quot;server_url&quot;]}</span><span class="s1">/solr/&#39;</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;server_url&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">/solr/&#39;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">base_url</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">f</span><span class="s1">&#39;</span><span class="si">{base_url}</span><span class="s1">UM_</span><span class="si">{self.index_details[0][&quot;engine_name&quot;]}</span><span class="s1">_&#39;</span>
-                <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.index_details[0][&quot;backupset_guid&quot;]}</span><span class="s1">_multinode/select?&#39;</span><span class="p">)</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.base_url}</span><span class="s1">q=*:*&amp;rows=0&amp;wt=json&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">base_url</span><span class="si">}</span><span class="s1">UM_&#39;</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">index_details</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;backupset_guid&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">_multinode/select?&#39;</span><span class="p">)</span>
+            <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">base_url</span><span class="si">}</span><span class="s1">q=*:*&amp;rows=0&amp;wt=json&#39;</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                 <span class="s2">&quot;Getting the count of all items for the cvsolr URL = </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
                 <span class="n">url</span><span class="p">)</span>
@@ -1602,6 +1611,78 @@
                 <span class="n">attr_list</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="CVSolr.is_content_indexed"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.solr_helper.CVSolr.is_content_indexed">[docs]</a>    <span class="k">def</span> <span class="nf">is_content_indexed</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">number_of_items</span><span class="p">,</span>
+            <span class="n">preview</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">preview_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to check if items for the client are content indexed.</span>
+<span class="sd">            Args:</span>
+<span class="sd">                number_of_items (int)   -- Number of items applicable for CI job</span>
+
+<span class="sd">                preview(boolean)        -- If job was done with preview option selected</span>
+<span class="sd">					Default(False)</span>
+
+<span class="sd">                preview_path(str)        -- The preview path</span>
+<span class="sd">                    Default(None)</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">               Exception if the items are not content indexed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validating Content Indexing&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_content_indexed</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;ContentIndexingStatus&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="s2">&quot;DocumentType&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                    <span class="s2">&quot;CAState&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">keyword_for_client_id</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_id</span><span class="p">},</span>
+                <span class="n">number_of_items</span><span class="p">,</span>
+                <span class="n">preview</span><span class="p">,</span>
+                <span class="n">preview_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occurred </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">excp</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CVSolr.get_items_for_users"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.solr_helper.CVSolr.get_items_for_users">[docs]</a>    <span class="k">def</span> <span class="nf">get_items_for_users</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_guid_lists</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to get documents for users guid</span>
+<span class="sd">            Args:</span>
+<span class="sd">                user_guid_lists(list)     -- List of user guids</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Details dictonary of user details</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;----------Getting solr documents for users: ------------&quot;</span> <span class="o">%</span>
+                <span class="n">user_guid_lists</span><span class="p">)</span>
+            <span class="n">reuslt</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">user_guid_lists</span><span class="p">:</span>
+                <span class="n">reuslt</span><span class="p">[</span><span class="n">user</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_result_of_custom_query</span><span class="p">(</span>
+                    <span class="n">select_dict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;IsVisible&#39;</span><span class="p">:</span> <span class="s1">&#39;true&#39;</span><span class="p">,</span> <span class="s1">&#39;DocumentType&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;OwnerId_sort&#39;</span><span class="p">:</span> <span class="n">user</span><span class="p">})</span>
+            <span class="k">return</span> <span class="n">reuslt</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">excp</span></div>
+
+<div class="viewcode-block" id="CVSolr.validate_retention"><a class="viewcode-back" href="../../../../source/Application.Exchange.ExchangeMailbox.html#Application.Exchange.ExchangeMailbox.solr_helper.CVSolr.validate_retention">[docs]</a>    <span class="k">def</span> <span class="nf">validate_retention</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number_of_days</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to validate retention</span>
+<span class="sd">            Args:</span>
+<span class="sd">                number_of_days(int)     -- Number of days in retention period</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception if retention is not validated</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Validating Retention for client id: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_validate_retention</span><span class="p">(</span><span class="n">number_of_days</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;ReceivedTime&quot;</span><span class="p">,</span> <span class="s2">&quot;DocumentType&quot;</span><span class="p">],</span>
+                                     <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">keyword_for_client_id</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_id</span><span class="p">,</span>
+                                      <span class="s1">&#39;IsVisible&#39;</span><span class="p">:</span> <span class="s1">&#39;false&#39;</span><span class="p">,</span> <span class="s2">&quot;DocumentType&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception while validating retention&quot;</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">excp</span></div></div>
 </pre></div>
 
@@ -1616,7 +1697,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2019, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>
