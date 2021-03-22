@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Server.Plans package &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Server.Plans package &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -84,6 +84,8 @@
               <div class="local-toc"><ul>
 <li><a class="reference internal" href="#">Server.Plans package</a><ul>
 <li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-Server.Plans.migrationconstants">Server.Plans.migrationconstants module</a></li>
+<li><a class="reference internal" href="#module-Server.Plans.migrationhelper">Server.Plans.migrationhelper module</a></li>
 <li><a class="reference internal" href="#module-Server.Plans.plansconstants">Server.Plans.plansconstants module</a></li>
 <li><a class="reference internal" href="#module-Server.Plans.planshelper">Server.Plans.planshelper module</a><ul>
 <li><a class="reference internal" href="#planshelper">PlansHelper</a></li>
@@ -162,6 +164,55 @@
 <div class="section" id="submodules">
 <h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
 </div>
+<div class="section" id="module-Server.Plans.migrationconstants">
+<span id="server-plans-migrationconstants-module"></span><h2>Server.Plans.migrationconstants module<a class="headerlink" href="#module-Server.Plans.migrationconstants" title="Permalink to this headline">¶</a></h2>
+<p>Helper file to maintain all the constants used by policy to plan migration helper</p>
+<dl class="py data">
+<dt id="Server.Plans.migrationconstants.retrieve_eligible_subclients_query">
+<code class="sig-prename descclassname">Server.Plans.migrationconstants.</code><code class="sig-name descname">retrieve_eligible_subclients_query</code><em class="property"> = &quot;\nSET NOCOUNT ON\n--ELIGIBLE POLICIES\nIF OBJECT_ID('tempdb.dbo.#ApplicableStoragePolicyId') is not NULL \n       DROP table #ApplicableStoragePolicyId\n\nCreate table #ApplicableStoragePolicyId(\n       StoragePolicyId INT,\n     HasDifferentLogAndDataStorage INT,\n     appTypeId INT,\n     subClientId INT,\n   backupSet INT\n)\n\n/*Processing the Storage Policies which are not associated to any Laptop client */\nINSERT INTO #ApplicableStoragePolicyId\nSELECT DISTINCT A.dataArchGrpID, (CASE WHEN A.dataArchGrpID = A.logArchGrpID THEN 0 ELSE 1 END) ,A.appTypeId, A.id, A.backupSet\n  FROM APP_Application A WITH(NOLOCK) \n  INNER JOIN App_Client C WITH(NOLOCK) ON A.clientId=C.id\n  inner join archGroup AG WITH(NOLOCK) on AG.id=A.dataArchGrpID\n  LEFT OUTER JOIN App_PlanRule PR WITH(NOLOCK) ON PR.storagePolicyId = A.dataArchGrpID\n  left outer join App_PlanProp PP WITH(NOLOCK) ON PP.attrName = 'Storage policy' AND CAST(PP.attrVal AS INT) = A.dataArchGrpId\n  LEFT OUTER JOIN APP_SubClientProp PROP1 WITH(NOLOCK) ON A.id = PROP1.componentNameId AND PROP1.cs_attrName = CHECKSUM(N'DDB Backup') AND PROP1.attrName = 'DDB Backup' AND PROP1.attrVal = N'1' AND PROP1.modified = 0\n  LEFT OUTER JOIN APP_SubClientProp PROP2 WITH(NOLOCK) ON A.id = PROP2.componentNameId AND PROP2.cs_attrName = CHECKSUM(N'Index SubClient') AND PROP2.attrName = 'Index SubClient' AND PROP2.attrVal = N'1' AND PROP2.modified = 0 \n  LEFT OUTER JOIN APP_SubClientProp PROP3 WITH(NOLOCK) ON A.id = PROP3.componentNameId AND PROP3.attrName='Is Turbo Subclient' AND PROP3.cs_attrName = CHECKSUM(N'Is Turbo Subclient') AND PROP3.modified = 0\n  LEFT OUTER JOIN APP_BackupSetProp B WITH(NOLOCK) ON B.componentNameId = A.backupSet AND A.appTypeId=1030/*Subclient*/\n   LEFT OUTER JOIN APP_BackupSetProp BK WITH(NOLOCK) ON BK.componentNameId = A.backupSet AND A.appTypeId&lt;&gt;1030 AND BK.attrName='Associated subclient Policy'/*backupset associated to subclient policy*/ and BK.modified=0\nWHERE ((C.status &amp; 4096 = 0/*Not laptop*/) AND (C.status &amp; 268435456/*sharepoint farm*/ = 0) AND (C.status &amp; (268435456)/*Edge*/ = 0))\nAND (PROP3.attrVal IS NULL OR PROP3.attrVal=''OR PROP3.attrVal=0) AND PROP1.attrVal IS NULL AND PROP2.attrVal IS NULL /*Means not archived subclient*/\nAND PR.storagePolicyId IS NULL /*Not region based storage policy*/\nand AG.type!=2 and AG.origCCCommcellId &lt;=2\nAND PP.attrVal IS NULL AND A.dataArchGrpID &lt;&gt; 1 /*Ignore CV default plicy*/\nAND B.attrVal is NULL /*Ignore storage policies which has subclient policies*/ and A.subclientStatus &amp; 2 = 0/*deleted*/ AND A.subclientStatus &amp; 4 = 0/*uninstalled*/\n    AND BK.attrVal IS NULL /*Ignore subclients whose backupset is associated to subclient policy*/\n--\n--\n\nINSERT INTO #ApplicableStoragePolicyId\nSELECT DISTINCT A.dataArchGrpID, (CASE WHEN A.dataArchGrpID = A.logArchGrpID THEN 0 ELSE 1 END) ,A.appTypeId, A.id, BP.id\nFROM APP_BackupSetProp B\nINNER JOIN APP_BackupSetName BP ON B.componentNameId = BP.id --AND BP.status&amp;65536/*CV_STATUS_EDGE_POLICY_BSET*/=0\nINNER JOIN APP_Application A ON B.componentNameId = A.backupSet AND A.appTypeId=1030/*Subclient*/\nINNER JOIN App_Client C ON C.id = A.clientId AND ((C.status &amp; 4096 = 0/*Not laptop*/) AND (C.status &amp; 268435456/*sharepoint farm*/ = 0) AND (C.status &amp; (268435456)/*Edge*/ = 0))\nINNER JOIN archGroup AG ON AG.id = A.dataArchGrpID\nLEFT OUTER JOIN App_PlanProp PP WITH(NOLOCK) ON PP.attrName='Storage policy' AND CAST(PP.attrVal AS INT)=A.dataArchGrpID\nLEFT OUTER JOIN APP_SubClientProp PROP3 WITH(NOLOCK) ON A.id = PROP3.componentNameId AND PROP3.attrName='Is Turbo Subclient' AND PROP3.cs_attrName = CHECKSUM(N'Is Turbo Subclient') AND PROP3.modified = 0\nLEFT OUTER JOIN APP_SubClientProp PROP1 WITH (NOLOCK) ON A.id = PROP1.componentNameId AND PROP1.cs_attrName = CHECKSUM(N'DDB Backup') AND PROP1.attrName = 'DDB Backup' AND PROP1.attrVal = N'1' AND PROP1.modified = 0\nLEFT OUTER JOIN APP_SubClientProp PROP2 WITH (NOLOCK) ON A.id = PROP2.componentNameId AND PROP2.cs_attrName = CHECKSUM(N'Index SubClient') AND PROP2.attrName = 'Index SubClient' AND PROP2.attrVal = N'1' AND PROP2.modified = 0\nLEFT OUTER JOIN App_PlanRule PR WITH(NOLOCK) ON PR.storagePolicyId = A.dataArchGrpID\nWHERE B.attrName = 'Associated subclient Policy Ida Type' AND B.modified = 0\nAND (PP.attrVal IS NULL OR PP.attrVal='')/*Means not associated to plan*/\nAND (PROP3.attrVal IS NULL OR PROP3.attrVal=''OR PROP3.attrVal=0) AND PROP1.attrVal IS NULL AND PROP2.attrVal IS NULL /*Means not archived/DDB backup/index subclient*/\nAND AG.id &lt;&gt;1 and AG.type!=2  and AG.origCCCommcellId &lt;=2 /*Ignore CV_DEFAULT, CommServDR, migrated Storage policy */\nAND (PR.storagePolicyId IS NULL OR PR.storagePolicyId='') /*Ignore plan's region based storage policies*/\nand AG.type!=2 and AG.origCCCommcellId &lt;=2\nAND A.appTypeId&lt;&gt;1030\nORDER BY A.dataArchGrpID\n--\n-- START - DELETE EDGE DRIVE BACKUPSETS/LAPTOP ---------------------------------------------------------------------------------------\nDELETE S\nFROM #ApplicableStoragePolicyId S\nINNER JOIN\n(\n       SELECT S.StoragePolicyId\n       FROM #ApplicableStoragePolicyId S\n       INNER JOIN APP_BackupSetName BP ON BP.id = S.backupSet\n       WHERE BP.status&amp;65536/*CV_STATUS_EDGE_POLICY_BSET*/&gt;0\n) B ON B.StoragePolicyId = S.StoragePolicyId\n--\nDELETE S\nFROM #ApplicableStoragePolicyId S\nJOIN APP_Application A ON A.dataArchGrpID = S.StoragePolicyId\nJOIN App_Client C ON A.clientId = C.id\nWHERE ((C.status &amp; 4096 &gt; 0/*laptop*/) OR (C.status &amp; 268435456/*sharepoint farm*/ &gt; 0) OR (C.status &amp; (268435456)/*Edge*/ &gt; 0))\n\n\nIF OBJECT_ID(N'tempdb.dbo.#taskSubclientAssoc') IS NOT NULL DROP TABLE #taskSubclientAssoc\nCREATE TABLE #taskSubclientAssoc(taskName NVARCHAR(MAX), taskId INT, appId int, dataArchGrpId int, appTypeId INT, clientId INT, subclientStatus INT, flags INT, deleted int, taskType INT)\n\nINSERT INTO #taskSubclientAssoc (taskName, taskId, appId, dataArchGrpId, appTypeId, clientId, subclientStatus, flags, deleted, taskType)\nSELECT A.taskName, A.taskId, A.id, A.dataArchGrpID, A.appTypeId, A.clientId, A.subclientStatus, A.flags, A.deleted, A.taskType\nFROM\n    (\n        SELECT TASK.taskName, TASK.taskId, APP.id, APP.dataArchGrpID, APP.appTypeId, APP.clientId, app.subclientStatus, TASK.flags, TASK.deleted, TASK.taskType\n          FROM TM_Task TASK WITH(NOLOCK) \n          INNER JOIN TM_AssocEntity ASSOC WITH(NOLOCK) ON TASK.taskId = ASSOC.taskId AND ASSOC.exclude = 0\n          INNER JOIN APP_Application APP ON \n          ( (ASSOC.clientId &gt; 0\n              AND (ASSOC.clientId = APP.clientId\n              AND (ASSOC.apptypeId = 0 OR ASSOC.apptypeId = APP.appTypeId\n              AND (ASSOC.instanceId = 0 OR ASSOC.instanceId = APP.instance\n              AND (ASSOC.backupsetId = 0 OR ASSOC.backupsetId = APP.backupSet\n              AND (ASSOC.subclientId = 0 OR ASSOC.subclientId = APP.id)\n            )))))\n          )\n        UNION -- GET ASSOCiATIONS at CLIENT GROUP LEVEL\n        SELECT  TASK.taskName, TASK.taskId, APP.id, APP.dataArchGrpID, APP.appTypeId, APP.clientId, app.subclientStatus, TASK.flags, TASK.deleted, TASK.taskType\n          FROM TM_Task TASK WITH(NOLOCK) \n          INNER JOIN TM_AssocEntity ASSOC WITH(NOLOCK) ON TASK.taskId = ASSOC.taskId AND ASSOC.exclude = 0\n          INNER JOIN APP_Application APP ON \n          ( \n            (ASSOC.clientGroupId IN (SELECT clientGroupId FROM APP_ClientGroupAssoc CGA WITH (NOLOCK) WHERE CGA.clientId = APP.clientId) AND ASSOC.clientId = 0)\n          )\n        UNION -- GET ASSOCiATIONS at ALL_CLIENTS LEVEL\n        SELECT  TASK.taskName, TASK.taskId, APP.id, APP.dataArchGrpID, APP.appTypeId, APP.clientId, app.subclientStatus, TASK.flags, TASK.deleted, TASK.taskType\n          FROM TM_Task TASK WITH(NOLOCK) \n          INNER JOIN TM_AssocEntity ASSOC WITH(NOLOCK) ON TASK.taskId = ASSOC.taskId AND ASSOC.exclude = 0 AND ASSOC.assocType = 2/*ALL_CLIENTS*/\n          INNER JOIN APP_Application APP ON APP.clientId &gt; 0 AND ASSOC.clientId = 0\n        UNION -- GET ASSOCiATIONS at ALL_CLIENT_GROUPS_ENTITY LEVEL\n        SELECT  TASK.taskName, TASK.taskId, APP.id, APP.dataArchGrpID, APP.appTypeId, APP.clientId, app.subclientStatus, TASK.flags, TASK.deleted, TASK.taskType\n          FROM TM_Task TASK WITH(NOLOCK) \n          INNER JOIN TM_AssocEntity ASSOC WITH(NOLOCK) ON TASK.taskId = ASSOC.taskId AND ASSOC.exclude = 0 AND ASSOC.assocType = 27/*ALL_CLIENT_groups_ENTITY*/\n          INNER JOIN APP_Application APP ON \n          (\n            (APP.clientId IN (SELECT clientId FROM APP_ClientGroupAssoc WITH (NOLOCK)) AND ASSOC.clientGroupId = 0)\n          )\n        EXCEPT\n        SELECT TASK.taskName, TASK.taskId, APP.id, APP.dataArchGrpID, APP.appTypeId, APP.clientId, app.subclientStatus, TASK.flags, TASK.deleted, TASK.taskType\n          FROM TM_Task TASK WITH(NOLOCK) \n          INNER JOIN TM_AssocEntity ASSOC WITH(NOLOCK) ON TASK.taskId = ASSOC.taskId AND ASSOC.exclude = 1\n          INNER JOIN APP_Application APP ON \n          ( (ASSOC.clientId &gt; 0\n              AND (ASSOC.clientId = APP.clientId\n              AND (ASSOC.apptypeId = 0 OR ASSOC.apptypeId = APP.appTypeId\n              AND (ASSOC.instanceId = 0 OR ASSOC.instanceId = APP.instance\n              AND (ASSOC.backupsetId = 0 OR ASSOC.backupsetId = APP.backupSet\n              AND (ASSOC.subclientId = 0 OR ASSOC.subclientId = APP.id)\n            )))))\n          )\n        EXCEPT\n        SELECT  TASK.taskName, TASK.taskId, APP.id, APP.dataArchGrpID, APP.appTypeId, APP.clientId, app.subclientStatus, TASK.flags, TASK.deleted, TASK.taskType\n          FROM TM_Task TASK WITH(NOLOCK) \n          INNER JOIN TM_AssocEntity ASSOC WITH(NOLOCK) ON TASK.taskId = ASSOC.taskId AND ASSOC.exclude = 1\n          INNER JOIN APP_Application APP ON \n          ( \n            (ASSOC.clientGroupId IN (SELECT clientGroupId FROM APP_ClientGroupAssoc CGA WITH (NOLOCK) WHERE CGA.clientId = APP.clientId) AND ASSOC.clientId = 0)\n          )\n      ) A --inner join #ApplicableStoragePolicyId AST on AST.subclientId=A.id and AST.StoragePolicyId=A.dataArchGrpID\n\n\n\n-- REMOVE APPTYPES WHICH ARE NOT iN FILTER\nDELETE TS\nFROM #taskSubclientAssoc TS\nINNER JOIN TM_AssocFilter TF ON TF.taskId = TS.taskId\nLEFT OUTER JOIN \n    (\n        SELECT  AF.taskId, AG.appTypeId \n            FROM TM_AssocFilter AF\n            INNER join APP_AppTypeGroupAssoc AG ON AF.filter_type = 1/*appTypeGroup*/ AND AF.filter_value = AG.appGroupId and AG.typeOfGroup = 0\n        UNION ALL\n        SELECT taskId, filter_value FROM TM_AssocFilter WHERE filter_type = 2/*appTypeId*/\n    ) EA ON EA.taskId = TS.taskId AND EA.appTypeId = TS.appTypeId\nWHERE EA.taskId IS NULL\n--\n--select taskId, appId,dataArchGrpId from #taskSubclientAssoc group by taskId, appId, dataArchGrpId\n\n\nselect A.subClientId, A.StoragePolicyId, STUFF((SELECT ', ' + CAST(TS.taskId as nvarchar(50)) from #taskSubclientAssoc TS where TS.appId=A.subclientId\n          FOR XML PATH('')), 1, 1, '') as SchedulePolicyId from #ApplicableStoragePolicyId A order by A.subClientId\n\nIF OBJECT_ID(N'tempdb.dbo.#taskSubclientAssoc') IS NOT NULL DROP TABLE #taskSubclientAssoc\n--\nIF OBJECT_ID('tempdb.dbo.#storagePolicyTbl') IS NOT NULL DROP TABLE #storagePolicyTbl\nIF OBJECT_ID('tempdb.dbo.#ApplicableStoragePolicyId') IS NOT NULL DROP table #ApplicableStoragePolicyId\n        &quot;</em><a class="headerlink" href="#Server.Plans.migrationconstants.retrieve_eligible_subclients_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: query to get the subclients that are going to be impacted by the conversion</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-Server.Plans.migrationhelper">
+<span id="server-plans-migrationhelper-module"></span><h2>Server.Plans.migrationhelper module<a class="headerlink" href="#module-Server.Plans.migrationhelper" title="Permalink to this headline">¶</a></h2>
+<p>Helper file for importing, running and validating the policy to plan conversion app</p>
+<p>MigrationHelper is the only class defined in this file</p>
+<dl>
+<dt>MigrationHelper</dt><dd><dl class="simple">
+<dt>retrieve_eligible_subclients    – retreives the list of subclients that will be</dt><dd><p>impacted by the migration</p>
+</dd>
+</dl>
+<p>validate_after_step1            – validates the output of the policy to plan conversion</p>
+<p>step1_complete                  – checks if step 1 has already been run on the CS</p>
+</dd>
+</dl>
+<dl class="py class">
+<dt id="Server.Plans.migrationhelper.MigrationHelper">
+<em class="property">class </em><code class="sig-prename descclassname">Server.Plans.migrationhelper.</code><code class="sig-name descname">MigrationHelper</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commcell_object</span></em>, <em class="sig-param"><span class="n">sql_pwd</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/migrationhelper.html#MigrationHelper"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.migrationhelper.MigrationHelper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Helper class to perform validation of the validaiton report</p>
+<dl class="py method">
+<dt id="Server.Plans.migrationhelper.MigrationHelper.retrieve_eligible_subclients">
+<code class="sig-name descname">retrieve_eligible_subclients</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/migrationhelper.html#MigrationHelper.retrieve_eligible_subclients"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.migrationhelper.MigrationHelper.retrieve_eligible_subclients" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retreives the list of subclients that are eligible for conversion</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.migrationhelper.MigrationHelper.step1_complete">
+<code class="sig-name descname">step1_complete</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/migrationhelper.html#MigrationHelper.step1_complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.migrationhelper.MigrationHelper.step1_complete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if step 1 WF has been run on the setup</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.migrationhelper.MigrationHelper.validate_after_step1">
+<code class="sig-name descname">validate_after_step1</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/migrationhelper.html#MigrationHelper.validate_after_step1"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.migrationhelper.MigrationHelper.validate_after_step1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retreive the list of policies associated with each of the eligible subclients.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
 <div class="section" id="module-Server.Plans.plansconstants">
 <span id="server-plans-plansconstants-module"></span><h2>Server.Plans.plansconstants module<a class="headerlink" href="#module-Server.Plans.plansconstants" title="Permalink to this headline">¶</a></h2>
 <p>Helper file to maintain all the constants used by Plan related operations.</p>
@@ -178,6 +229,36 @@
 </dd></dl>
 
 <dl class="py data">
+<dt id="Server.Plans.plansconstants.DAILY_RPO">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">DAILY_RPO</code><em class="property"> = 1440</em><a class="headerlink" href="#Server.Plans.plansconstants.DAILY_RPO" title="Permalink to this definition">¶</a></dt>
+<dd><p>int: rpoInMinutes for daily RPO</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.DEFAULT_SUBCLIENT_NAME">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">DEFAULT_SUBCLIENT_NAME</code><em class="property"> = 'default'</em><a class="headerlink" href="#Server.Plans.plansconstants.DEFAULT_SUBCLIENT_NAME" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: Default subclient name</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.SCHEDULE_SERVER_PLAN">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">SCHEDULE_SERVER_PLAN</code><em class="property"> = 'Auto-Schedule-Server'</em><a class="headerlink" href="#Server.Plans.plansconstants.SCHEDULE_SERVER_PLAN" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: Plan name for base server plans</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.SECONDARY_COPY_NAME">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">SECONDARY_COPY_NAME</code><em class="property"> = 'Copy - 3'</em><a class="headerlink" href="#Server.Plans.plansconstants.SECONDARY_COPY_NAME" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: Name of the secondary copy to be added to the plan</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.STORAGE_SERVER_PLAN">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">STORAGE_SERVER_PLAN</code><em class="property"> = 'Auto-Storage-Server'</em><a class="headerlink" href="#Server.Plans.plansconstants.STORAGE_SERVER_PLAN" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: Plan name for base server plans</p>
+</dd></dl>
+
+<dl class="py data">
 <dt id="Server.Plans.plansconstants.SUBTYPE_LAPTOP">
 <code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">SUBTYPE_LAPTOP</code><em class="property"> = 'Laptop'</em><a class="headerlink" href="#Server.Plans.plansconstants.SUBTYPE_LAPTOP" title="Permalink to this definition">¶</a></dt>
 <dd><p>str: Plan subtye for Laptop plans</p>
@@ -187,6 +268,66 @@
 <dt id="Server.Plans.plansconstants.SUBTYPE_SERVER">
 <code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">SUBTYPE_SERVER</code><em class="property"> = 'Server'</em><a class="headerlink" href="#Server.Plans.plansconstants.SUBTYPE_SERVER" title="Permalink to this definition">¶</a></dt>
 <dd><p>str: Plan subtye for server plans</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.TENANT_ADMIN">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">TENANT_ADMIN</code><em class="property"> = 'Tenant Admin'</em><a class="headerlink" href="#Server.Plans.plansconstants.TENANT_ADMIN" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: Tenant admin of the company who will inherit plans</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.WEEKLY_RPO">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">WEEKLY_RPO</code><em class="property"> = 10080</em><a class="headerlink" href="#Server.Plans.plansconstants.WEEKLY_RPO" title="Permalink to this definition">¶</a></dt>
+<dd><p>int: rpoInMinutes for weekly RPO</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.WEEK_DAYS">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">WEEK_DAYS</code><em class="property"> = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']</em><a class="headerlink" href="#Server.Plans.plansconstants.WEEK_DAYS" title="Permalink to this definition">¶</a></dt>
+<dd><p>list: Default subclient name</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.autocopy_schedule">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">autocopy_schedule</code><em class="property"> = 'system created autocopy schedule'</em><a class="headerlink" href="#Server.Plans.plansconstants.autocopy_schedule" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: System created autocopy schedule for secondary copies</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.dedupe_storage">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">dedupe_storage</code><em class="property"> = 'Dedupe-storage'</em><a class="headerlink" href="#Server.Plans.plansconstants.dedupe_storage" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: dedupe storage pool name</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.extended_retention_rule">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">extended_retention_rule</code><em class="property"> = (1, True, 'EXTENDED_ALLFULL', 90, 0)</em><a class="headerlink" href="#Server.Plans.plansconstants.extended_retention_rule" title="Permalink to this definition">¶</a></dt>
+<dd><p>tuple: extended retention rule for storage copy</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.full_window">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">full_window</code><em class="property"> = [{'dayOfWeek': [1, 2, 3, 4, 5], 'startTime': 82800, 'endTime': 86340}, {'dayOfWeek': [5, 0], 'startTime': 0, 'endTime': 86340}]</em><a class="headerlink" href="#Server.Plans.plansconstants.full_window" title="Permalink to this definition">¶</a></dt>
+<dd><p>list: full operation window for a plan</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.ndd_storage_pool">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">ndd_storage_pool</code><em class="property"> = {'clientGroup': {'_type_': 28, 'clientGroupId': 0, 'clientGroupName': ''}, 'copyName': 'Primary', 'numberOfCopies': 1, 'storage': [{'path': '', 'mediaAgent': {'_type_': 11, 'mediaAgentName': ''}}], 'storagePolicyCopyInfo': {'active': 1, 'copyFlags': {'preserveEncryptionModeAsInSource': 1}, 'copyType': 1, 'extendedFlags': {'globalStoragePolicy': 1}, 'isDefault': 1, 'isFromGui': True, 'library': {'_type_': 9, 'libraryId': 0, 'libraryName': ''}, 'mediaAgent': {'_type_': 11, 'mediaAgentName': ''}, 'numberOfStreamsToCombine': 1, 'retentionRules': {'retainArchiverDataForDays': -1, 'retainBackupDataForCycles': -1, 'retainBackupDataForDays': -1, 'retentionFlags': {'enableDataAging': 1}}, 'storagePolicyFlags': {'globalStoragePolicy': 1}}, 'storagePolicyName': '', 'type': 1}</em><a class="headerlink" href="#Server.Plans.plansconstants.ndd_storage_pool" title="Permalink to this definition">¶</a></dt>
+<dd><p>dict: payload for creating non dedupe storage pool</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.non_dedupe_storage">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">non_dedupe_storage</code><em class="property"> = 'Non-Dedupe-storage'</em><a class="headerlink" href="#Server.Plans.plansconstants.non_dedupe_storage" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: non-dedupe storage pool name</p>
+</dd></dl>
+
+<dl class="py data">
+<dt id="Server.Plans.plansconstants.window">
+<code class="sig-prename descclassname">Server.Plans.plansconstants.</code><code class="sig-name descname">window</code><em class="property"> = [{'startTime': 50400, 'endTime': 54000, 'dayOfWeek': [5]}, {'startTime': 54000, 'endTime': 57600, 'dayOfWeek': [0]}]</em><a class="headerlink" href="#Server.Plans.plansconstants.window" title="Permalink to this definition">¶</a></dt>
+<dd><p>list: operation window for a plan</p>
 </dd></dl>
 
 </div>
@@ -213,6 +354,28 @@
 <dl class="simple">
 <dt>validate_inheritance()    –  Validates whether inheritance is</dt><dd><p>appropriately followed on derivation</p>
 </dd>
+<dt>validate_tenant_roles()   –  Validates whether a user required roles on</dt><dd><p>a company</p>
+</dd>
+</dl>
+<p>company_default_plan()    –  Sets or unsets the default plan of a company</p>
+<p>validate_default_plan()   –  Validates the default company of a plan</p>
+<p>validate_schedules()      –  Validates the schedules created by a plan</p>
+<p>modify_rpo()              –  Modifies the RPO/SLA of the plan</p>
+<p>validate_rpo()            –  Validates the RPO of a plan</p>
+<p>disable_schedule()        –  Disables the incremental or full schedule</p>
+<p>rename_plan()             –  Renames the plan</p>
+<p>validate_entity_names()   –  Validates the policy names</p>
+<p>add_copy()                –  Adds a new storage copy to the plan</p>
+<p>delete_copy()             –  Deletes a copy from the plan</p>
+<p>validate_copies()         –  Validates the backup copy of the plan</p>
+<p>entity_to_plan()          –  Associates a backup entity to a plan</p>
+<p>validate_subclient_association() – Validates subclient association</p>
+<p>validate_backupset_association() – Validates backupet association</p>
+<p>dissociate_entity()       –  Dissociates entities from plan</p>
+<p>validate_dissociation()   –  Validates dissociation of entity</p>
+<dl class="simple">
+<dt>policy_to_subclient()     –  Associates a plans storage policy to</dt><dd><p>a subclient</p>
+</dd>
 </dl>
 </div></blockquote>
 <dl class="py class">
@@ -220,6 +383,22 @@
 <em class="property">class </em><code class="sig-prename descclassname">Server.Plans.planshelper.</code><code class="sig-name descname">PlansHelper</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commserve</span></em>, <em class="sig-param"><span class="n">username</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">password</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="n">commcell_obj</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Helper class to perform Plans REST API operations</p>
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.add_copy">
+<code class="sig-name descname">add_copy</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">pool_name</span></em>, <em class="sig-param"><span class="n">retention</span><span class="o">=</span><span class="default_value">30</span></em>, <em class="sig-param"><span class="n">extended_retention</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.add_copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.add_copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a storage copy to the plan
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  plan to which storage is to be added</p>
+<p>pool_name   (str)   –  storage pool name which must be added as a copy to the plan</p>
+<p>retention   (int)   –  retention period of the copy</p>
+<dl class="simple">
+<dt>extended_retention (tuple)  -   extended retention rules of a copy</dt><dd><p>Example: [1, True, “EXTENDED_ALLFULL”, 0, 0]</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
 <dl class="py method">
 <dt id="Server.Plans.planshelper.PlansHelper.cleanup_plans">
 <code class="sig-name descname">cleanup_plans</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">marker</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.cleanup_plans"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.cleanup_plans" title="Permalink to this definition">¶</a></dt>
@@ -231,8 +410,22 @@
 </dd></dl>
 
 <dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.company_default_plan">
+<code class="sig-name descname">company_default_plan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">company_name</span></em>, <em class="sig-param"><span class="n">plan_name</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.company_default_plan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.company_default_plan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets are removes the default plan of a company
+Args:</p>
+<blockquote>
+<div><p>company_name    (str)   –  name of the company whose default plan must be set</p>
+<dl class="simple">
+<dt>plan_name       (str)   –  name of the plan to be set as the default plan</dt><dd><p>None: for having no default plans set</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
 <dt id="Server.Plans.planshelper.PlansHelper.create_base_plan">
-<code class="sig-name descname">create_base_plan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">subtype</span></em>, <em class="sig-param"><span class="n">storage_pool</span></em>, <em class="sig-param"><span class="n">sla_in_minutes</span><span class="o">=</span><span class="default_value">240</span></em>, <em class="sig-param"><span class="n">override_entities</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.create_base_plan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.create_base_plan" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">create_base_plan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">subtype</span></em>, <em class="sig-param"><span class="n">storage_pool</span></em>, <em class="sig-param"><span class="n">sla_in_minutes</span><span class="o">=</span><span class="default_value">1440</span></em>, <em class="sig-param"><span class="n">override_entities</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.create_base_plan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.create_base_plan" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a plan on commcell</p>
 <dl>
 <dt>Args:</dt><dd><p>plan_name        (str)    : Plan name to create</p>
@@ -246,7 +439,42 @@
 <p>sla_in_minutes    (str)   : SLA in minutes</p>
 <p>override_entities   (dict)  –  Specify the entities with respective overriding.</p>
 </dd>
+<dt>Returns:</dt><dd><p>plan_name   (str)   – Name of the plan that was added</p>
+</dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.create_ndd_storage">
+<code class="sig-name descname">create_ndd_storage</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">req_payload</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.create_ndd_storage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.create_ndd_storage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a non-dedupe storage pool
+Args:</p>
+<blockquote>
+<div><p>storage_name    (str)   -   name of the storage pool</p>
+<p>media_agent_name   (str)   - media agent name</p>
+<p>moutpath   (str)   -   path for storage pool</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>(str)   - name of the storage pool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.dedupe_check">
+<code class="sig-name descname">dedupe_check</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pool_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.dedupe_check"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.dedupe_check" title="Permalink to this definition">¶</a></dt>
+<dd><p>filter function to check if a storage pool is dedupe</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.delete_copy">
+<code class="sig-name descname">delete_copy</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">copy_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.delete_copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.delete_copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes the backup copy from the plan’s storage policy
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  plan whose stroage is to be deleted</p>
+<p>copy_name   (str)   –  name of the copy to be deleted</p>
+</div></blockquote>
 </dd></dl>
 
 <dl class="py method">
@@ -264,9 +492,53 @@ Args:</p>
 </dd></dl>
 
 <dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.disable_schedule">
+<code class="sig-name descname">disable_schedule</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">schedule_name</span><span class="o">=</span><span class="default_value">'Full'</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.disable_schedule"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.disable_schedule" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disables any of the schedule of the plan</p>
+<dl>
+<dt>Args:</dt><dd><p>plan_name   (str)   –  name of the plan whose schedule must be disabled</p>
+<p>schedule_name (str) –  name of the schedule that must be disabled</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.dissociate_entity">
+<code class="sig-name descname">dissociate_entity</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">client_name</span></em>, <em class="sig-param"><span class="n">backup_set</span></em>, <em class="sig-param"><span class="n">subclient</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.dissociate_entity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.dissociate_entity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dissociates plan from FS backupset or subclient
+Args:</p>
+<blockquote>
+<div><p>client_name (str)   –  client in which the backupset or subclient belongs</p>
+<p>backup_set  (str)   –  name of the backupset to which the plan must be asocaited with</p>
+<p>subclient   (str)   –  name of the subclient to which the plan must be assocaited with</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>(bool)      –  True if validation successful</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.entity_to_plan">
+<code class="sig-name descname">entity_to_plan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">client_name</span></em>, <em class="sig-param"><span class="n">backup_set</span></em>, <em class="sig-param"><span class="n">subclient</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.entity_to_plan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.entity_to_plan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Associates plan to FS backupset or subclient
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  name of the plan that must be associated</p>
+<p>client_name (str)   –  client in which the backupset or subclient belongs</p>
+<p>backup_set  (str)   –  name of the backupset to which the plan must be asocaited with</p>
+<p>subclient   (str)   –  name of the subclient to which the plan must be assocaited with</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
 <dt id="Server.Plans.planshelper.PlansHelper.get_storage_pool">
-<code class="sig-name descname">get_storage_pool</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.get_storage_pool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.get_storage_pool" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns any random online storage pool</p>
+<code class="sig-name descname">get_storage_pool</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">dedupe</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.get_storage_pool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.get_storage_pool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns any random online storage pool
+Args:</p>
+<blockquote>
+<div><p>dedupe  (bool)  –  set true if dedupe pool is to be retrived</p>
+</div></blockquote>
 <dl class="simple">
 <dt>Returns:</dt><dd><p>storage_pool    (str)    – Storage pool name</p>
 </dd>
@@ -309,6 +581,54 @@ Args:</p>
 </dd></dl>
 
 <dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.modify_rpo">
+<code class="sig-name descname">modify_rpo</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">frequency</span></em>, <em class="sig-param"><span class="n">full_schedule</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.modify_rpo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.modify_rpo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Edits the RPO schedule of a plan</p>
+<dl>
+<dt>Args:</dt><dd><p>plan_name   (str)   –  name of the plan whose RPO is to be edited</p>
+<dl>
+<dt>frequency   (dict)  –  dictionary which specifies the frequency of the RPO schedule</dt><dd><dl>
+<dt>Examples:</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>‘minutes’: 5</p>
+</dd>
+</dl>
+<p>},
+{</p>
+<blockquote>
+<div><p>‘hours’: 4</p>
+</div></blockquote>
+<p>},
+{</p>
+<blockquote>
+<div><dl class="simple">
+<dt>‘days’: {</dt><dd><p>‘runEvery’: 2,
+‘startTime’: ‘03:30’</p>
+</dd>
+</dl>
+<p>}</p>
+</div></blockquote>
+<p>},
+{</p>
+<blockquote>
+<div><dl class="simple">
+<dt>‘weeks’: {</dt><dd><p>‘runEvery’: 2,
+‘days’: [‘Monday’, ‘Fiday’],
+‘startTime’: ‘03:30’</p>
+</dd>
+</dl>
+<p>}</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>full_schedule   (bool)  –  if modification to be made to full schedule</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt id="Server.Plans.planshelper.PlansHelper.plan_to_company">
 <code class="sig-name descname">plan_to_company</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">company_name</span></em>, <em class="sig-param"><span class="n">plan_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.plan_to_company"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.plan_to_company" title="Permalink to this definition">¶</a></dt>
 <dd><p>Associates plan to company
@@ -320,6 +640,130 @@ Args:</p>
 </dd></dl>
 
 <dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.policy_to_subclient">
+<code class="sig-name descname">policy_to_subclient</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">client_name</span></em>, <em class="sig-param"><span class="n">backup_set</span></em>, <em class="sig-param"><span class="n">subclient</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.policy_to_subclient"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.policy_to_subclient" title="Permalink to this definition">¶</a></dt>
+<dd><p>Associates a plan’s storage policy to a subclient
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  plan whose storage policy is to be associated to subclient</p>
+<p>client_name (str)   –  client in which the backupset or subclient belongs</p>
+<p>backup_set  (str)   –  name of the backupset to which the plan must be asocaited with</p>
+<p>subclient   (str)   –  name of the subclient</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>(bool)      – True if association is successful</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.rename_plan">
+<code class="sig-name descname">rename_plan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">new_plan_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.rename_plan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.rename_plan" title="Permalink to this definition">¶</a></dt>
+<dd><p>renames a plan
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  Plan’s existing name</p>
+<p>new_plan_name (str) –  Plan’s new name</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.set_operation_window">
+<code class="sig-name descname">set_operation_window</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">window_list</span></em>, <em class="sig-param"><span class="n">full</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.set_operation_window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.set_operation_window" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets or deletes the operation window of a plan
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  plan whose operation window is to be set</p>
+<dl class="simple">
+<dt>window_list   (str) –  operation window rule</dt><dd><p>None: delete window</p>
+</dd>
+</dl>
+<p>full        (bool)  –  True if operation window is full</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_autocopy">
+<code class="sig-name descname">validate_autocopy</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">schedule_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_autocopy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_autocopy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates the association of aux copy schedule policy with the plan’s storage policy
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  plan whose storage policy is to be validated</p>
+<p>schedule_name   (str) –    Aux copy schedule policy name</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>(bool)      – True if autocopy validation is successful</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_backupset_association">
+<code class="sig-name descname">validate_backupset_association</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">client_name</span></em>, <em class="sig-param"><span class="n">backup_set</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_backupset_association"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_backupset_association" title="Permalink to this definition">¶</a></dt>
+<dd><p>Associates plan to FS backupset or subclient
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  name of the plan that must be associated</p>
+<p>client_name (str)   –  client in which the backupset or subclient belongs</p>
+<p>backup_set  (str)   –  name of the backupset to which the plan must be asocaited with</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>(bool)      - True if validation successful</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_copies">
+<code class="sig-name descname">validate_copies</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">primary_copy</span></em>, <em class="sig-param"><span class="n">secondary_copy</span><span class="o">=</span><span class="default_value">{}</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_copies"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_copies" title="Permalink to this definition">¶</a></dt>
+<dd><p>validates the storage copies of a plan</p>
+<dl>
+<dt>Args:</dt><dd><p>plan_name   (str)   –  name of the plan to be validated</p>
+<p>primary_copy (str)  –  name of the primary copy storage pool</p>
+<p>secondary_copy (dict)   – mapping of secondary copies and their retentions</p>
+</dd>
+<dt>Returns:</dt><dd><p>(bool)    –  whether validation of copies was succiessful</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_default_plan">
+<code class="sig-name descname">validate_default_plan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">company_name</span></em>, <em class="sig-param"><span class="n">plan_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_default_plan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_default_plan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates whether the plan is associatedwit hthe company
+Args:</p>
+<blockquote>
+<div><p>company_name    (str)   –  name of the company whose default plan must be validated</p>
+<p>plan_name       (str)   –  name of the plan to be valited</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool        – True of validated successfully</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_dissociation">
+<code class="sig-name descname">validate_dissociation</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">client_name</span></em>, <em class="sig-param"><span class="n">backup_set</span></em>, <em class="sig-param"><span class="n">subclient</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_dissociation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_dissociation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates the dissociation of plan from subclient
+Args:client_name (str)   –  client in which the backupset or subclient belongs</p>
+<blockquote>
+<div><p>backup_set  (str)   –  name of the backupset to which the plan must be asocaited with</p>
+<p>subclient   (str)   –  name of the subclient</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_entity_names">
+<code class="sig-name descname">validate_entity_names</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_entity_names"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_entity_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates whether base plan name string is a part of the  child entities
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  name of the plan</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
 <dt id="Server.Plans.planshelper.PlansHelper.validate_inheritance">
 <code class="sig-name descname">validate_inheritance</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">base_plan_name</span></em>, <em class="sig-param"><span class="n">derived_plan_name</span></em>, <em class="sig-param"><span class="n">override_entities</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_inheritance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_inheritance" title="Permalink to this definition">¶</a></dt>
 <dd><p>Validates whether inheritance is appropriately followed on derivation</p>
@@ -327,6 +771,25 @@ Args:</p>
 <dt>Args:</dt><dd><p>base_plan_name      (str)   –  base plan name</p>
 <p>derived_plan_name   (str)   –  derived plan name</p>
 <p>override_entities   (dict)  –  override entity details</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_operation_window">
+<code class="sig-name descname">validate_operation_window</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">window_list</span></em>, <em class="sig-param"><span class="n">full</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_operation_window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_operation_window" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validate the operation window of a plan
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  plan whose operation window is to be set</p>
+<dl class="simple">
+<dt>window_list   (str) –  operation window rule</dt><dd><p>None: delete window</p>
+</dd>
+</dl>
+<p>full        (bool)  –  True if operation window is full</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>(bool)     –   True if validated successfully</p>
 </dd>
 </dl>
 </dd></dl>
@@ -355,10 +818,64 @@ Args:</p>
 <blockquote>
 <div><p>plan_obj        (obj)   – object of plan to be validated</p>
 </div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_rpo">
+<code class="sig-name descname">validate_rpo</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">sla_in_minutes</span></em>, <em class="sig-param"><span class="n">pattern</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">policy_type</span><span class="o">=</span><span class="default_value">'data'</span></em>, <em class="sig-param"><span class="n">full_schedule</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_rpo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_rpo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates the RPO of the plan
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  name of the plan</p>
+<p>sla_in_minutes  (str)   –  RPO/SLA value to be validated</p>
+<p>pattern         (dict)  –  pattern of the RPO schedule,</p>
+<p>policy_type     (str)   –  type of policy to be validated</p>
+<p>full_schedule   (bool)  –  check if schedule to be validated is full schedule</p>
+</div></blockquote>
 <dl class="simple">
-<dt>Returns:</dt><dd><p>bool                    – plan validation confirmation</p>
+<dt>Returns:</dt><dd><p>bool        – True if validated successfully</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_schedules">
+<code class="sig-name descname">validate_schedules</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_schedules"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_schedules" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates whether plan has appropriate schedules as defined</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>plan_name   (str)       –  name of the plan to be validated</p>
+</dd>
+<dt>Returns:</dt><dd><p>bool        – True if validated successfully</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_subclient_association">
+<code class="sig-name descname">validate_subclient_association</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">client_name</span></em>, <em class="sig-param"><span class="n">backup_set</span></em>, <em class="sig-param"><span class="n">subclient</span></em>, <em class="sig-param"><span class="n">validate_rpo</span><span class="o">=</span><span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_subclient_association"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_subclient_association" title="Permalink to this definition">¶</a></dt>
+<dd><p>Associates plan to or subclient
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  name of the plan that must be associated</p>
+<p>client_name (str)   –  client in which the backupset or subclient belongs</p>
+<p>backup_set  (str)   –  name of the backupset to which the plan must be asocaited with</p>
+<p>subclient   (str)   –  name of the subclient</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>(bool)      - True if validation successful</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="Server.Plans.planshelper.PlansHelper.validate_tenant_roles">
+<code class="sig-name descname">validate_tenant_roles</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">plan_name</span></em>, <em class="sig-param"><span class="n">user_group</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/Server/Plans/planshelper.html#PlansHelper.validate_tenant_roles"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#Server.Plans.planshelper.PlansHelper.validate_tenant_roles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Validates whether a user has the required permissions on a company
+Args:</p>
+<blockquote>
+<div><p>plan_name   (str)   –  name of the plan</p>
+<p>user_group   (str)   –  name of the user group</p>
+</div></blockquote>
 </dd></dl>
 
 </dd></dl>
@@ -382,7 +899,7 @@ Args:</p>
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

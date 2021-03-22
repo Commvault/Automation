@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Install.install_helper &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Install.install_helper &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -145,11 +145,11 @@
             
   <h1>Source code for Install.install_helper</h1><div class="highlight"><pre>
 <span></span><span class="c1"># -*- coding: utf-8 -*-</span>
-<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
 <span class="c1"># Copyright Commvault Systems, Inc.</span>
 <span class="c1"># See LICENSE.txt in the project root for</span>
 <span class="c1"># license information.</span>
-<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
 
 <span class="sd">&quot;&quot;&quot;Helper file for performing install operations</span>
 
@@ -176,6 +176,8 @@
 
 <span class="sd">    uninstall_client()              -- Module to uninstall client and hard delete from commcell</span>
 
+<span class="sd">    silent_install()                -- Unattended installation of client based on feature release</span>
+
 <span class="sd">    restart_services()              --  Restart services on the client</span>
 
 <span class="sd">WindowsInstallHelper:</span>
@@ -183,6 +185,8 @@
 <span class="sd">    install_software()              --  Install specific feature packages on a client</span>
 
 <span class="sd">    uninstall_client()              -- Module to uninstall client and hard delete from commcell</span>
+
+<span class="sd">    silent_install()                -- Unattended installation of client based on feature release</span>
 
 <span class="sd">    restart_services()              --  Restart services on the client</span>
 
@@ -199,7 +203,7 @@
 <span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">config</span><span class="p">,</span> <span class="n">constants</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="kn">import</span> <span class="n">OptionsSelector</span>
 <span class="kn">from</span> <span class="nn">Install</span> <span class="kn">import</span> <span class="n">installer_utils</span><span class="p">,</span> <span class="n">installer_constants</span>
-<span class="kn">from</span> <span class="nn">Server.JobManager.jobmanager_helper</span> <span class="kn">import</span> <span class="n">JobManager</span>
+<span class="kn">from</span> <span class="nn">Install.silent_install_helper</span> <span class="kn">import</span> <span class="n">SilentInstallHelper</span>
 
 
 <div class="viewcode-block" id="InstallHelper"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.InstallHelper">[docs]</a><span class="k">class</span> <span class="nc">InstallHelper</span><span class="p">:</span>
@@ -354,17 +358,6 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to Revert VM </span><span class="si">%s</span><span class="s1">, please check the logs&#39;</span><span class="p">,</span> <span class="n">vm_name</span><span class="p">)</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Failed to Revert VM </span><span class="si">{</span><span class="n">vm_name</span><span class="si">}</span><span class="s1">, please check the logs&#39;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="InstallHelper.restart_services"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.InstallHelper.restart_services">[docs]</a>    <span class="k">def</span> <span class="nf">restart_services</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            This Method starts the service on the client when the client is not reachable</span>
-
-<span class="sd">                Raises:</span>
-<span class="sd">                SDKException:</span>
-<span class="sd">                    Response was not success</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Module not implemented for the class&quot;</span><span class="p">)</span></div>
-
 <div class="viewcode-block" id="InstallHelper.get_machine_objects"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.InstallHelper.get_machine_objects">[docs]</a>    <span class="k">def</span> <span class="nf">get_machine_objects</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_of_machines</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            This Method returns the list of machine objects</span>
@@ -423,41 +416,36 @@
 <div class="viewcode-block" id="InstallHelper.install_software"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.InstallHelper.install_software">[docs]</a>    <span class="k">def</span> <span class="nf">install_software</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
             <span class="n">client_computers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">features</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;FILE_SYSTEM&#39;</span><span class="p">],</span>
+            <span class="n">features</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">username</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">install_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="n">install_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Module not implemented for the class&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="InstallHelper.uninstall_client"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.InstallHelper.uninstall_client">[docs]</a>    <span class="k">def</span> <span class="nf">uninstall_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_obj</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delete_client</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="InstallHelper.uninstall_client"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.InstallHelper.uninstall_client">[docs]</a>    <span class="k">def</span> <span class="nf">uninstall_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delete_client</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Module to uninstall client and hard delete from commcell.</span>
-<span class="sd">            Deletes the InstanceXXX associated to the Commcell.</span>
+<span class="sd">            Deletes the Instance001 associated to the Commcell / Decoupled Client.</span>
 
 <span class="sd">         Args:</span>
-<span class="sd">            client_obj (client_object)      : Client Class object/</span>
-<span class="sd">                                              Client to be uninstalled</span>
-
-<span class="sd">            delete_client (bool)       : Delete client from commcell? Default: True</span>
+<span class="sd">            delete_client (bool)       : Delete client from commcell?</span>
 
 <span class="sd">                                        False : Client in de-configured state on commcell</span>
 
+<span class="sd">                                              : Client not part of Commcell (Decoupled Uninstallation)</span>
+
+
 <span class="sd">        Exception:</span>
-<span class="sd">            Failed to get Machine Object.</span>
 
-<span class="sd">            If client Hostname does not match the hostname mentioned on Config.</span>
-<span class="sd">                Making sure instance on different machine is not uninstalled.</span>
-<span class="sd">                Client Hostname Dosent Match Hostname of the machine</span>
-
-<span class="sd">            Instance Not found on the client machine</span>
+<span class="sd">            Machine Object not created with Credentials.</span>
 
 <span class="sd">            If failed to uninstall client</span>
+
+<span class="sd">            Failed to delete the client from Commcell : As client not part of commcell (Decoupled Client Instance)</span>
 
 
 <span class="sd">        Note:</span>
 <span class="sd">            Machine object should always be created with Machine credentials.</span>
-<span class="sd">                Be a root user for the Unix uninstallation except for MacOS.</span>
-
-<span class="sd">            Client Hostname Should match with the Hostname of the Machine.</span>
 
 <span class="sd">                Details to be mentioned on the config.json file under Install.</span>
 
@@ -466,6 +454,75 @@
 <span class="sd">                        Machine_password    (str): Client Password</span>
 
 <span class="sd">                        Machine_host_name   (str): Client Hostname</span>
+
+<span class="sd">            Delete client should be False for Uninstalling decoupled client</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Module not implemented for the class&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="InstallHelper.silent_install"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.InstallHelper.silent_install">[docs]</a>    <span class="k">def</span> <span class="nf">silent_install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">tcinputs</span><span class="p">,</span> <span class="n">feature_release</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">packages</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Installs the client on the remote machine depending on the giver user inputs/ Server selected</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                    client_name (str)    -- Client Name provided for installation</span>
+
+<span class="sd">                    tcinputs     (dict)  -- testcase inputs / Dictionary with supported keys</span>
+
+<span class="sd">                                         --  Inputs for Installation should be in a dictionary</span>
+<span class="sd">                            Supported key / value for inputs:</span>
+
+<span class="sd">                            Mandatory:</span>
+<span class="sd">                                commservePassword:  (str)        Commserve encrypted login password</span>
+<span class="sd">                                mediaPath           (str)        Filer Path required for Unix installations</span>
+<span class="sd">                                                                (Path till media)</span>
+
+<span class="sd">                            Optional:</span>
+<span class="sd">                                commserveUsername   (str)        Commserve Username</span>
+<span class="sd">                                useExistingDump     (str)        Use existing dump for Dm2 / Workflow Engine (&quot;0&quot; or 1&quot;)</span>
+<span class="sd">                                useExsitingCSdump   (str)        Use CS dump (&quot;0&quot; or &quot;1&quot;)</span>
+<span class="sd">                                CommservDumpPath    (str)        Dump path for Commserve</span>
+<span class="sd">                                install32base       (str)        install 32bit software on 64bit Machine (&quot;0&quot; or &quot;1&quot;)</span>
+<span class="sd">                                restoreOnlyAgents   (str)       &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                DM2DumpPath         (str)        Dump path for DM2 webservice</span>
+<span class="sd">                                WFEngineDumpPath    (str)        Dump path for Workflow Engine</span>
+<span class="sd">                                decoupledInstall    (str)        &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                enableFirewallConfig (str)       &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                firewallConnectionType (str)     &quot;0&quot; or &quot;1&quot; or &quot;2&quot;</span>
+<span class="sd">                                httpProxyConfigurationType(str)  &quot;0&quot; or &quot;1&quot; or &quot;2&quot;</span>
+<span class="sd">                                httpProxyPortNumber (str)        Port Number eg: &quot;6256&quot;</span>
+<span class="sd">                                httpProxyHostName   (str)        Hostname of the proxy machine</span>
+<span class="sd">                                portNumber          (str)        Port number to connect to the CVD eg:8410</span>
+<span class="sd">                                enableProxyClient   (str)        Enable Client as a proxy &quot;0&quot; or &quot;1&quot;</span>
+<span class="sd">                                proxyClientName     (str)        Proxy Client Name / Client Name on the commcell</span>
+<span class="sd">                                proxyHostname       (str)        Proxy Client Hostname</span>
+<span class="sd">                                proxyPortNumber     (str)        Proxy client Port Number to be used</span>
+<span class="sd">                                sqlSaPassword       (str)        Sa (user) password for SQL access</span>
+<span class="sd">                                installDirectoryUnix(str)        Path on which software to be installed on Unix Client</span>
+<span class="sd">                                installDirectoryWindows(str)     Path on which software to be installed on Win Client</span>
+<span class="sd">                                force_ipv4(unix)       (int)    0 for both IPv4 and IPv6 support</span>
+<span class="sd">                                                                1 for IPv4 support only</span>
+<span class="sd">                                                                2 for IPv6 support only</span>
+
+
+<span class="sd">                    feature_release(str) -- feature release of the bootstrapper</span>
+<span class="sd">                                            eg: SP21, SP22</span>
+
+<span class="sd">                    packages(list)       -- list of features to be installed</span>
+
+<span class="sd">            Note:</span>
+<span class="sd">                Unix Installation Requires Filer Path/ Media Path ( Path till CVMedia) -- mediaPath</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Module not implemented for the class&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="InstallHelper.restart_services"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.InstallHelper.restart_services">[docs]</a>    <span class="k">def</span> <span class="nf">restart_services</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            This Method starts the service on the client when the client is not reachable</span>
+
+<span class="sd">                Raises:</span>
+<span class="sd">                SDKException:</span>
+<span class="sd">                    Response was not success</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Module not implemented for the class&quot;</span><span class="p">)</span></div>
@@ -501,10 +558,11 @@
 <div class="viewcode-block" id="UnixInstallHelper.install_software"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.UnixInstallHelper.install_software">[docs]</a>    <span class="k">def</span> <span class="nf">install_software</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
             <span class="n">client_computers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">features</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;FILE_SYSTEM&#39;</span><span class="p">],</span>
+            <span class="n">features</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">username</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">install_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="n">install_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            client_computers    (list)      -- client hostname list</span>
 
@@ -523,9 +581,17 @@
 
 <span class="sd">                default :  None</span>
 
+<span class="sd">            **kwargs: (dict) -- Key value pairs for supporting conditional initializations</span>
+<span class="sd">            Supported -</span>
+<span class="sd">            install_flags (dict) - dictionary of install flag values</span>
+<span class="sd">            Ex : install_flags = {&quot;preferredIPfamily&quot;:2, &quot;install32Base&quot;:True}</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">client_computers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">client_computers</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">client_host</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">features</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FILE_SYSTEM&#39;</span><span class="p">]</span>
 
         <span class="n">feature_vals</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">features</span><span class="p">:</span>
@@ -543,38 +609,33 @@
             <span class="n">unix_features</span><span class="o">=</span><span class="n">feature_vals</span><span class="p">,</span>
             <span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span>
             <span class="n">password</span><span class="o">=</span><span class="n">b64encode</span><span class="p">(</span><span class="n">password</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">(),</span>
-            <span class="n">install_path</span><span class="o">=</span><span class="n">install_path</span>
+            <span class="n">install_path</span><span class="o">=</span><span class="n">install_path</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span></div>
 
-<div class="viewcode-block" id="UnixInstallHelper.uninstall_client"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.UnixInstallHelper.uninstall_client">[docs]</a>    <span class="k">def</span> <span class="nf">uninstall_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_obj</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delete_client</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="UnixInstallHelper.uninstall_client"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.UnixInstallHelper.uninstall_client">[docs]</a>    <span class="k">def</span> <span class="nf">uninstall_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delete_client</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Module to uninstall client and hard delete from commcell.</span>
-<span class="sd">            Deletes the InstanceXXX associated to the Commcell.</span>
+<span class="sd">            Deletes the Instance001 associated to the Commcell / Decoupled Client.</span>
 
 <span class="sd">         Args:</span>
-<span class="sd">            client_obj (client_object)      : Client Class object/</span>
-<span class="sd">                                              Client to be uninstalled</span>
-
-<span class="sd">            delete_client (bool)       : Delete client from commcell? Default: True</span>
+<span class="sd">            delete_client (bool)       : Delete client from commcell?</span>
 
 <span class="sd">                                        False : Client in de-configured state on commcell</span>
 
+<span class="sd">                                              : Client not part of Commcell (Decoupled Uninstallation)</span>
+
+
 <span class="sd">        Exception:</span>
-<span class="sd">            Failed to get Machine Object.</span>
 
-<span class="sd">            If client Hostname does not match the hostname mentioned on Config.</span>
-<span class="sd">                Making sure instance on different machine is not uninstalled.</span>
-<span class="sd">                Client Hostname Dosent Match Hostname of the machine</span>
-
-<span class="sd">            Instance Not found on the client machine</span>
+<span class="sd">            Machine Object not created with Credentials.</span>
 
 <span class="sd">            If failed to uninstall client</span>
+
+<span class="sd">            Failed to delete the client from Commcell : As client not part of commcell (Decoupled Client Instance)</span>
 
 
 <span class="sd">        Note:</span>
 <span class="sd">            Machine object should always be created with Machine credentials.</span>
-<span class="sd">                Be a root user for the Unix uninstallation except for MacOS.</span>
-
-<span class="sd">            Client Hostname Should match with the Hostname of the Machine.</span>
 
 <span class="sd">                Details to be mentioned on the config.json file under Install.</span>
 
@@ -584,12 +645,11 @@
 
 <span class="sd">                        Machine_host_name   (str): Client Hostname</span>
 
+<span class="sd">            Delete client should be False for Uninstalling decoupled client</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">client_hostname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">machine_name</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">client_obj</span><span class="p">:</span>
-                <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_host</span><span class="p">)</span>
-            <span class="n">client_name</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">client_name</span>
-            <span class="n">client_hostname</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">client_hostname</span>
             <span class="c1"># This done to make sure we get the response code after executing on CLI</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">username</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">password</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating machine object with credentials&quot;</span><span class="p">)</span>
@@ -598,25 +658,19 @@
                     <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">unix_client</span><span class="o">.</span><span class="n">machine_username</span><span class="p">,</span>
                     <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">unix_client</span><span class="o">.</span><span class="n">machine_password</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">client_hostname</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">machine_name</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Client Hostname dosen&#39;t match Machine Hostname&quot;</span><span class="p">)</span>
-
-            <span class="n">client_instance</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">instance</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Checking if </span><span class="si">{</span><span class="n">client_instance</span><span class="si">}</span><span class="s2"> exists on client [</span><span class="si">{</span><span class="n">client_name</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
-            <span class="n">cmd_to_run</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;ls -ld /etc/CommVaultRegistry/Galaxy/</span><span class="si">{</span><span class="n">client_instance</span><span class="si">}</span><span class="s1"> 2&gt;/dev/null | wc -l&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking if instance exists on client [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">))</span>
+            <span class="n">cmd_to_run</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;ls -ld /etc/CommVaultRegistry/Galaxy/Instance001 2&gt;/dev/null | wc -l&#39;</span>
             <span class="n">unix_output_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">cmd_to_run</span><span class="p">)</span>
-            <span class="n">JobManager</span><span class="p">(</span><span class="n">commcell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span><span class="o">.</span><span class="n">kill_active_jobs</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="s2">&quot;1&quot;</span> <span class="ow">in</span> <span class="n">unix_output_obj</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uninstalling existing </span><span class="si">{0}</span><span class="s2"> on client [</span><span class="si">{1}</span><span class="s2">]&quot;</span>
-                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_instance</span><span class="p">,</span> <span class="n">client_hostname</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uninstalling existing Instance001 on client [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">))</span>
 
                 <span class="k">if</span> <span class="s2">&quot;darwin&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">os_flavour</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
                     <span class="n">cmd_to_run</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;echo &#39;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\&#39;</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">password</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\&#39;</span><span class="s2">&quot;</span> <span class="o">+</span> \
-                                 <span class="sa">f</span><span class="s1">&#39; | sudo -S /usr/local/bin/cvpkgrm -i </span><span class="si">{</span><span class="n">client_instance</span><span class="si">}</span><span class="s1">&#39;</span>
+                                  <span class="sa">r</span><span class="s1">&#39; | sudo -S /usr/local/bin/cvpkgrm -i Instance001&#39;</span>
 
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">cmd_to_run</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;/usr/bin/cvpkgrm -i </span><span class="si">{</span><span class="n">client_instance</span><span class="si">}</span><span class="s1">&#39;</span>
+                    <span class="n">cmd_to_run</span> <span class="o">=</span> <span class="s1">&#39;/usr/bin/cvpkgrm -i Instance001&#39;</span>
 
                 <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing command [</span><span class="si">{0}</span><span class="s2">] on client [</span><span class="si">{1}</span><span class="s2">]&quot;</span>
                               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cmd_to_run</span><span class="p">,</span> <span class="n">client_hostname</span><span class="p">))</span>
@@ -624,20 +678,109 @@
                 <span class="n">unix_output_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">cmd_to_run</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">unix_output_obj</span><span class="o">.</span><span class="n">exit_code</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;0&quot;</span> <span class="ow">or</span> <span class="s2">&quot;Password&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">unix_output_obj</span><span class="o">.</span><span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
-                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to uninstall existing instance on client [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_name</span><span class="p">))</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to uninstall existing instance on client [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">))</span>
 
                 <span class="k">if</span> <span class="n">delete_client</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">delete_client</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+                    <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">delete_client</span><span class="p">(</span><span class="n">client_obj</span><span class="o">.</span><span class="n">client_name</span><span class="p">)</span>
 
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No Instance found on the client [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">))</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uninstallation for client [</span><span class="si">{0}</span><span class="s2">] completed successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_name</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uninstallation for client [</span><span class="si">{0}</span><span class="s2">] completed successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">))</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to uninstall existing commvault instance on [</span><span class="si">{0}</span><span class="s2">]&quot;</span>
-                           <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_obj</span><span class="o">.</span><span class="n">client_name</span><span class="p">))</span>
+                           <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">))</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="UnixInstallHelper.silent_install"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.UnixInstallHelper.silent_install">[docs]</a>    <span class="k">def</span> <span class="nf">silent_install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">tcinputs</span><span class="p">,</span> <span class="n">feature_release</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">packages</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Installs the client on the remote machine depending on the giver user inputs/ Server selected</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                    client_name (str)    -- Client Name provided for installation</span>
+
+<span class="sd">                    tcinputs     (dict)  -- testcase inputs / Dictionary with supported keys</span>
+
+<span class="sd">                                         --  Inputs for Installation should be in a dictionary</span>
+<span class="sd">                            Supported key / value for inputs:</span>
+
+<span class="sd">                            Mandatory:</span>
+<span class="sd">                                csClientName        (str)        Commserve Client Name</span>
+<span class="sd">                                csHostname          (str)        Commserve Hostname</span>
+<span class="sd">                                commservePassword   (str)        Commserve encrypted login password</span>
+<span class="sd">                                mediaPath           (str)        Filer Path required for Unix installations</span>
+<span class="sd">                                                                (Path till media)</span>
+
+
+<span class="sd">                            Optional:</span>
+<span class="sd">                                commserveUsername   (str)        Commserve Username</span>
+<span class="sd">                                useExistingDump     (str)        Use existing dump for Dm2 / Workflow Engine (&quot;0&quot; or 1&quot;)</span>
+<span class="sd">                                useExsitingCSdump   (str)        Use CS dump (&quot;0&quot; or &quot;1&quot;)</span>
+<span class="sd">                                CommservDumpPath    (str)        Dump path for Commserve</span>
+<span class="sd">                                install32base       (str)        install 32bit software on 64bit Machine (&quot;0&quot; or &quot;1&quot;)</span>
+<span class="sd">                                restoreOnlyAgents   (str)       &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                DM2DumpPath         (str)        Dump path for DM2 webservice</span>
+<span class="sd">                                WFEngineDumpPath    (str)        Dump path for Workflow Engine</span>
+<span class="sd">                                decoupledInstall    (str)        &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                enableFirewallConfig (str)       &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                firewallConnectionType (str)     &quot;0&quot; or &quot;1&quot; or &quot;2&quot;</span>
+<span class="sd">                                httpProxyConfigurationType(str)  &quot;0&quot; or &quot;1&quot; or &quot;2&quot;</span>
+<span class="sd">                                httpProxyPortNumber (str)        Port Number eg: &quot;6256&quot;</span>
+<span class="sd">                                httpProxyHostName   (str)        Hostname of the proxy machine</span>
+<span class="sd">                                portNumber          (str)        Port number to connect to the CVD eg:8410</span>
+<span class="sd">                                enableProxyClient   (str)        Enable Client as a proxy &quot;0&quot; or &quot;1&quot;</span>
+<span class="sd">                                proxyClientName     (str)        Proxy Client Name / Client Name on the commcell</span>
+<span class="sd">                                proxyHostname       (str)        Proxy Client Hostname</span>
+<span class="sd">                                proxyPortNumber     (str)        Proxy client Port Number to be used</span>
+<span class="sd">                                sqlSaPassword       (str)        Sa (user) password for SQL access</span>
+<span class="sd">                                installDirectoryUnix(str)        Path on which software to be installed on Unix Client</span>
+<span class="sd">                                installDirectoryWindows(str)     Path on which software to be installed on Win Client</span>
+<span class="sd">                                force_ipv4(unix)       (int)     0 for both IPv4 and IPv6 support</span>
+<span class="sd">                                                                 1 for IPv4 support only</span>
+<span class="sd">                                                                 2 for IPv6 support only</span>
+
+
+<span class="sd">                    feature_release(str) -- feature release of the bootstrapper</span>
+<span class="sd">                                            eg: SP20, SP21</span>
+
+<span class="sd">                    packages(list)       -- list of features to be installed</span>
+<span class="sd">                                            eg: features=[&#39;FILE_SYSTEM&#39;, &#39;MEDIA_AGENT&#39;]</span>
+<span class="sd">                                            default - [&#39;FILE_SYSTEM&#39;]</span>
+<span class="sd">            Note:</span>
+<span class="sd">                Unix Installation Requires Filer Path/ Media Path ( Path till CVMedia) -- mediaPath</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting installation for Unix Machine&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">username</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">password</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating machine object with credentials.&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span>
+                    <span class="n">machine</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">unix_client</span><span class="o">.</span><span class="n">machine_host</span><span class="p">,</span>
+                    <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">unix_client</span><span class="o">.</span><span class="n">machine_username</span><span class="p">,</span>
+                    <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">unix_client</span><span class="o">.</span><span class="n">machine_password</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">feature_release</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">feature_release</span> <span class="o">=</span> <span class="s2">&quot;SP&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_version</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">packages</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">packages</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FILE_SYSTEM&#39;</span><span class="p">]</span>
+
+            <span class="n">package_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">packages</span><span class="p">:</span>
+                <span class="n">package_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">UnixDownloadFeatures</span><span class="p">,</span> <span class="n">package</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+            <span class="n">silent_helper</span> <span class="o">=</span> <span class="n">SilentInstallHelper</span><span class="o">.</span><span class="n">create_installer_object</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span>
+                                                                        <span class="n">feature_release</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                                                                        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="p">,</span>
+                                                                        <span class="n">tcinputs</span><span class="p">)</span>
+            <span class="n">silent_helper</span><span class="o">.</span><span class="n">silent_install</span><span class="p">(</span><span class="n">package_list</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Silent installation complete on Unix machine&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to install commvault software on :</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
 
 <div class="viewcode-block" id="UnixInstallHelper.restart_services"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.UnixInstallHelper.restart_services">[docs]</a>    <span class="k">def</span> <span class="nf">restart_services</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -702,10 +845,11 @@
 <div class="viewcode-block" id="WindowsInstallHelper.install_software"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.WindowsInstallHelper.install_software">[docs]</a>    <span class="k">def</span> <span class="nf">install_software</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span>
             <span class="n">client_computers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">features</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;FILE_SYSTEM&#39;</span><span class="p">],</span>
+            <span class="n">features</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">username</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">password</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">install_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="n">install_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            client_computers    (list)      -- client hostname list</span>
 
@@ -724,9 +868,18 @@
 <span class="sd">            install_path (str)             -- Software Installation Path</span>
 
 <span class="sd">                default : None</span>
+
+<span class="sd">            **kwargs: (dict) -- Key value pairs for supporting conditional initializations</span>
+<span class="sd">            Supported -</span>
+<span class="sd">            install_flags (dict) - dictionary of install flag values</span>
+<span class="sd">            Ex : install_flags = {&quot;preferredIPfamily&quot;:2, &quot;install32Base&quot;:True}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">client_computers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">client_computers</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">client_host</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">features</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FILE_SYSTEM&#39;</span><span class="p">]</span>
+
         <span class="n">feature_vals</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">features</span><span class="p">:</span>
             <span class="n">feature_vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">WindowsDownloadFeatures</span><span class="p">,</span> <span class="n">feature</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
@@ -743,36 +896,32 @@
             <span class="n">unix_features</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span>
             <span class="n">password</span><span class="o">=</span><span class="n">b64encode</span><span class="p">(</span><span class="n">password</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">(),</span>
-            <span class="n">install_path</span><span class="o">=</span><span class="n">install_path</span>
+            <span class="n">install_path</span><span class="o">=</span><span class="n">install_path</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span></div>
 
-<div class="viewcode-block" id="WindowsInstallHelper.uninstall_client"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.WindowsInstallHelper.uninstall_client">[docs]</a>    <span class="k">def</span> <span class="nf">uninstall_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_obj</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">delete_client</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="WindowsInstallHelper.uninstall_client"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.WindowsInstallHelper.uninstall_client">[docs]</a>    <span class="k">def</span> <span class="nf">uninstall_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delete_client</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Module to uninstall client and hard delete from commcell.</span>
-<span class="sd">            Deletes the InstanceXXX associated to the Commcell.</span>
+<span class="sd">            Deletes the Instance001 associated to the Commcell / Decoupled Client.</span>
 
 <span class="sd">         Args:</span>
-<span class="sd">            client_obj (client_object)      : Client Class object/</span>
-<span class="sd">                                              Client to be uninstalled</span>
-
-<span class="sd">            delete_client (bool)       : Delete client from commcell? Default: True</span>
+<span class="sd">            delete_client (bool)       : Delete client from commcell?</span>
 
 <span class="sd">                                        False : Client in de-configured state on commcell</span>
 
+<span class="sd">                                              : Client not part of Commcell (Decoupled Uninstallation)</span>
+
+
 <span class="sd">        Exception:</span>
-<span class="sd">            If client Hostname does not match the hostname mentioned on Config.</span>
-<span class="sd">                Making sure instance on different machine is not uninstalled.</span>
-<span class="sd">                Client Hostname Dosent Match Hostname of the machine</span>
 
 <span class="sd">            Machine Object not created with Credentials.</span>
 
-<span class="sd">            Instance Not found on the client machine</span>
-
 <span class="sd">            If failed to uninstall client</span>
+
+<span class="sd">            Failed to delete the client from Commcell : As client not part of commcell (Decoupled Client Instance)</span>
 
 
 <span class="sd">        Note:</span>
-<span class="sd">            Client Hostname Should match with the Hostname of the Machine.</span>
-
 <span class="sd">            Machine object should always be created with Machine credentials.</span>
 
 <span class="sd">                Details to be mentioned on the config.json file under Install.</span>
@@ -783,12 +932,11 @@
 
 <span class="sd">                        Machine_host_name   (str): Client Hostname</span>
 
+<span class="sd">            Delete client should be False for Uninstalling decoupled client</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">client_hostname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">machine_name</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">client_obj</span><span class="p">:</span>
-                <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_host</span><span class="p">)</span>
-            <span class="n">client_name</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">client_name</span>
-            <span class="n">client_hostname</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">client_hostname</span>
             <span class="c1"># This done to make sure we get the response code/message after executing on CLI</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">username</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">password</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating machine object with credentials.&quot;</span><span class="p">)</span>
@@ -797,26 +945,20 @@
                     <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">windows_client</span><span class="o">.</span><span class="n">machine_username</span><span class="p">,</span>
                     <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">windows_client</span><span class="o">.</span><span class="n">machine_password</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">client_hostname</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">machine_name</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Client Hostname dosen&#39;t match Machine Hostname&quot;</span><span class="p">)</span>
-
-            <span class="n">client_instance</span> <span class="o">=</span> <span class="n">client_obj</span><span class="o">.</span><span class="n">instance</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uninstalling </span><span class="si">{0}</span><span class="s2"> on client [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_instance</span><span class="p">,</span> <span class="n">client_hostname</span><span class="p">))</span>
-
-            <span class="n">JobManager</span><span class="p">(</span><span class="n">commcell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span><span class="o">.</span><span class="n">kill_active_jobs</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uninstalling Instance001 on client [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">))</span>
             <span class="n">command_list</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="n">command_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;SET regPath=%WINDIR%\System32&quot;</span><span class="p">)</span>
             <span class="n">command_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                 <span class="s2">&quot;FOR /f </span><span class="se">\&quot;</span><span class="s2">usebackq tokens=3 skip=2</span><span class="se">\&quot;</span><span class="s2"> </span><span class="si">%%</span><span class="s2">L IN &quot;</span>
                 <span class="s2">&quot;(`</span><span class="si">%r</span><span class="s2">egPath%\REG QUERY &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">HKLM\SOFTWARE\CommVault Systems\Galaxy\</span><span class="si">{</span><span class="n">client_instance</span><span class="si">}</span><span class="s2">\InstalledPackages</span><span class="se">\&quot;</span><span class="s2"> &quot;</span>
+                <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">HKLM\SOFTWARE\CommVault Systems\Galaxy\Instance001\InstalledPackages</span><span class="se">\&quot;</span><span class="s2"> &quot;</span>
                 <span class="s2">&quot;/v BundleProviderKey 2^&gt;null`) DO SET bundlekey=</span><span class="si">%%</span><span class="s2">L&quot;</span><span class="p">)</span>
             <span class="n">command_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                 <span class="s2">&quot;IF NOT </span><span class="se">\&quot;</span><span class="s2">%bundlekey%</span><span class="se">\&quot;</span><span class="s2">==</span><span class="se">\&quot;\&quot;</span><span class="s2"> &quot;</span>
                 <span class="s2">&quot;(START </span><span class="se">\&quot;\&quot;</span><span class="s2"> /wait </span><span class="se">\&quot;</span><span class="s2">%ALLUSERSPROFILE%\Package Cache\%bundlekey%\Setup.exe</span><span class="se">\&quot;</span><span class="s2"> &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;/uninstall /silent /instance </span><span class="si">{</span><span class="n">client_instance</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+                <span class="s2">&quot;/uninstall /silent /instance Instance001)&quot;</span><span class="p">)</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uninstall command: Setup.exe /uninstall /silent /instance </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_instance</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uninstall command: Setup.exe /uninstall /silent /instance instance001&quot;</span><span class="p">)</span>
 
             <span class="n">local_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_results_path</span><span class="p">,</span> <span class="s2">&quot;cvuninstall.bat&quot;</span><span class="p">)</span>
             <span class="n">install_batch_file</span> <span class="o">=</span> <span class="n">installer_utils</span><span class="o">.</span><span class="n">create_batch_file_for_remote</span><span class="p">(</span>
@@ -836,12 +978,95 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uninstallation for client [</span><span class="si">{0}</span><span class="s2">] completed successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">))</span>
 
             <span class="k">if</span> <span class="n">delete_client</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">delete_client</span><span class="p">(</span><span class="n">client_name</span><span class="p">)</span>
+                <span class="n">client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">delete_client</span><span class="p">(</span><span class="n">client_obj</span><span class="o">.</span><span class="n">client_name</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to uninstall existing commvault instance on [</span><span class="si">{0}</span><span class="s2">]&quot;</span>
-                           <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_obj</span><span class="o">.</span><span class="n">client_name</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to uninstall existing commvault instance on [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">client_hostname</span><span class="p">))</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="WindowsInstallHelper.silent_install"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.WindowsInstallHelper.silent_install">[docs]</a>    <span class="k">def</span> <span class="nf">silent_install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">tcinputs</span><span class="p">,</span> <span class="n">feature_release</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">packages</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Installs the client on the remote machine depending on the giver user inputs/ Server selected</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                    client_name (str)    -- Client Name provided for installation</span>
+
+<span class="sd">                    tcinputs    (dict)   -- testcase inputs / Dictionary with supported keys</span>
+
+<span class="sd">                                         --  Inputs for Installation should be in a dictionary</span>
+<span class="sd">                            Supported key / value for inputs:</span>
+
+<span class="sd">                            Mandatory:</span>
+<span class="sd">                                csClientName        (str)        Commserve Client Name</span>
+<span class="sd">                                csHostname          (str)        Commserve Hostname</span>
+<span class="sd">                                commservePassword:  (str)        Commserve encrypted login password</span>
+
+<span class="sd">                            Optional:</span>
+<span class="sd">                                commserveUsername   (str)        Commserve Username</span>
+<span class="sd">                                useExistingDump     (str)        Use existing dump for Dm2 / Workflow Engine (&quot;0&quot; or 1&quot;)</span>
+<span class="sd">                                useExsitingCSdump   (str)        Use CS dump (&quot;0&quot; or &quot;1&quot;)</span>
+<span class="sd">                                CommservDumpPath    (str)        Dump path for Commserve</span>
+<span class="sd">                                install32base       (str)        install 32bit software on 64bit Machine (&quot;0&quot; or &quot;1&quot;)</span>
+<span class="sd">                                restoreOnlyAgents   (str)       &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                DM2DumpPath         (str)        Dump path for DM2 webservice</span>
+<span class="sd">                                WFEngineDumpPath    (str)        Dump path for Workflow Engine</span>
+<span class="sd">                                decoupledInstall    (str)        &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                enableFirewallConfig (str)       &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                firewallConnectionType (str)     &quot;0&quot; or &quot;1&quot; or &quot;2&quot;</span>
+<span class="sd">                                httpProxyConfigurationType(str)  &quot;0&quot; or &quot;1&quot; or &quot;2&quot;</span>
+<span class="sd">                                httpProxyPortNumber (str)        Port Number eg: &quot;6256&quot;</span>
+<span class="sd">                                httpProxyHostName   (str)        Hostname of the proxy machine</span>
+<span class="sd">                                portNumber          (str)        Port number to connect to the CVD eg:8410</span>
+<span class="sd">                                enableProxyClient   (str)        Enable Client as a proxy &quot;0&quot; or &quot;1&quot;</span>
+<span class="sd">                                proxyClientName     (str)        Proxy Client Name / Client Name on the commcell</span>
+<span class="sd">                                proxyHostname       (str)        Proxy Client Hostname</span>
+<span class="sd">                                proxyPortNumber     (str)        Proxy client Port Number to be used</span>
+<span class="sd">                                sqlSaPassword       (str)        Sa (user) password for SQL access</span>
+<span class="sd">                                installDirectoryUnix(str)        Path on which software to be installed on Unix Client</span>
+<span class="sd">                                installDirectoryWindows(str)     Path on which software to be installed on Win Client</span>
+
+
+<span class="sd">                   feature_release(str) -- feature release of the bootstrapper</span>
+<span class="sd">                                           eg: SP20, SP21</span>
+
+<span class="sd">                   packages(list)       -- list of features to be installed</span>
+<span class="sd">                                            features=[&#39;FILE_SYSTEM&#39;, &#39;MEDIA_AGENT&#39;]</span>
+<span class="sd">                                            default - [&#39;FILE_SYSTEM&#39;]</span>
+
+<span class="sd">            Note:</span>
+<span class="sd">                Unix Installation Requires Filer Path/ Media Path ( Path till CVMedia) -- mediaPath</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">username</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="o">.</span><span class="n">password</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating machine object with credentials.&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">options_selector</span><span class="o">.</span><span class="n">get_machine_object</span><span class="p">(</span>
+                    <span class="n">machine</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">windows_client</span><span class="o">.</span><span class="n">machine_host</span><span class="p">,</span>
+                    <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">windows_client</span><span class="o">.</span><span class="n">machine_username</span><span class="p">,</span>
+                    <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">windows_client</span><span class="o">.</span><span class="n">machine_password</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">feature_release</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">feature_release</span> <span class="o">=</span> <span class="s2">&quot;SP&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commserv_version</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">packages</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">packages</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FILE_SYSTEM&#39;</span><span class="p">]</span>
+
+            <span class="n">package_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">packages</span><span class="p">:</span>
+                <span class="n">package_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">WindowsDownloadFeatures</span><span class="p">,</span> <span class="n">package</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+            <span class="n">silent_helper</span> <span class="o">=</span> <span class="n">SilentInstallHelper</span><span class="o">.</span><span class="n">create_installer_object</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span>
+                                                                        <span class="n">feature_release</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span>
+                                                                        <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="p">,</span>
+                                                                        <span class="n">tcinputs</span><span class="p">)</span>
+            <span class="n">silent_helper</span><span class="o">.</span><span class="n">silent_install</span><span class="p">(</span><span class="n">package_list</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Silent installation complete for the Windows machine&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to install commvault software on :</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine_obj</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2"> [</span><span class="si">{0}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)))</span></div>
 
 <div class="viewcode-block" id="WindowsInstallHelper.restart_services"><a class="viewcode-back" href="../../source/Install.html#Install.install_helper.WindowsInstallHelper.restart_services">[docs]</a>    <span class="k">def</span> <span class="nf">restart_services</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -882,7 +1107,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

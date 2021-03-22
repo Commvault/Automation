@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Testcases.58922 &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Testcases.58922 &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -159,11 +159,14 @@
 <span class="sd">TestCase: Class for executing this test case</span>
 
 <span class="sd">TestCase:</span>
-<span class="sd">    __init__()      --  initialize TestCase class</span>
-
-<span class="sd">    setup()         --  setup method for test case</span>
-
-<span class="sd">    run             --  run function of this test case</span>
+<span class="sd">    __init__()                  --  initialize TestCase class</span>
+<span class="sd">    setup()                     --  setup method for test case</span>
+<span class="sd">    run()                       --  run function of this test case</span>
+<span class="sd">    create_instance()           --  create an informix instance</span>
+<span class="sd">    create_subclient()          --  create a new subclient</span>
+<span class="sd">    run_backup()                --  Submit backup for the new subclient</span>
+<span class="sd">    kill_active_jobs()          --  Kills all active jobs for the client</span>
+<span class="sd">    delete_subclient_instance() --  Delete the subclient and instance created by test case</span>
 
 <span class="sd">Input Example:</span>
 <span class="sd">    &quot;testCases&quot;:</span>
@@ -186,8 +189,10 @@
 
 <span class="sd">&quot;&quot;&quot;</span>
 
+<span class="kn">from</span> <span class="nn">cvpysdk.job</span> <span class="kn">import</span> <span class="n">Job</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="kn">import</span> <span class="n">CVTestCase</span>
 <span class="kn">from</span> <span class="nn">Web.Common.page_object</span> <span class="kn">import</span> <span class="n">TestStep</span><span class="p">,</span> <span class="n">handle_testcase_exception</span>
+<span class="kn">from</span> <span class="nn">Web.Common.exceptions</span> <span class="kn">import</span> <span class="n">CVTestStepFailure</span>
 <span class="kn">from</span> <span class="nn">Web.Common.cvbrowser</span> <span class="kn">import</span> <span class="n">BrowserFactory</span><span class="p">,</span> <span class="n">Browser</span>
 <span class="kn">from</span> <span class="nn">Web.AdminConsole.adminconsole</span> <span class="kn">import</span> <span class="n">AdminConsole</span>
 <span class="kn">from</span> <span class="nn">Web.AdminConsole.Databases.db_instances</span> <span class="kn">import</span> <span class="n">DBInstances</span>
@@ -246,6 +251,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">db_instance</span><span class="o">.</span><span class="n">select_instance</span><span class="p">(</span><span class="n">DBInstances</span><span class="o">.</span><span class="n">Types</span><span class="o">.</span><span class="n">INFORMIX</span><span class="p">,</span>
                                              <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;InstanceName&#39;</span><span class="p">],</span>
                                              <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;ClientName&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kill_active_jobs</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">db_instance_details</span><span class="o">.</span><span class="n">delete_instance</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleted it and creating new instance&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">db_instance</span><span class="o">.</span><span class="n">add_informix_instance</span><span class="p">(</span>
@@ -279,22 +285,33 @@
     <span class="k">def</span> <span class="nf">run_backup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Submit backup job for the new subclient&quot;&quot;&quot;</span>
         <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_page</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="o">=</span><span class="n">Backup</span><span class="o">.</span><span class="n">BackupType</span><span class="o">.</span><span class="n">FULL</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_completion</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="n">job_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="s2">&quot;Failed to run job:</span><span class="si">%s</span><span class="s2"> with error: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished </span><span class="si">%s</span><span class="s2"> job&quot;</span><span class="p">,</span> <span class="n">job_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;completed&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CVTestStepFailure</span><span class="p">(</span>
+                <span class="s2">&quot;Job status of </span><span class="si">%s</span><span class="s2"> is not completed&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Backup completed successfully&quot;</span><span class="p">)</span>
 
     <span class="nd">@test_step</span>
-    <span class="k">def</span> <span class="nf">wait_for_job_completion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jobid</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Wait for completion of backup job and check job status&quot;&quot;&quot;</span>
-        <span class="n">job_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">jobid</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
-                <span class="s2">&quot;Failed to run job:</span><span class="si">%s</span><span class="s2"> with error: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">jobid</span><span class="p">,</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
-            <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished </span><span class="si">%s</span><span class="s2"> job&quot;</span><span class="p">,</span> <span class="n">jobid</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">kill_active_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Kill all active jobs for the client&quot;&quot;&quot;</span>
+        <span class="n">active_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">active_jobs</span><span class="p">(</span>
+            <span class="n">client_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;ClientName&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">active_jobs</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">jobid</span> <span class="ow">in</span> <span class="n">active_jobs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">job_object</span> <span class="o">=</span> <span class="n">Job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="n">jobid</span><span class="p">)</span>
+                <span class="n">job_object</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Killed all running jobs for the client&quot;</span><span class="p">)</span>
 
     <span class="nd">@test_step</span>
     <span class="k">def</span> <span class="nf">delete_subclient_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Delete the instance and subclient&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kill_active_jobs</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">subclient_page</span><span class="o">.</span><span class="n">delete_subclient</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Subclient deleted successfully&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">db_instance_details</span><span class="o">.</span><span class="n">delete_instance</span><span class="p">()</span>
@@ -327,7 +344,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

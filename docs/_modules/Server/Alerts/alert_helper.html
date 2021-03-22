@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Server.Alerts.alert_helper &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Server.Alerts.alert_helper &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -176,11 +176,15 @@
 
 <span class="sd">    check_if_html_body_contains() : Checks if the html body contains the given patterns</span>
 
+<span class="sd">    check_if_console_alert_contains() : Checks if a console alert contains the given patterns</span>
+
 <span class="sd">    check_if_alert_saved() : Check if save to disk alert notification was saved</span>
 
 <span class="sd">    check_if_event_logged() : Reads through windows event viewer logs to check if alert notification was received</span>
 
 <span class="sd">    check_if_snmp_trap_received() : Reads through SentAlerts.log to see if SNMP Trap notification was sent</span>
+
+<span class="sd">    check_if_scom_alert_received() : Reads through GalaxySCOM.csv to see if SCOM alert notification was received</span>
 
 <span class="sd">    get_sender() : Yields the name of the Alert notification sender</span>
 
@@ -513,6 +517,27 @@
 
         <span class="k">return</span> <span class="n">pattern_match</span></div>
 
+<div class="viewcode-block" id="AlertHelper.check_if_console_alert_contains"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.check_if_console_alert_contains">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_console_alert_contains</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patterns</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Function to check if console alert contains the given patterns&quot;&quot;&quot;</span>
+        <span class="c1"># Wait for 100 seconds before starting search</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Wait till console alert is triggered&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alerts_commcell</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Get feedsList property from console alerts page</span>
+            <span class="n">feedsList</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alerts_commcell</span><span class="o">.</span><span class="n">console_alerts</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="kc">True</span><span class="p">)[</span><span class="s1">&#39;feedsList&#39;</span><span class="p">]</span>
+            <span class="c1"># Get liveFeedId for the particular console alert</span>
+            <span class="n">liveFeedId</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">alert</span><span class="p">:</span> <span class="n">alert</span><span class="p">[</span><span class="s1">&#39;alertName&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">alert_name</span> <span class="p">,</span> <span class="n">feedsList</span><span class="p">))[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;liveFeedId&#39;</span><span class="p">]</span>
+            <span class="n">console_alert_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alerts_commcell</span><span class="o">.</span><span class="n">console_alert</span><span class="p">(</span><span class="n">liveFeedId</span><span class="p">)</span>
+            <span class="c1"># Parse the description key from console_alert_details</span>
+            <span class="n">pattern_match</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_if_html_body_contains</span><span class="p">(</span><span class="n">body</span><span class="o">=</span><span class="n">console_alert_details</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">],</span> <span class="n">patterns</span><span class="o">=</span><span class="n">patterns</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Encountered exception while searching for console alert : </span><span class="si">{</span><span class="n">excp</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">pattern_match</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Console alert JSON Received, alert details validated&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Console alert details not matching&quot;</span><span class="p">)</span></div>
+
 <div class="viewcode-block" id="AlertHelper.check_if_alert_saved"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.check_if_alert_saved">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_alert_saved</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">short_interval</span><span class="p">,</span> <span class="n">patterns</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Reads through Alerts Folder to check if alert notification was saved. Used for save to disk</span>
 <span class="sd">           alert notifications</span>
@@ -643,6 +668,45 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Didn</span><span class="se">\&#39;</span><span class="s1">t send SNMP Trap&#39;</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">SDKException</span><span class="p">(</span><span class="s2">&quot;Alert&quot;</span><span class="p">,</span> <span class="s2">&quot;102&quot;</span><span class="p">,</span> <span class="s2">&quot;Didnt send SNMP Trap notification&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AlertHelper.check_if_scom_alert_received"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.check_if_scom_alert_received">[docs]</a>    <span class="k">def</span> <span class="nf">check_if_scom_alert_received</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wait_interval</span><span class="p">,</span> <span class="n">patterns</span><span class="p">,</span> <span class="n">lines_to_search</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads through GalaxySCOM.csv and validates if given patterns exist in alert notification</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                wait_interval (int)  -  time interval (in seconds) to wait for before searching for scom notification</span>
+<span class="sd">                patterns (list) - List containing of patterns to search for in GalaxySCOM.csv</span>
+<span class="sd">                lines_to_search (int) - Searches through the last n lines of GalaxySCOM.csv for trap notification</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                bool - If scom notification was found or not</span>
+
+<span class="sd">            Note : The function does a hard wait after which it opens the GalaxySCOM.csv file to check if scom</span>
+<span class="sd">            notification was found or not</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">got_scom_alert</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Wait till SCOM Alert notiifcation is received&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cs_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">commserv_name</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">wait_interval</span><span class="p">)</span>
+            <span class="n">scom_file_path</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell_object</span><span class="o">.</span><span class="n">commserv_client</span><span class="o">.</span><span class="n">install_directory</span><span class="p">,</span> <span class="s1">&#39;Scom&#39;</span><span class="p">,</span>
+                                                  <span class="s1">&#39;GalaxySCOM.csv&#39;</span><span class="p">)</span>
+            <span class="c1"># Open scom file and read last lines_to_search lines and see if patterns are found</span>
+            <span class="n">scom_file_body</span> <span class="o">=</span> <span class="n">cs_machine</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">scom_file_path</span><span class="p">)</span>
+            <span class="c1"># Fetch the last lines_to_search from this file</span>
+            <span class="n">scom_last_lines</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">scom_file_body</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="n">lines_to_search</span><span class="p">:])</span>
+            <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">patterns</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">scom_last_lines</span><span class="p">)):</span>
+                    <span class="n">got_scom_alert</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">break</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Encountered Exception while validating notification : </span><span class="si">{</span><span class="n">excp</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span><span class="p">(</span><span class="n">got_scom_alert</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;SCOM Alert received, alert details validated&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No saved alert was found&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Didn&#39;t receive Alert notification&quot;</span><span class="p">)</span></div>
+
 
 <div class="viewcode-block" id="AlertHelper.get_sender"><a class="viewcode-back" href="../../../source/Server.Alerts.html#Server.Alerts.alert_helper.AlertHelper.get_sender">[docs]</a>    <span class="k">def</span> <span class="nf">get_sender</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialize object of the AlertHelper class.</span>
@@ -1453,7 +1517,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

@@ -1,0 +1,279 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Server.Plans.migrationhelper &mdash; Commvault Automation 11.23 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>Server.Plans.migrationhelper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Server.Plans.migrationhelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># pylint: disable=W1202</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Helper file for importing, running and validating the policy to plan conversion app</span>
+
+<span class="sd">MigrationHelper is the only class defined in this file</span>
+
+<span class="sd">MigrationHelper</span>
+<span class="sd">    retrieve_eligible_subclients    -- retreives the list of subclients that will be</span>
+<span class="sd">                                        impacted by the migration</span>
+
+<span class="sd">    validate_after_step1            -- validates the output of the policy to plan conversion</span>
+
+<span class="sd">    step1_complete                  -- checks if step 1 has already been run on the CS</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span><span class="p">,</span> <span class="n">config</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="kn">import</span> <span class="n">MSSQL</span>
+<span class="kn">from</span> <span class="nn">Server.Plans</span> <span class="kn">import</span> <span class="n">migrationconstants</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">pandas</span>
+
+
+<div class="viewcode-block" id="MigrationHelper"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.migrationhelper.MigrationHelper">[docs]</a><span class="k">class</span> <span class="nc">MigrationHelper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="s2">&quot;Helper class to perform validation of the validaiton report&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commcell_object</span><span class="p">,</span> <span class="n">sql_pwd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes instance of MigrationValidation class</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                commcell_object     (object)    --  commcell object</span>
+
+<span class="sd">                sql_pwd             (str)       --  decrypted password of the CSDB</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span> <span class="o">=</span> <span class="n">commcell_object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_obj</span> <span class="o">=</span> <span class="n">MSSQL</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">{0}</span><span class="se">\\</span><span class="s1">commvault&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_commcell</span><span class="o">.</span><span class="n">webconsole_hostname</span><span class="p">),</span>
+            <span class="s1">&#39;sqladmin_cv&#39;</span><span class="p">,</span>
+            <span class="n">sql_pwd</span><span class="p">,</span>
+            <span class="s1">&#39;CommServ&#39;</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="MigrationHelper.retrieve_eligible_subclients"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.migrationhelper.MigrationHelper.retrieve_eligible_subclients">[docs]</a>    <span class="k">def</span> <span class="nf">retrieve_eligible_subclients</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retreives the list of subclients that are eligible for conversion</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">migrationconstants</span><span class="o">.</span><span class="n">retrieve_eligible_subclients_query</span>
+        <span class="n">subclients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;.</span><span class="se">\\</span><span class="s1">Server</span><span class="se">\\</span><span class="s1">Plans</span><span class="se">\\</span><span class="s1">before_run.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csvfile</span><span class="p">:</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">csvfile</span><span class="p">)</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">((</span><span class="s1">&#39;subclientId&#39;</span><span class="p">,</span> <span class="s1">&#39;storagePolicyId&#39;</span><span class="p">,</span> <span class="s1">&#39;schedulePolicyId&#39;</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">subclients</span><span class="o">.</span><span class="n">rows</span><span class="p">:</span>
+                <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">row</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MigrationHelper.validate_after_step1"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.migrationhelper.MigrationHelper.validate_after_step1">[docs]</a>    <span class="k">def</span> <span class="nf">validate_after_step1</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Retreive the list of policies associated with each of the eligible subclients.&quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;select subclientId, storagePolicyId, basePlanId from </span>
+<span class="s2">                    WFEngine.dbo.PolicyToPlanConversion order by subclientId&quot;&quot;&quot;</span>
+        <span class="n">subclients</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">csv_rows</span> <span class="o">=</span> <span class="n">pandas</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s1">&#39;.</span><span class="se">\\</span><span class="s1">Server</span><span class="se">\\</span><span class="s1">Plans</span><span class="se">\\</span><span class="s1">before_run.csv&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row1</span><span class="p">,</span> <span class="n">row2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">subclients</span><span class="o">.</span><span class="n">rows</span><span class="p">,</span> <span class="n">csv_rows</span><span class="o">.</span><span class="n">index</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">row1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">csv_rows</span><span class="p">[</span><span class="s1">&#39;subclientId&#39;</span><span class="p">][</span><span class="n">row2</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">row1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">csv_rows</span><span class="p">[</span><span class="s1">&#39;storagePolicyId&#39;</span><span class="p">][</span><span class="n">row2</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Storage policy of has not changed after step 1 for subclientId - &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">row1</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Storage policy of has changed by step 1 for subclientId - &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">row1</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="MigrationHelper.step1_complete"><a class="viewcode-back" href="../../../source/Server.Plans.html#Server.Plans.migrationhelper.MigrationHelper.step1_complete">[docs]</a>    <span class="k">def</span> <span class="nf">step1_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checks if step 1 WF has been run on the setup&quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;select * from GXGlobalParam where name = &#39;PolicyToPlan&#39;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Step 1 has not been run on the CS&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Step 1 was previously run on the CS&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

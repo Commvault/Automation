@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Web.AdminConsole.Databases.Instances.restore_panels &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Web.AdminConsole.Databases.Instances.restore_panels &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -180,7 +180,16 @@
 <span class="sd">    out_of_place_restore()          --      Submits a out of place restore of postgreSQL database</span>
 
 <span class="sd">OracleRestorePanel</span>
+<span class="sd">    _redirect_tablespace            --      Enters redirect path for datafile restore for</span>
+<span class="sd">     corresponding tablespace</span>
+
+<span class="sd">    _redirect                       --      Enters redirect restore options</span>
+
+<span class="sd">    _recover                        --      Enter recover to options</span>
+
 <span class="sd">    in_place_restore()              --      Submits a in place restore of Oracle database</span>
+
+<span class="sd">    out_of_place_restore()          --      Submits an out of place restore of Oracle database</span>
 
 <span class="sd">DB2RestorePanel</span>
 <span class="sd">    in_place_restore()              --      Submits a in place restore of db2 database</span>
@@ -210,6 +219,14 @@
 <span class="sd">InformixRestorePanel</span>
 <span class="sd">    informix_restore()              --      To perform inplace and out of place restore for Informix</span>
 <span class="sd">    __get_value()                   --      Gets element value from restore options using element id</span>
+
+<span class="sd">CosmosDBSQLRestorePanel:</span>
+
+<span class="sd">    disable_write_throughput()      --      Disables the adjust throughput toggle</span>
+
+<span class="sd">    select_overwrite()              --      Enables overwrites destination containers option</span>
+
+<span class="sd">    in_place_restore()              --      Submits restore to same cloud account</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
@@ -377,20 +394,144 @@
         <span class="nb">super</span><span class="p">(</span><span class="n">OracleRestorePanel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">admin_console</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span> <span class="o">=</span> <span class="n">admin_console</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__dialog</span> <span class="o">=</span> <span class="n">ModalDialog</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_panel_dropdown</span> <span class="o">=</span> <span class="n">DropDown</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_redirect_tablespace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablespace</span><span class="p">,</span> <span class="n">redirect_paths</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to fill target path for specific tablespace for redirect restore</span>
+<span class="sd">            Args:</span>
+<span class="sd">                tablespace      (str):  Name of tablespace to redirect</span>
+<span class="sd">                redirect_paths  (list): Redirect paths for datafiles of tablespace</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">expand_accordion</span><span class="p">(</span><span class="n">tablespace</span><span class="p">)</span>
+        <span class="n">xpath</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;//span[contains(text(), &#39;</span><span class="si">{</span><span class="n">tablespace</span><span class="si">}</span><span class="s2">&#39;)]/ancestor::div[@role=&#39;tab&#39;]&quot;</span> \
+            <span class="sa">f</span><span class="s2">&quot;/following-sibling::div/descendant-or-self::input&quot;</span>
+        <span class="n">elems</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">find_elements_by_xpath</span><span class="p">(</span><span class="n">xpath</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">elem</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">elems</span><span class="p">,</span> <span class="n">redirect_paths</span><span class="p">):</span>
+            <span class="n">elem</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="n">elem</span><span class="o">.</span><span class="n">send_keys</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_redirect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">redirect_all_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">redirect_datafiles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">redirect_redo</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to enter redirect options</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            redirect_all_path   (str)   : Redirect all Path</span>
+<span class="sd">                default: None</span>
+<span class="sd">            redirect_datafiles  (dict)  : Dict mapping tablespaces with redirect path of datafiles</span>
+<span class="sd">                default: None</span>
+<span class="sd">            redirect_redo       (str)   : Redo logs redirect path</span>
+<span class="sd">                default: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">select_hyperlink</span><span class="p">(</span><span class="s1">&#39;Redirect&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">redirect_all_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">select_radio</span><span class="p">(</span><span class="s2">&quot;redirectAllCB&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">fill_form_by_name</span><span class="p">(</span><span class="s1">&#39;redirectAll&#39;</span><span class="p">,</span> <span class="n">redirect_all_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">redirect_datafiles</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">select_radio</span><span class="p">(</span><span class="s2">&quot;individualTSCB&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">tablespace</span> <span class="ow">in</span> <span class="n">redirect_datafiles</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_redirect_tablespace</span><span class="p">(</span><span class="n">tablespace</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="n">redirect_datafiles</span><span class="p">[</span><span class="n">tablespace</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">redirect_redo</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">enable_toggle</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">fill_form_by_name</span><span class="p">(</span><span class="s1">&#39;redoLogsPath&#39;</span><span class="p">,</span> <span class="n">redirect_redo</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+
+    <span class="nd">@WebAction</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">_recover</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">recover_to</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Method to enter recover options</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            recover_to          (str/int):&quot;most recent backup&quot;/&quot;current time&quot;/SCN number/</span>
+<span class="sd">            Point in time in format &quot;%m/%d/%Y %H:%M:%S&quot; (eg. 12/31/2020 23:59:59)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">recover_to</span><span class="p">:</span>
+            <span class="n">recover_to_map</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;most recent backup&quot;</span><span class="p">:</span> <span class="s2">&quot;mostRecent&quot;</span><span class="p">,</span> <span class="s2">&quot;current time&quot;</span><span class="p">:</span> <span class="s2">&quot;currentTime&quot;</span><span class="p">}</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">recover_to</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">select_radio</span><span class="p">(</span><span class="s2">&quot;scn&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">fill_form_by_name</span><span class="p">(</span><span class="s1">&#39;pitScn&#39;</span><span class="p">,</span> <span class="n">recover_to</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">recover_to</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">recover_to_map</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">select_radio</span><span class="p">(</span><span class="n">recover_to_map</span><span class="p">[</span><span class="n">recover_to</span><span class="o">.</span><span class="n">lower</span><span class="p">()])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">select_radio</span><span class="p">(</span><span class="s2">&quot;pitDate1&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">fill_form_by_name</span><span class="p">(</span><span class="s1">&#39;dateTimeValue&#39;</span><span class="p">,</span> <span class="n">recover_to</span><span class="p">)</span>
 
     <span class="nd">@PageService</span><span class="p">()</span>
-    <span class="k">def</span> <span class="nf">in_place_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">in_place_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">redirect_all_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">redirect_datafiles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">redirect_redo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">recover_to</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        submits inplace restore for Oracle database</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            redirect_all_path   (str)   : Redirect all Path</span>
+<span class="sd">                default: None</span>
+<span class="sd">            redirect_datafiles  (dict)  : Dict mapping tablespaces with redirect path of datafiles</span>
+<span class="sd">                default: None</span>
+<span class="sd">            redirect_redo       (str)   : Redo logs redirect path</span>
+<span class="sd">                default: None</span>
+<span class="sd">            recover_to          (str/int):&quot;most recent backup&quot;/&quot;current time&quot;/SCN number/</span>
+<span class="sd">            Point in time in format &quot;%m/%d/%Y %H:%M:%S&quot; (eg. 12/31/2020 23:59:59)</span>
+<span class="sd">                default: None</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">             restore job id on succesful restore submission</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">access_tab</span><span class="p">(</span><span class="s1">&#39;In place&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">redirect_all_path</span> <span class="ow">or</span> <span class="n">redirect_datafiles</span> <span class="ow">or</span> <span class="n">redirect_redo</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_redirect</span><span class="p">(</span><span class="n">redirect_all_path</span><span class="p">,</span> <span class="n">redirect_datafiles</span><span class="p">,</span> <span class="n">redirect_redo</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_recover</span><span class="p">(</span><span class="n">recover_to</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__dialog</span><span class="o">.</span><span class="n">click_submit</span><span class="p">()</span>
+        <span class="n">_jobid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">get_jobid_from_popup</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">_jobid</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">out_of_place_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">destination_client</span><span class="p">,</span> <span class="n">destination_instance</span><span class="p">,</span>
+                             <span class="n">redirect_all_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">redirect_datafiles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                             <span class="n">redirect_redo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rman_duplicate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                             <span class="n">duplicate_standby</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">recover_to</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        submits out of place restore for Oracle database</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            destination_client  (str)   : Destination client to restore data to</span>
+<span class="sd">            destination_instance(str)   : Destination instance to restore data to</span>
+<span class="sd">            redirect_all_path   (str)   : Redirect all Path</span>
+<span class="sd">                default: None</span>
+<span class="sd">            redirect_datafiles  (dict)  : Dict mapping tablespaces with redirect path of datafiles</span>
+<span class="sd">                default: None</span>
+<span class="sd">            redirect_redo       (str)   : Redo logs redirect path</span>
+<span class="sd">                default: None</span>
+<span class="sd">            rman_duplicate      (bool)  : True if RMAN duplicate option must be enabled</span>
+<span class="sd">                default: False</span>
+<span class="sd">            duplicate_standby   (bool)  : True if duplicate for standby option is to be enabled</span>
+<span class="sd">                default: False</span>
+<span class="sd">            recover_to          (str/int):&quot;most recent backup&quot;/&quot;current time&quot;/SCN number/</span>
+<span class="sd">            Point in time in format &quot;%m/%d/%Y %H:%M:%S&quot; (eg. 12/31/2020 23:59:59)</span>
+<span class="sd">                default: None</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">             restore job id on succesful restore submission</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">access_tab</span><span class="p">(</span><span class="s2">&quot;Out of place&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_panel_dropdown</span><span class="o">.</span><span class="n">select_drop_down_values</span><span class="p">(</span><span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="n">destination_client</span><span class="p">],</span>
+                                                     <span class="n">drop_down_id</span><span class="o">=</span><span class="s1">&#39;destinationServer&#39;</span><span class="p">,</span>
+                                                     <span class="n">partial_selection</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_panel_dropdown</span><span class="o">.</span><span class="n">select_drop_down_values</span><span class="p">(</span><span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="n">destination_instance</span><span class="p">],</span>
+                                                     <span class="n">drop_down_id</span><span class="o">=</span><span class="s1">&#39;destinationInstance&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">disable_toggle</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rman_duplicate</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">enable_toggle</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">duplicate_standby</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">checkbox_select</span><span class="p">(</span><span class="s2">&quot;database&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">redirect_all_path</span> <span class="ow">or</span> <span class="n">redirect_datafiles</span> <span class="ow">or</span> <span class="n">redirect_redo</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_redirect</span><span class="p">(</span><span class="n">redirect_all_path</span><span class="p">,</span> <span class="n">redirect_datafiles</span><span class="p">,</span> <span class="n">redirect_redo</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_recover</span><span class="p">(</span><span class="n">recover_to</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__dialog</span><span class="o">.</span><span class="n">click_submit</span><span class="p">()</span>
         <span class="n">_jobid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">get_jobid_from_popup</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">_jobid</span></div>
+
 
 <div class="viewcode-block" id="DB2RestorePanel"><a class="viewcode-back" href="../../../../../source/Web.AdminConsole.Databases.Instances.html#Web.AdminConsole.Databases.Instances.restore_panels.DB2RestorePanel">[docs]</a><span class="k">class</span> <span class="nc">DB2RestorePanel</span><span class="p">(</span><span class="n">ModalPanel</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Class to represent the restore panel for DB2 database&quot;&quot;&quot;</span>
@@ -766,12 +907,57 @@
             <span class="n">pit_now</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_value</span><span class="p">(</span><span class="s2">&quot;dateTimeValue&quot;</span><span class="p">)</span>
             <span class="n">pit_now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">pit_now</span><span class="p">,</span> <span class="s1">&#39;%m/</span><span class="si">%d</span><span class="s1">/%Y %H:%M:%S&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%m/</span><span class="si">%d</span><span class="s2">/%Y %H:%M&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">pit_now</span> <span class="o">!=</span> <span class="n">restore_time</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">CVWebAutomationException</span><span class="p">(</span><span class="s2">&quot;PIT time </span><span class="si">%(p)s</span><span class="s2"> and actual restore time </span><span class="si">%(r)s</span><span class="s2"> &quot;</span>
-                                               <span class="s2">&quot;do not match&quot;</span> <span class="o">%</span><span class="p">{</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="n">pit_now</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="n">restore_time</span><span class="p">})</span>
+                <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">pit_now</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span><span class="o">-</span><span class="nb">int</span><span class="p">(</span><span class="n">restore_time</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">CVWebAutomationException</span><span class="p">(</span><span class="s2">&quot;PIT </span><span class="si">%(p)s</span><span class="s2"> and browse-restore time </span><span class="si">%(r)s</span><span class="s2"> &quot;</span>
+                                               <span class="s2">&quot;differ&quot;</span> <span class="o">%</span><span class="p">{</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="n">pit_now</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="n">restore_time</span><span class="p">})</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">select_radio</span><span class="p">(</span><span class="s2">&quot;mostRecent&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">get_jobid_from_popup</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="CosmosDBSQLRestorePanel"><a class="viewcode-back" href="../../../../../source/Web.AdminConsole.Databases.Instances.html#Web.AdminConsole.Databases.Instances.restore_panels.CosmosDBSQLRestorePanel">[docs]</a><span class="k">class</span> <span class="nc">CosmosDBSQLRestorePanel</span><span class="p">(</span><span class="n">ModalPanel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class to represent restore panel for CosmosDB SQL API&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">admin_console</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CosmosDBSQLRestorePanel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">admin_console</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span> <span class="o">=</span> <span class="n">admin_console</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__dialog</span> <span class="o">=</span> <span class="n">ModalDialog</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">disable_write_throughput</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Disables the adjust write throughput toggle&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">disable_toggle</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">select_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Enables overwrites destination containers option&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">enable_toggle</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="nd">@PageService</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">in_place_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adjust_throughput</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">streams</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Submits restore to same cloud account and restores containers with same name</span>
+<span class="sd">        Args:</span>
+<span class="sd">            adjust_throughput  (int)  --  The value to be set as adjust throughput</span>
+
+<span class="sd">            streams     (str)   --  The number of streams for restore</span>
+
+<span class="sd">            overwrite   (bool)  --  True to enable overwrite containers</span>
+<span class="sd">                                    False to not overwrite containers</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            int     --  The jobid of the restore</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">adjust_throughput</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">fill_form_by_id</span><span class="p">(</span><span class="s1">&#39;throughput&#39;</span><span class="p">,</span> <span class="n">adjust_throughput</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">disable_write_throughput</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">streams</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">fill_form_by_id</span><span class="p">(</span><span class="s1">&#39;noOfStreams&#39;</span><span class="p">,</span> <span class="n">streams</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">select_overwrite</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__dialog</span><span class="o">.</span><span class="n">click_submit</span><span class="p">()</span>
+        <span class="n">_jobid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">get_jobid_from_popup</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">_jobid</span></div>
 </pre></div>
 
            </div>
@@ -785,7 +971,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

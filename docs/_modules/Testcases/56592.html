@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Testcases.56592 &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Testcases.56592 &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -165,10 +165,18 @@
 
 <span class="sd">    tear_down()                 --  tear down method for testcase</span>
 
-<span class="sd">    wait_for_job_completion()   --  waits for completion of job and gets the</span>
-<span class="sd">    object once job completes</span>
+<span class="sd">    wait_for_job_completion()   --  waits for completion of job</span>
+
+<span class="sd">    navigate_to_instance()      --  navigates to specified instance</span>
+
+<span class="sd">    add_instance()              --  creates a new instance of specified type</span>
+<span class="sd">                                    with specified name and details</span>
+
+<span class="sd">    create_helper_object()      --  creates object of OracleHelper class</span>
 
 <span class="sd">    run_restore()               --  method to run restore and validate test data</span>
+
+<span class="sd">    cleanup()                   --  method to cleanup all testcase created changes</span>
 
 <span class="sd">    run()                       --  run function of this test case</span>
 
@@ -179,8 +187,14 @@
 <span class="sd">            {</span>
 <span class="sd">                &quot;56592&quot;:</span>
 <span class="sd">                        {</span>
-<span class="sd">                          &quot;ClientName&quot;:&quot;nginx1&quot;,</span>
-<span class="sd">                          &quot;InstanceName&quot;:&quot;acct1&quot;</span>
+<span class="sd">                          &quot;ClientName&quot;:&quot;client&quot;,</span>
+<span class="sd">                          &quot;InstanceName&quot;:&quot;instance&quot;,</span>
+<span class="sd">                          &quot;Plan&quot;:&quot;XXXX&quot;,</span>
+<span class="sd">                                    (optional, if instance is not already present)</span>
+<span class="sd">                          &quot;OracleHome&quot;:&quot;oracle/home/directory&quot;,</span>
+<span class="sd">                                        (optional, if instance is not already present)</span>
+<span class="sd">                          &quot;ConnectString&quot;:&quot;username/password@servicename&quot;</span>
+<span class="sd">                                            (optional, if instance is not already present)</span>
 <span class="sd">                        }</span>
 <span class="sd">            }</span>
 
@@ -190,10 +204,11 @@
 <span class="kn">from</span> <span class="nn">Web.Common.cvbrowser</span> <span class="kn">import</span> <span class="n">BrowserFactory</span><span class="p">,</span> <span class="n">Browser</span>
 <span class="kn">from</span> <span class="nn">Web.AdminConsole.adminconsole</span> <span class="kn">import</span> <span class="n">AdminConsole</span>
 <span class="kn">from</span> <span class="nn">Web.AdminConsole.Databases.db_instances</span> <span class="kn">import</span> <span class="n">DBInstances</span>
-<span class="kn">from</span> <span class="nn">Web.AdminConsole.Databases.db_instance_details</span> <span class="kn">import</span> <span class="n">DBInstanceDetails</span>
+<span class="kn">from</span> <span class="nn">Web.AdminConsole.Databases.db_instance_details</span> <span class="kn">import</span> <span class="n">OracleInstanceDetails</span>
 <span class="kn">from</span> <span class="nn">Web.AdminConsole.Databases.subclient</span> <span class="kn">import</span> <span class="n">SubClient</span>
 <span class="kn">from</span> <span class="nn">Web.AdminConsole.Components.panel</span> <span class="kn">import</span> <span class="n">Backup</span>
 <span class="kn">from</span> <span class="nn">Web.Common.page_object</span> <span class="kn">import</span> <span class="n">TestStep</span><span class="p">,</span> <span class="n">handle_testcase_exception</span>
+<span class="kn">from</span> <span class="nn">Web.Common.exceptions</span> <span class="kn">import</span> <span class="n">CVTestStepFailure</span>
 <span class="kn">from</span> <span class="nn">Database.OracleUtils.oraclehelper</span> <span class="kn">import</span> <span class="n">OracleHelper</span>
 
 
@@ -216,14 +231,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">database_instances</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">db_instance_details</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subclient_page</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">automation_instance</span> <span class="o">=</span> <span class="kc">None</span>
 
 <div class="viewcode-block" id="TestCase.setup"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.56592.TestCase.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Method to setup test variables &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started executing </span><span class="si">%s</span><span class="s2"> testcase&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">+</span> <span class="s2">&quot; Initialize browser objects &quot;</span> <span class="o">+</span> <span class="s2">&quot;*&quot;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span> <span class="o">=</span> <span class="n">OracleHelper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">db_connect</span><span class="p">(</span><span class="n">OracleHelper</span><span class="o">.</span><span class="n">CONN_SYSDBA</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">check_instance_status</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">browser</span> <span class="o">=</span> <span class="n">BrowserFactory</span><span class="p">()</span><span class="o">.</span><span class="n">create_browser_object</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">browser</span><span class="o">.</span><span class="n">open</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span> <span class="o">=</span> <span class="n">AdminConsole</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">browser</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">webconsole_hostname</span><span class="p">)</span>
@@ -231,7 +245,7 @@
                                  <span class="bp">self</span><span class="o">.</span><span class="n">inputJSONnode</span><span class="p">[</span><span class="s1">&#39;commcell&#39;</span><span class="p">][</span><span class="s1">&#39;commcellPassword&#39;</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">navigator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span><span class="o">.</span><span class="n">navigator</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">database_instances</span> <span class="o">=</span> <span class="n">DBInstances</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">db_instance_details</span> <span class="o">=</span> <span class="n">DBInstanceDetails</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_instance_details</span> <span class="o">=</span> <span class="n">OracleInstanceDetails</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">subclient_page</span> <span class="o">=</span> <span class="n">SubClient</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">database_type</span> <span class="o">=</span> <span class="n">DBInstances</span><span class="o">.</span><span class="n">Types</span><span class="o">.</span><span class="n">ORACLE</span></div>
 
@@ -239,8 +253,8 @@
         <span class="sd">&quot;&quot;&quot; tear down method for testcase &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting Automation Created tablespaces and tables&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">oracle_data_cleanup</span><span class="p">(</span><span class="s2">&quot;CV_TABLE_01&quot;</span><span class="p">,</span>
-                                                          <span class="bp">self</span><span class="o">.</span><span class="n">tablespace_name</span><span class="p">)</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">oracle_data_cleanup</span><span class="p">(</span>
+                <span class="n">tables</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;CV_TABLE_01&quot;</span><span class="p">,</span> <span class="s2">&quot;CV_TABLE_INCR_01&quot;</span><span class="p">],</span> <span class="n">tablespace</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tablespace_name</span><span class="p">)</span></div>
 
     <span class="nd">@test_step</span>
     <span class="k">def</span> <span class="nf">wait_for_job_completion</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jobid</span><span class="p">):</span>
@@ -250,16 +264,48 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">job_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">job_controller</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">jobid</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+            <span class="k">raise</span> <span class="n">CVTestStepFailure</span><span class="p">(</span>
                 <span class="s2">&quot;Failed to run job:</span><span class="si">%s</span><span class="s2"> with error: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">jobid</span><span class="p">,</span> <span class="n">job_obj</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
             <span class="p">)</span>
 
     <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">navigate_to_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Navigates to Instance page&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">navigator</span><span class="o">.</span><span class="n">navigate_to_db_instances</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database_instances</span><span class="o">.</span><span class="n">select_instance</span><span class="p">(</span><span class="n">DBInstances</span><span class="o">.</span><span class="n">Types</span><span class="o">.</span><span class="n">ORACLE</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;InstanceName&quot;</span><span class="p">],</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;ClientName&quot;</span><span class="p">])</span>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">add_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds new instance&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;Plan&quot;</span><span class="p">,</span> <span class="s2">&quot;OracleHome&quot;</span><span class="p">,</span> <span class="s2">&quot;ConnectString&quot;</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="n">CVTestStepFailure</span><span class="p">(</span><span class="s2">&quot;Provide Plan, Oracle Home, Connect String inputs for&quot;</span>
+                                    <span class="s2">&quot; instance creation&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database_instances</span><span class="o">.</span><span class="n">add_oracle_instance</span><span class="p">(</span><span class="n">server_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;ClientName&quot;</span><span class="p">],</span>
+                                                    <span class="n">oracle_sid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;InstanceName&quot;</span><span class="p">],</span>
+                                                    <span class="n">plan</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;Plan&quot;</span><span class="p">],</span>
+                                                    <span class="n">oracle_home</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;OracleHome&quot;</span><span class="p">],</span>
+                                                    <span class="n">connect_string</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;ConnectString&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">database_instances</span><span class="o">.</span><span class="n">select_instance</span><span class="p">(</span><span class="n">DBInstances</span><span class="o">.</span><span class="n">Types</span><span class="o">.</span><span class="n">ORACLE</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;InstanceName&quot;</span><span class="p">],</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;ClientName&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">automation_instance</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">create_helper_object</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates oracle helper object&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">agents</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;oracle&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;InstanceName&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span> <span class="o">=</span> <span class="n">OracleHelper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instance</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">db_connect</span><span class="p">(</span><span class="n">OracleHelper</span><span class="o">.</span><span class="n">CONN_SYSDBA</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">check_instance_status</span><span class="p">()</span>
+
+    <span class="nd">@test_step</span>
     <span class="k">def</span> <span class="nf">run_restore</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; method to run restore&quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">navigator</span><span class="o">.</span><span class="n">navigate_to_db_instances</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">database_instances</span><span class="o">.</span><span class="n">select_instance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">database_type</span><span class="p">,</span>
-                                                <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;InstanceName&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;ClientName&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span><span class="o">.</span><span class="n">select_breadcrumb_link_using_text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;InstanceName&#39;</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">db_instance_details</span><span class="o">.</span><span class="n">access_restore</span><span class="p">()</span>
         <span class="n">restore_panel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db_instance_details</span><span class="o">.</span><span class="n">restore_folders</span><span class="p">(</span>
             <span class="n">database_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">database_type</span><span class="p">,</span> <span class="n">all_files</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -267,30 +313,60 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_completion</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Restore completed&quot;</span><span class="p">)</span>
 
+    <span class="nd">@test_step</span>
+    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Cleans up testcase created instance&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">automation_instance</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">navigate_to_instance</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">db_instance_details</span><span class="o">.</span><span class="n">delete_instance</span><span class="p">()</span>
+
 <div class="viewcode-block" id="TestCase.run"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.56592.TestCase.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Main function for test case execution &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                 <span class="s2">&quot;#&quot;</span> <span class="o">*</span> <span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;  Oracle Backup/Restore Operations  &quot;</span> <span class="o">+</span> <span class="s2">&quot;#&quot;</span> <span class="o">*</span> <span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">navigator</span><span class="o">.</span><span class="n">navigate_to_db_instances</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Checking if instance exists&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">database_instances</span><span class="o">.</span><span class="n">is_instance_exists</span><span class="p">(</span><span class="n">DBInstances</span><span class="o">.</span><span class="n">Types</span><span class="o">.</span><span class="n">ORACLE</span><span class="p">,</span>
+                                                          <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;InstanceName&quot;</span><span class="p">],</span>
+                                                          <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s2">&quot;ClientName&quot;</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Instance found&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">navigate_to_instance</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Instance not found. Creating new instance&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_instance</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Instance successfully created&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating Sample Data for test&quot;</span><span class="p">)</span>
             <span class="n">table_limit</span> <span class="o">=</span> <span class="mi">1</span>
             <span class="n">num_of_files</span> <span class="o">=</span> <span class="mi">1</span>
             <span class="n">row_limit</span> <span class="o">=</span> <span class="mi">10</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create_helper_object</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">create_sample_data</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">tablespace_name</span><span class="p">,</span> <span class="n">table_limit</span><span class="p">,</span> <span class="n">num_of_files</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">db_execute</span><span class="p">(</span><span class="s1">&#39;alter system switch logfile&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Test Data Generated successfully&quot;</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Preparing for Backup.&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">navigator</span><span class="o">.</span><span class="n">navigate_to_db_instances</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">database_instances</span><span class="o">.</span><span class="n">select_instance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">database_type</span><span class="p">,</span>
-                                                    <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;InstanceName&#39;</span><span class="p">],</span>
-                                                    <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span><span class="p">[</span><span class="s1">&#39;ClientName&#39;</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">db_instance_details</span><span class="o">.</span><span class="n">click_on_entity</span><span class="p">(</span><span class="s1">&#39;default&#39;</span><span class="p">)</span>
             <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_page</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="o">=</span><span class="n">Backup</span><span class="o">.</span><span class="n">BackupType</span><span class="o">.</span><span class="n">FULL</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_completion</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Oracle Backup is completed&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Oracle Full Backup is completed&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">backup_validation</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="s1">&#39;Online Full&#39;</span><span class="p">)</span>
+
+            <span class="n">user</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_user&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tablespace_name</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">db_create_table</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tablespace_name</span><span class="p">,</span> <span class="s2">&quot;CV_TABLE_INCR_&quot;</span><span class="p">,</span> <span class="n">user</span><span class="p">,</span> <span class="n">table_limit</span><span class="p">)</span>
+
+            <span class="n">job_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_page</span><span class="o">.</span><span class="n">backup</span><span class="p">(</span><span class="n">backup_type</span><span class="o">=</span><span class="n">Backup</span><span class="o">.</span><span class="n">BackupType</span><span class="o">.</span><span class="n">INCR</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wait_for_job_completion</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Oracle Incremental Backup is completed&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">backup_validation</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="s1">&#39;Incremental&#39;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Cleaning up tablespace and data before restore&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">oracle_data_cleanup</span><span class="p">(</span>
+                <span class="n">tables</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;CV_TABLE_01&quot;</span><span class="p">,</span> <span class="s2">&quot;CV_TABLE_INCR_01&quot;</span><span class="p">],</span> <span class="n">tablespace</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tablespace_name</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Preparing for Restore.&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">run_restore</span><span class="p">()</span>
@@ -298,12 +374,15 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validating Backed up content&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">validation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tablespace_name</span><span class="p">,</span> <span class="n">num_of_files</span><span class="p">,</span>
                                                  <span class="s2">&quot;CV_TABLE_01&quot;</span><span class="p">,</span> <span class="n">row_limit</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">oracle_helper_object</span><span class="o">.</span><span class="n">validation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tablespace_name</span><span class="p">,</span> <span class="n">num_of_files</span><span class="p">,</span>
+                                                 <span class="s2">&quot;CV_TABLE_INCR_01&quot;</span><span class="p">,</span> <span class="n">row_limit</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Validation Successfull.&quot;</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
             <span class="n">handle_testcase_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exp</span><span class="p">)</span>
 
         <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
             <span class="n">AdminConsole</span><span class="o">.</span><span class="n">logout_silently</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">admin_console</span><span class="p">)</span>
             <span class="n">Browser</span><span class="o">.</span><span class="n">close_silently</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">browser</span><span class="p">)</span></div></div>
 </pre></div>
@@ -319,7 +398,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

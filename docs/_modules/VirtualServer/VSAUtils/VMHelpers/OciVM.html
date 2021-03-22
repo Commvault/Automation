@@ -1,0 +1,480 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>VirtualServer.VSAUtils.VMHelpers.OciVM &mdash; Commvault Automation 11.23 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script src="../../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>VirtualServer.VSAUtils.VMHelpers.OciVM</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for VirtualServer.VSAUtils.VMHelpers.OciVM</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Does all the Operation for OCI vm&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">VirtualServer.VSAUtils.VMHelper</span> <span class="kn">import</span> <span class="n">HypervisorVM</span>
+<span class="kn">from</span> <span class="nn">VirtualServer.VSAUtils.VirtualServerUtils</span> <span class="kn">import</span> <span class="n">get_details_from_config_file</span>
+
+
+<div class="viewcode-block" id="OciVM"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM">[docs]</a><span class="k">class</span> <span class="nc">OciVM</span><span class="p">(</span><span class="n">HypervisorVM</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is the main file for all OCI VM operations</span>
+<span class="sd">    Automation Requirements:</span>
+<span class="sd">    1.) ICMP traffic needs to be enabled between OCI machine and OCI and testlab machines.</span>
+<span class="sd">    2.) TCP must be enabled from OCI machines to Testlab machines - For accessing Admin Console</span>
+<span class="sd">    VMware to OCI conversion</span>
+<span class="sd">    1.) For conversion we need to have controller in the same subnet as that of restored VM</span>
+<span class="sd">    2.) To acess Vm in Vcenter for conversion need to enable port no 22 443 and 5985</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hvobj</span><span class="p">,</span> <span class="n">vm_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialization of OCI vm properties</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            hvobj               (obj):  Hypervisor Object</span>
+
+<span class="sd">            vm_name             (str):  Name of the VM</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">OciVM</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">hvobj</span><span class="p">,</span> <span class="n">vm_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oci_config</span> <span class="o">=</span> <span class="n">hvobj</span><span class="o">.</span><span class="n">oci_config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server_host_name</span> <span class="o">=</span> <span class="n">hvobj</span><span class="o">.</span><span class="n">server_host_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance_type</span> <span class="o">=</span> <span class="n">hvobj</span><span class="o">.</span><span class="n">instance_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">identity</span> <span class="o">=</span> <span class="n">hvobj</span><span class="o">.</span><span class="n">instance_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user</span> <span class="o">=</span> <span class="n">hvobj</span><span class="o">.</span><span class="n">instance_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root_compartment_id</span> <span class="o">=</span> <span class="n">hvobj</span><span class="o">.</span><span class="n">instance_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span> <span class="o">=</span> <span class="n">vm_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_basic_props_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power_state</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_of_cpu</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">disk_count</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">memory</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ip</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">guest_os</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_disk_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_vol_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_disk_vol_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compartment_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subnet_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datastore</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instance_size</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vcn_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ipv4</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iqn</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_vm_info</span><span class="p">()</span>
+
+<div class="viewcode-block" id="OciVM.VmConversionValidation"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.VmConversionValidation">[docs]</a>    <span class="k">class</span> <span class="nc">VmConversionValidation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vmobj</span><span class="p">,</span> <span class="n">vm_restore_options</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vm</span> <span class="o">=</span> <span class="n">vmobj</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vm_restore_options</span> <span class="o">=</span> <span class="n">vm_restore_options</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            compares the restored vm properties after restore</span>
+<span class="sd">            vm_restore_options - contains properties like Availability Domain , Shape, subnet, Compartment</span>
+
+<span class="sd">            Return:</span>
+<span class="sd">                value     (bool)- on successful validation return true</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">ipv4</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">iqn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="s1">&#39;Set-Service -Name msiscsi -StartupType Automatic&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="s1">&#39;Start-Service msiscsi&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span>
+                        <span class="n">command</span><span class="o">=</span><span class="s1">&#39;New-IscsiTargetPortal -TargetPortalAddress &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">ipv4</span><span class="p">)</span>
+                    <span class="n">sc</span> <span class="o">=</span> <span class="s1">&#39;Connect-IscsiTarget -NodeAddress &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">iqn</span> <span class="o">+</span> <span class="s1">&#39; -TargetPortalAddress &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">ipv4</span> <span class="o">+</span> <span class="s1">&#39; -IsPersistent $True -IsMultipathEnabled $True&#39;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="n">sc</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="s1">&#39;Set-Disk -Number 1 -IsOffline $False&#39;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Error while attaching secondary Block Volume&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Error while adding data disk to restored instance&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">compartment_name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_restore_options</span><span class="o">.</span><span class="n">compartment_name</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">datastore</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_restore_options</span><span class="o">.</span><span class="n">datastore</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">subnet_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_restore_options</span><span class="o">.</span><span class="n">subnet_id</span> <span class="ow">and</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vm</span><span class="o">.</span><span class="n">no_of_cpu</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_restore_options</span><span class="o">.</span><span class="n">disk_info</span>
+                    <span class="p">)</span></div>
+
+<div class="viewcode-block" id="OciVM.vm_power_on"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.vm_power_on">[docs]</a>    <span class="k">def</span> <span class="nf">vm_power_on</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Power ON the VM by name</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">ComputeClient</span><span class="o">.</span><span class="n">instance_action</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_vm_info</span><span class="p">()[</span><span class="s1">&#39;instance_id&#39;</span><span class="p">],</span> <span class="s1">&#39;START&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OciVM.vm_power_off"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.vm_power_off">[docs]</a>    <span class="k">def</span> <span class="nf">vm_power_off</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Power OFF the VM by name</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">ComputeClient</span><span class="o">.</span><span class="n">instance_action</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_vm_info</span><span class="p">()[</span><span class="s1">&#39;instance_id&#39;</span><span class="p">],</span> <span class="s1">&#39;STOP&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OciVM.vm_power_reboot"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.vm_power_reboot">[docs]</a>    <span class="k">def</span> <span class="nf">vm_power_reboot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Restart the VM by name</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">ComputeClient</span><span class="o">.</span><span class="n">instance_action</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_vm_info</span><span class="p">()[</span><span class="s1">&#39;instance_id&#39;</span><span class="p">],</span> <span class="s1">&#39;REBOOT&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OciVM.vm_power_state"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.vm_power_state">[docs]</a>    <span class="k">def</span> <span class="nf">vm_power_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        WIP</span>
+<span class="sd">        :param vm_name:</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="OciVM.delete_vm"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.delete_vm">[docs]</a>    <span class="k">def</span> <span class="nf">delete_vm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Terminate the VM.</span>
+
+<span class="sd">        return:</span>
+<span class="sd">                True - when delete is successful</span>
+
+<span class="sd">                False - when delete failed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Delete the VM&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">ComputeClient</span><span class="o">.</span><span class="n">terminate_instance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_vm_info</span><span class="p">()[</span><span class="s1">&#39;instance_id&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OciVM.clean_up"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.clean_up">[docs]</a>    <span class="k">def</span> <span class="nf">clean_up</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Clean up the VM resources post restore</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">             Exception:</span>
+<span class="sd">                If unable to clean up VM and its resources</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting VMs/Instances after restore&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delete_vm</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_credentials</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">os_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Overridden because root login is not possible in out of place restored AWS instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sections</span> <span class="o">=</span> <span class="n">get_details_from_config_file</span><span class="p">(</span><span class="s1">&#39;oci&#39;</span><span class="p">)</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="n">get_details_from_config_file</span><span class="p">(</span><span class="s1">&#39;oci&#39;</span><span class="p">,</span> <span class="s1">&#39;keys&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">key_list</span> <span class="o">=</span> <span class="n">keys</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="n">key_list</span> <span class="o">=</span> <span class="n">keys</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">user_name</span> <span class="o">=</span> <span class="n">sections</span>
+            <span class="k">if</span> <span class="s2">&quot;,&quot;</span> <span class="ow">in</span> <span class="n">sections</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">os_name</span> <span class="o">==</span> <span class="s1">&#39;windows&#39;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">user_name</span> <span class="o">=</span> <span class="n">sections</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">sections</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)[</span><span class="mi">3</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">user_name</span> <span class="o">=</span> <span class="n">sections</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="n">sections</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">vm_machine</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_hostname</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span>
+                                             <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">user_name</span> <span class="o">=</span> <span class="n">sections</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">password</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+                <span class="n">vm_machine</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">Machine</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_hostname</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span>
+                                             <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">,</span> <span class="n">key_filename</span><span class="o">=</span><span class="n">keys</span><span class="p">,</span>
+                                             <span class="n">run_as_sudo</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">vm_machine</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">machine</span> <span class="o">=</span> <span class="n">vm_machine</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">guest_os</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine</span><span class="o">.</span><span class="n">os_flavour</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="k">return</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Could not create Machine object! The following user names are &quot;</span>
+                               <span class="s2">&quot;incorrect: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">disk_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        To fetch the disk in the VM</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            disk_list           (list): List of volumes in AWS instance</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">op</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_disk_vol_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">op</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">op</span>
+
+    <span class="k">def</span> <span class="nf">_get_vm_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Collect all the VM properties for VM</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Collecting all the VM properties for VM </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span><span class="p">)</span>
+            <span class="n">op</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hvobj</span><span class="o">.</span><span class="n">get_vm_property</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">op</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Failed to Get all the VM Properties of the VM&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OciVM.update_vm_info"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.update_vm_info">[docs]</a>    <span class="k">def</span> <span class="nf">update_vm_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s1">&#39;Basic&#39;</span><span class="p">,</span> <span class="n">os_info</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">force_update</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update VM information</span>
+
+<span class="sd">        :param prop: TBD</span>
+<span class="sd">        :param os_info: TBD</span>
+<span class="sd">        :param force_update: TBD</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_basic_props_initialized</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;No new properties to fetch&#39;</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="n">vm_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_vm_info</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;power_state&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;running&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Turning on the VM: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">vm_name</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">vm_power_on</span><span class="p">()</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+                <span class="n">vm_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_vm_info</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;network&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ip</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="s1">&#39;Private IP&#39;</span><span class="p">]</span>
+                    <span class="k">break</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;block_vloume&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">value</span><span class="p">[</span><span class="s1">&#39;instance_id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;instance_id&#39;</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">ipv4</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="s1">&#39;ipv4&#39;</span><span class="p">]</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">iqn</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="s1">&#39;iqn&#39;</span><span class="p">]</span>
+                        <span class="k">break</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vm_guest_os</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;OS&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">no_of_cpu</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;instanceSize&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">memory</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;instanceSize&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">disk_count</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;instanceSize&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">ip</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ip</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s1">&#39;source_ip&#39;</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">compartment_name</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s2">&quot;parent_compartment_name&quot;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subnet_id</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s2">&quot;subnetId&quot;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">datastore</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s2">&quot;Datastore&quot;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instance_size</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s2">&quot;instanceSize&quot;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">vcn_name</span> <span class="o">=</span> <span class="n">vm_info</span><span class="p">[</span><span class="s2">&quot;networkName&quot;</span><span class="p">]</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Compartment Name, SubnetId, Datastore, Instance Size not Found.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_basic_props_initialized</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Failed to Get  the VM Properties of the VM&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OciVM.get_vm_ip"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.get_vm_ip">[docs]</a>    <span class="k">def</span> <span class="nf">get_vm_ip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        gets public IP of a VM by name</span>
+
+<span class="sd">        :return: public IP of the machine if any</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_vm_info</span><span class="p">()[</span><span class="s1">&#39;source_ip&#39;</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="OciVM.get_vm_ids"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.VMHelpers.html#VirtualServer.VSAUtils.VMHelpers.OciVM.OciVM.get_vm_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_vm_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method can be used to get an instance id by its name</span>
+<span class="sd">        :return:        (list)   Returns the ID of the VM</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_vm_info</span><span class="p">()[</span><span class="s1">&#39;instance_id&#39;</span><span class="p">]</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

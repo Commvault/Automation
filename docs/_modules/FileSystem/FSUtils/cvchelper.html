@@ -1,0 +1,619 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>FileSystem.FSUtils.cvchelper &mdash; Commvault Automation 11.23 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>FileSystem.FSUtils.cvchelper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for FileSystem.FSUtils.cvchelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper file for performing cvc operations</span>
+
+<span class="sd">    CvcOps:</span>
+
+<span class="sd">    get_cvc_base()              -- Get the cvc path</span>
+
+<span class="sd">    login()                     -- Login to CVC session non-interactively method</span>
+
+<span class="sd">    browse()                    -- validate browse operation</span>
+
+<span class="sd">    find()                      -- validate find operation</span>
+
+<span class="sd">    restore()                   -- validate restore operation</span>
+
+<span class="sd">    data_creation()             -- Create test data as root with various permissions</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">sleep</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+
+
+<div class="viewcode-block" id="Cvchelper"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.cvchelper.Cvchelper">[docs]</a><span class="k">class</span> <span class="nc">Cvchelper</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot; Helper class for CVC operations</span>
+<span class="sd">    Initialize instance of cvcHelper class.</span>
+<span class="sd">        Args:</span>
+
+<span class="sd">                    ClientName  (str)       --  client on which cvc operations are performed</span>
+
+<span class="sd">                    testcase    (object)     --  instance of the CVTestCase class</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">commcell</span><span class="p">,</span> <span class="n">client_obj</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cvc_machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span>
+            <span class="n">client_name</span><span class="p">,</span> <span class="n">commcell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_obj</span> <span class="o">=</span> <span class="n">client_obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span> <span class="o">=</span> <span class="n">commcell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_username</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">username</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the Client display name&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_username</span>
+
+    <span class="nd">@username</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">username</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;setter to set the display name of the client</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            username    (str)   -- Us</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_username</span> <span class="o">=</span> <span class="n">username</span>
+
+<div class="viewcode-block" id="Cvchelper.get_cvc_base"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.cvchelper.Cvchelper.get_cvc_base">[docs]</a>    <span class="k">def</span> <span class="nf">get_cvc_base</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to get the cvc path to run the CVC commands non interactively</span>
+
+<span class="sd">        Args: None</span>
+
+<span class="sd">        return:</span>
+<span class="sd">            CVC path</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get the path to run cvc commands non interactively</span>
+        <span class="n">base_folder</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/Base&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_obj</span><span class="o">.</span><span class="n">install_directory</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">base_folder</span></div>
+
+<div class="viewcode-block" id="Cvchelper.login"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.cvchelper.Cvchelper.login">[docs]</a>    <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to login to CVC session non interactively</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get the CVC path</span>
+        <span class="n">base_folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cvc_base</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">base_folder</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Login as </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_username</span><span class="p">))</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;sudo -u </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">/cvc login&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_username</span><span class="p">,</span> <span class="n">base_folder</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvc_machine_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Login command:</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">cmd</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Failed to login&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Login failed. Please check logs </span><span class="si">{0}</span><span class="s2">&quot;</span>
+                            <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cmd</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Login output: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cmd</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Cvchelper.browse"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.cvchelper.Cvchelper.browse">[docs]</a>    <span class="k">def</span> <span class="nf">browse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">,</span>
+               <span class="n">subclient_name</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">dir_level</span><span class="p">,</span> <span class="n">ancestor_r</span><span class="p">,</span> <span class="n">ancestor_x</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Funtion verifies browse operation</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            client_name: (str) Client on which cvc browse performed</span>
+
+<span class="sd">            backupset_name: (str) source backupset name</span>
+
+<span class="sd">            subclient_name: (str) source subclient name</span>
+
+<span class="sd">            source_path: (str)  source path for restore</span>
+
+<span class="sd">            dir_level: (int) depth</span>
+
+<span class="sd">            level: (int) curent level</span>
+
+<span class="sd">            ancestor_r: (Str) Ancestor having Read permission</span>
+
+<span class="sd">            ancestor_x: (Str) Ancestor having execute permission</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">base_folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cvc_base</span><span class="p">()</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;sudo -u </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">/cvc browse -c </span><span class="si">{2}</span><span class="s2"> -bk </span><span class="si">{3}</span><span class="s2"> -sc </span><span class="si">{4}</span><span class="s2"> -p &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_username</span><span class="p">,</span>
+                                                                              <span class="n">base_folder</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span>
+                                                                              <span class="n">backupset_name</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">))</span>
+        <span class="n">lst_permission</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="o">&gt;</span> <span class="n">dir_level</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="n">dir_name</span> <span class="o">=</span> <span class="n">source_path</span> <span class="o">+</span> <span class="s2">&quot;/Dir&quot;</span>
+
+        <span class="k">for</span> <span class="n">permission</span> <span class="ow">in</span> <span class="n">lst_permission</span><span class="p">:</span>
+            <span class="n">tmp_permission</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;70</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">permission</span><span class="p">))</span>
+            <span class="n">dir_path</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_</span><span class="si">{1}</span><span class="s2">_</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dir_name</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">tmp_permission</span><span class="p">))</span>
+
+            <span class="n">current_r</span> <span class="o">=</span> <span class="n">current_x</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">current_x</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">or</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">current_r</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="n">r_perm</span> <span class="o">=</span> <span class="n">current_r</span> <span class="o">&amp;</span> <span class="n">ancestor_r</span>
+            <span class="n">x_perm</span> <span class="o">=</span> <span class="n">current_x</span> <span class="o">&amp;</span> <span class="n">ancestor_x</span>
+            <span class="k">if</span> <span class="n">level</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">ancestor_x</span> <span class="ow">and</span> <span class="n">current_r</span><span class="p">:</span>
+                <span class="n">command1</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">dir_path</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC command run: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command1</span><span class="p">))</span>
+                <span class="n">output_cvc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvc_machine_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">output_cvc</span><span class="p">)</span>
+
+                <span class="n">command_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">list_iter</span> <span class="ow">in</span> <span class="n">output_cvc</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">:</span>
+                    <span class="n">command_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">list_iter</span><span class="p">))</span>
+                <span class="n">command_output</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command_list</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC Command output: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command_output</span><span class="p">))</span>
+
+                <span class="c1"># Validate paths for find and browse</span>
+                <span class="k">if</span> <span class="n">ancestor_x</span> <span class="ow">and</span> <span class="n">current_r</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">command_output</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;showInBrowse&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;browse operation failed to &quot;</span>
+                                        <span class="s2">&quot;show correct number of files&quot;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">command_output</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;DontShowInBrowse&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;browse operation showed &quot;</span>
+                                            <span class="s2">&quot;incorrect number of files&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">browse</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span>
+                    <span class="n">dir_path</span><span class="p">,</span> <span class="n">level</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dir_level</span><span class="p">,</span> <span class="n">r_perm</span><span class="p">,</span> <span class="n">x_perm</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span></div>
+
+<div class="viewcode-block" id="Cvchelper.find"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.cvchelper.Cvchelper.find">[docs]</a>    <span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span>
+             <span class="n">source_path</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">dir_level</span><span class="p">,</span> <span class="n">ancestor_r</span><span class="p">,</span>
+             <span class="n">ancestor_x</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Funtion to create find command</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            client_name: (str) Client on which cvc browse performed</span>
+
+<span class="sd">            backupset_name: (str) source backupset name</span>
+
+<span class="sd">            subclient_name: (str) source subclient name</span>
+
+<span class="sd">            source_path: (str)  source path for restore</span>
+
+<span class="sd">            dir_level: (int) depth</span>
+
+<span class="sd">            level: (int) curent level</span>
+
+<span class="sd">            ancestor_r: (Str) Ancestor having Read permission</span>
+
+<span class="sd">            ancestor_x: (Str) Ancestor having execute permission</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">base_folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cvc_base</span><span class="p">()</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;sudo -u </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">/cvc find -c </span><span class="si">{2}</span><span class="s2"> -bk </span><span class="si">{3}</span><span class="s2"> -sc </span><span class="si">{4}</span><span class="s2"> -f </span><span class="se">\&quot;</span><span class="s2">*</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+               <span class="s2">&quot; -path  &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_username</span><span class="p">,</span> <span class="n">base_folder</span><span class="p">,</span>
+                                 <span class="n">client_name</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">))</span>
+        <span class="n">lst_permission</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="o">&gt;</span> <span class="n">dir_level</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="n">dir_name</span> <span class="o">=</span> <span class="n">source_path</span> <span class="o">+</span> <span class="s2">&quot;/Dir&quot;</span>
+
+        <span class="k">for</span> <span class="n">permission</span> <span class="ow">in</span> <span class="n">lst_permission</span><span class="p">:</span>
+            <span class="n">tmp_permission</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;70</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">permission</span><span class="p">))</span>
+            <span class="n">dir_path</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_</span><span class="si">{1}</span><span class="s2">_</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dir_name</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">tmp_permission</span><span class="p">))</span>
+            <span class="n">current_r</span> <span class="o">=</span> <span class="n">current_x</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">current_x</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">or</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">current_r</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="n">r_perm</span> <span class="o">=</span> <span class="n">current_r</span> <span class="o">&amp;</span> <span class="n">ancestor_r</span>
+            <span class="n">x_perm</span> <span class="o">=</span> <span class="n">current_x</span> <span class="o">&amp;</span> <span class="n">ancestor_x</span>
+            <span class="k">if</span> <span class="n">level</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">ancestor_x</span> <span class="ow">and</span> <span class="n">current_r</span><span class="p">:</span>
+                <span class="n">command1</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">dir_path</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC command run: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command1</span><span class="p">))</span>
+                <span class="n">output_cvc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvc_machine_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">output_cvc</span><span class="p">)</span>
+
+                <span class="n">command_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">list_iter</span> <span class="ow">in</span> <span class="n">output_cvc</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">:</span>
+                    <span class="n">command_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">list_iter</span><span class="p">))</span>
+                <span class="n">command_output</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command_list</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC Command output: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command_output</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="n">ancestor_x</span> <span class="ow">and</span> <span class="n">current_r</span> <span class="ow">and</span> <span class="n">current_x</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">command_output</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;showInFind&quot;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Find operation failed to &quot;</span>
+                                        <span class="s2">&quot;show correct number of files&quot;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">command_output</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;DontShowInFind&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Find operation showed incorrect &quot;</span>
+                                            <span class="s2">&quot;files&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span>
+                  <span class="n">dir_path</span><span class="p">,</span> <span class="n">level</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dir_level</span><span class="p">,</span> <span class="n">r_perm</span><span class="p">,</span> <span class="n">x_perm</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span></div>
+
+<div class="viewcode-block" id="Cvchelper.restore"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.cvchelper.Cvchelper.restore">[docs]</a>    <span class="k">def</span> <span class="nf">restore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span>
+                <span class="n">level</span><span class="p">,</span> <span class="n">dir_level</span><span class="p">,</span> <span class="n">ancestor_r</span><span class="p">,</span>
+                <span class="n">ancestor_x</span><span class="p">,</span> <span class="n">oop</span><span class="o">=</span><span class="kc">None</span>
+                <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to verify restore operation</span>
+
+<span class="sd">        Args:</span>
+
+<span class="sd">            client_name: (str) Client on which cvc browse performed</span>
+
+<span class="sd">            backupset_name: (str) source backupset name</span>
+
+<span class="sd">            subclient_name: (str) source subclient name</span>
+
+<span class="sd">            source_path: (str)  source path for restore</span>
+
+<span class="sd">            dir_level: (int) depth</span>
+
+<span class="sd">            level: (int) curent level</span>
+
+<span class="sd">            ancestor_r: (Str) Ancestor having Read permission</span>
+
+<span class="sd">            ancestor_x: (Str) Ancestor having execute permission</span>
+
+<span class="sd">            oop: (str) out of place restore path</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">base_folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cvc_base</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">oop</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;sudo -u </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">/cvc restore -c </span><span class="si">{2}</span><span class="s2"> -bk </span><span class="si">{3}</span><span class="s2"> &quot;</span>
+                       <span class="s2">&quot;-sc </span><span class="si">{4}</span><span class="s2"> -path  &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_username</span><span class="p">,</span> <span class="n">base_folder</span><span class="p">,</span>
+                                                <span class="n">client_name</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">,</span>
+                                                <span class="n">subclient_name</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dest_path</span> <span class="o">=</span> <span class="n">oop</span>
+            <span class="n">command</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;sudo -u </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">/cvc restore -c </span><span class="si">{2}</span><span class="s2"> -bk </span><span class="si">{3}</span><span class="s2"> -sc </span><span class="si">{4}</span><span class="s2"> &quot;</span>
+                       <span class="s2">&quot;-dp </span><span class="si">{5}</span><span class="s2"> -path  &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_username</span><span class="p">,</span> <span class="n">base_folder</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span>
+                    <span class="n">backupset_name</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span> <span class="n">dest_path</span><span class="p">))</span>
+
+        <span class="n">lst_permission</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="o">&gt;</span> <span class="n">dir_level</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="n">dir_name</span> <span class="o">=</span> <span class="n">source_path</span> <span class="o">+</span> <span class="s2">&quot;/Dir&quot;</span>
+
+        <span class="k">for</span> <span class="n">permission</span> <span class="ow">in</span> <span class="n">lst_permission</span><span class="p">:</span>
+            <span class="n">tmp_permission</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;70</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">permission</span><span class="p">))</span>
+            <span class="n">dir_path</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_</span><span class="si">{1}</span><span class="s2">_</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dir_name</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">tmp_permission</span><span class="p">))</span>
+            <span class="n">current_r</span> <span class="o">=</span> <span class="n">current_x</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">current_x</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">or</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">current_r</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="n">r_perm</span> <span class="o">=</span> <span class="n">current_r</span> <span class="o">&amp;</span> <span class="n">ancestor_r</span>
+            <span class="n">x_perm</span> <span class="o">=</span> <span class="n">current_x</span> <span class="o">&amp;</span> <span class="n">ancestor_x</span>
+            <span class="k">if</span> <span class="n">level</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">ancestor_x</span> <span class="ow">and</span> <span class="n">current_r</span><span class="p">:</span>
+                <span class="n">command1</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">dir_path</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC command run: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command1</span><span class="p">))</span>
+                <span class="n">output_cvc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cvc_machine_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">command1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">output_cvc</span><span class="p">)</span>
+
+                <span class="n">command_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">list_iter</span> <span class="ow">in</span> <span class="n">output_cvc</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">:</span>
+                    <span class="n">command_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">list_iter</span><span class="p">))</span>
+                <span class="n">command_output</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command_list</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;CVC Command output: </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command_output</span><span class="p">))</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Restore:</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_cvc</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">))</span>
+                <span class="c1"># Get the job id from the submitted request</span>
+                <span class="n">xml</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">list_iter</span> <span class="ow">in</span> <span class="n">output_cvc</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">:</span>
+                    <span class="n">xml</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">list_iter</span><span class="p">))</span>
+                <span class="n">string_xml</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">xml</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">string_xml</span><span class="p">)</span>
+                <span class="n">job_id_list</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;jobIds val=</span><span class="se">\&quot;</span><span class="s1">(\d+)</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">string_xml</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;job id list: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job_id_list</span><span class="p">)</span>
+                <span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">job_controller_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell_obj</span><span class="o">.</span><span class="n">job_controller</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="n">job_controller_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">job_id</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;waiting for completion of </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+                <span class="c1"># Expected paths to succeed</span>
+                <span class="n">job_should_succeed</span> <span class="o">=</span> <span class="n">ancestor_x</span> <span class="ow">and</span> <span class="n">current_r</span> <span class="ow">and</span> <span class="n">current_x</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">job_should_succeed</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">job_should_succeed</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">():</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                            <span class="s2">&quot;Failed to run restore job </span><span class="si">{0}</span><span class="s2"> with error: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="s1">&#39;Completed&#39;</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                            <span class="s2">&quot;job: </span><span class="si">{0}</span><span class="s2"> is completed with errors, Reason: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">delay_reason</span><span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Successfully finished restore Job :</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Negative cases where the files are not expected to be restored</span>
+                    <span class="n">run</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">while</span> <span class="n">run</span><span class="p">:</span>
+                        <span class="c1"># Job is expected to fail.</span>
+                        <span class="c1"># Job will be automatically resumed by JobManager</span>
+                        <span class="c1"># wait_for_completion wait till all the attempts are exhausted</span>
+                        <span class="c1"># So, keep polling for job status every 30 seconds and once</span>
+                        <span class="c1"># the job goes pending, kill the job</span>
+                        <span class="n">sleep</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Completed&quot;</span><span class="p">:</span>
+                            <span class="n">run</span> <span class="o">=</span> <span class="kc">False</span>
+                            <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">num_of_files_transferred</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;restore job </span><span class="si">{0}</span><span class="s2"> expected to fail but &quot;</span>
+                                                <span class="s2">&quot;completed successfully&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Pending&quot;</span> <span class="ow">or</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;Failed&quot;</span><span class="p">:</span>
+                                <span class="n">job</span><span class="o">.</span><span class="n">kill</span><span class="p">(</span><span class="n">wait_for_job_to_kill</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+                                <span class="n">run</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">backupset_name</span><span class="p">,</span> <span class="n">subclient_name</span><span class="p">,</span>
+                         <span class="n">dir_path</span><span class="p">,</span> <span class="n">level</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dir_level</span><span class="p">,</span>
+                         <span class="n">r_perm</span><span class="p">,</span> <span class="n">x_perm</span><span class="p">,</span> <span class="n">oop</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span></div>
+
+<div class="viewcode-block" id="Cvchelper.data_creation"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.cvchelper.Cvchelper.data_creation">[docs]</a>    <span class="k">def</span> <span class="nf">data_creation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">ancestor_r</span><span class="p">,</span>
+                      <span class="n">ancestor_x</span><span class="p">,</span> <span class="n">dir_level</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method creates data as root and provides permissions</span>
+<span class="sd">                like 700,701,704,705</span>
+<span class="sd">                At each level 4 directories and 4 files are created</span>
+<span class="sd">                root_dir: Base path under which test data has to be generated</span>
+
+<span class="sd">                level: (int) curent level</span>
+
+<span class="sd">                ancestor_r: (Str) Ancestor having Read permission</span>
+
+<span class="sd">                ancestor_x: (Str) Ancestor having execute permission</span>
+
+<span class="sd">                dir_level: (int) depth</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># List of permissions with which directories and files are generated</span>
+
+        <span class="n">lst_permission</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="s2">&quot;File&quot;</span>
+        <span class="k">if</span> <span class="n">level</span> <span class="o">&gt;</span> <span class="n">dir_level</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="n">dir_name</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/Dir&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">root_dir</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">permission</span> <span class="ow">in</span> <span class="n">lst_permission</span><span class="p">:</span>
+            <span class="n">tmp_permission</span> <span class="o">=</span> <span class="s2">&quot;70&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">permission</span><span class="p">)</span>
+            <span class="n">dir_path</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_</span><span class="si">{1}</span><span class="s2">_</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dir_name</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">tmp_permission</span><span class="p">))</span>
+            <span class="n">current_r</span> <span class="o">=</span> <span class="n">current_x</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">current_x</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">or</span> <span class="n">permission</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">current_r</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="n">r_perm</span> <span class="o">=</span> <span class="n">current_r</span> <span class="o">&amp;</span> <span class="n">ancestor_r</span>
+            <span class="n">x_perm</span> <span class="o">=</span> <span class="n">current_x</span> <span class="o">&amp;</span> <span class="n">ancestor_x</span>
+            <span class="n">mkdir_cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;mkdir </span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dir_path</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cvc_machine_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">mkdir_cmd</span><span class="p">)</span>
+            <span class="n">chmod_cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;chmod </span><span class="si">{0}</span><span class="s2"> </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tmp_permission</span><span class="p">,</span> <span class="n">dir_path</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cvc_machine_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">chmod_cmd</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">permission</span> <span class="ow">in</span> <span class="n">lst_permission</span><span class="p">:</span>
+                <span class="n">tmp_permission</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;70</span><span class="si">{0}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">permission</span><span class="p">))</span>
+                <span class="n">final_file_name</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span><span class="n">tmp_permission</span><span class="p">))</span>
+                <span class="n">final_file_name</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">final_file_name</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="n">ancestor_x</span> <span class="ow">and</span> <span class="n">current_r</span><span class="p">:</span>
+                    <span class="n">final_file_name</span> <span class="o">+=</span> <span class="s2">&quot;_showInBrowse&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">final_file_name</span> <span class="o">+=</span> <span class="s2">&quot;_DontShowInBrowse&quot;</span>
+                <span class="k">if</span> <span class="n">ancestor_x</span> <span class="ow">and</span> <span class="n">current_r</span> <span class="ow">and</span> <span class="n">current_x</span><span class="p">:</span>
+                    <span class="n">final_file_name</span> <span class="o">+=</span> <span class="s2">&quot;_showInFind&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">final_file_name</span> <span class="o">+=</span> <span class="s2">&quot;_DontShowInFind&quot;</span>
+                <span class="n">touch_cmd</span> <span class="o">=</span> <span class="s2">&quot;touch &quot;</span> <span class="o">+</span> <span class="n">final_file_name</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cvc_machine_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">touch_cmd</span><span class="p">)</span>
+                <span class="n">chmod_cmd</span> <span class="o">=</span> <span class="s2">&quot;chmod &quot;</span> <span class="o">+</span> <span class="n">tmp_permission</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">final_file_name</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cvc_machine_obj</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">chmod_cmd</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_creation</span><span class="p">(</span><span class="n">dir_path</span><span class="p">,</span> <span class="n">level</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">r_perm</span><span class="p">,</span>
+                               <span class="n">x_perm</span><span class="p">,</span> <span class="n">dir_level</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

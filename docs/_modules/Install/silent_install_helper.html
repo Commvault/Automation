@@ -1,0 +1,730 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Install.silent_install_helper &mdash; Commvault Automation 11.23 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>Install.silent_install_helper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for Install.silent_install_helper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module provides the function or operations for silent install</span>
+
+<span class="sd">SilentinstallHelper</span>
+<span class="sd">===================</span>
+
+<span class="sd">    __init__()                          --  initialize instance of the silent install class</span>
+<span class="sd">    silent_install                      --  Main module for fresh silent installation</span>
+<span class="sd">    get_commands_to_remote_execute      --  Commands to execute on the remote machine for silent installation</span>
+<span class="sd">    download_file_from_http_server      --  This method is used to download configuration xml files from server.</span>
+
+<span class="sd">    _get_packages_to_install            --  Dictionary of packages(packages id : package name) to be installed</span>
+<span class="sd">    _get_hard_dependent_packages        --  Get the hard depenedent packages for selected package</span>
+<span class="sd">    _get_soft_dependent_packages        --  Get the list of soft dependent packages for any package</span>
+<span class="sd">    _get_pkg_displayname                --  Frame dictionary of names of hard and soft depenedent package</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">xmltodict</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">config</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">constants</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">Install</span> <span class="kn">import</span> <span class="n">installer_constants</span><span class="p">,</span> <span class="n">installer_utils</span>
+<span class="kn">from</span> <span class="nn">Install.bootstrapper_helper</span> <span class="kn">import</span> <span class="n">BootstrapperHelper</span>
+<span class="kn">from</span> <span class="nn">Install.install_xml_helper</span> <span class="kn">import</span> <span class="n">InstallXMLGenerator</span>
+
+
+<div class="viewcode-block" id="SilentInstallHelper"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.SilentInstallHelper">[docs]</a><span class="k">class</span> <span class="nc">SilentInstallHelper</span><span class="p">:</span>
+
+<div class="viewcode-block" id="SilentInstallHelper.create_installer_object"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.SilentInstallHelper.create_installer_object">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">create_installer_object</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">feature_release</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the instance of one of the Subclasses WindowsInstallation /</span>
+<span class="sd">        DebianInstallation based on the OS details of the remote client.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s1">&#39;WINDOWS&#39;</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">WindowsInstallation</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">feature_release</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">DebianInstallation</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">feature_release</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">obj</span></div>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">feature_release</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Initialize instance of the SilentInstallHelper class.</span>
+<span class="sd">                Args:</span>
+<span class="sd">                    client_name -- Client Name provided for installation</span>
+
+<span class="sd">                    feature_release -- feature release of the bootstrapper</span>
+
+<span class="sd">                    machine_obj -- machine object</span>
+
+<span class="sd">                    inputs (dict)</span>
+<span class="sd">                    --  Inputs for Installation should be in a dictionary</span>
+<span class="sd">                            Supported key / value for inputs:</span>
+
+<span class="sd">                            Mandatory:</span>
+<span class="sd">                                csClientName        (str)        Commserve Client Name</span>
+<span class="sd">                                csHostname          (str)        Commserve Hostname</span>
+<span class="sd">                                commservePassword:  (str)        Commserve encrypted login password</span>
+
+<span class="sd">                            Optional:</span>
+<span class="sd">                                commserveUsername   (str)        Commserve Username</span>
+<span class="sd">                                useExistingDump     (str)        Use existing dump for Dm2 / Workflow Engine (&quot;0&quot; or 1&quot;)</span>
+<span class="sd">                                useExsitingCSdump   (str)        Use CS dump (&quot;0&quot; or &quot;1&quot;)</span>
+<span class="sd">                                CommservDumpPath    (str)        Dump path for Commserve</span>
+<span class="sd">                                install32base       (str)        install 32bit software on 64bit Machine (&quot;0&quot; or &quot;1&quot;)</span>
+<span class="sd">                                restoreOnlyAgents   (str)       &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                DM2DumpPath         (str)        Dump path for DM2 webservice</span>
+<span class="sd">                                WFEngineDumpPath    (str)        Dump path for Workflow Engine</span>
+<span class="sd">                                decoupledInstall    (str)        &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                enableFirewallConfig (str)       &quot;0 or &quot;1&quot;</span>
+<span class="sd">                                firewallConnectionType (str)     &quot;0&quot; or &quot;1&quot; or &quot;2&quot;</span>
+<span class="sd">                                httpProxyConfigurationType(str)  &quot;0&quot; or &quot;1&quot; or &quot;2&quot;</span>
+<span class="sd">                                httpProxyPortNumber (str)        Port Number eg: &quot;6256&quot;</span>
+<span class="sd">                                httpProxyHostName   (str)        Hostname of the proxy machine</span>
+<span class="sd">                                portNumber          (str)        Port number to connect to the CVD eg:8410</span>
+<span class="sd">                                enableProxyClient   (str)        Enable Client as a proxy &quot;0&quot; or &quot;1&quot;</span>
+<span class="sd">                                proxyClientName     (str)        Proxy Client Name / Client Name on the commcell</span>
+<span class="sd">                                proxyHostname       (str)        Proxy Client Hostname</span>
+<span class="sd">                                proxyPortNumber     (str)        Proxy client Port Number to be used</span>
+<span class="sd">                                sqlSaPassword       (str)        Sa (user) password for SQL access</span>
+<span class="sd">                                installDirectoryUnix(str)        Path on which software to be installed on Unix Client</span>
+<span class="sd">                                installDirectoryWindows(str)     Path on which software to be installed on Win Client</span>
+<span class="sd">                                mediaPath           (str)        Filer Path required for Unix installations</span>
+<span class="sd">                                                                 (Path till CVMedia)</span>
+
+<span class="sd">            Note:</span>
+<span class="sd">                Unix Installation Requires Filer Path/ Media Path ( Path till CVMedia) -- mediaPath</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logger</span><span class="o">.</span><span class="n">get_log</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_json</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span> <span class="o">=</span> <span class="n">machine_obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">local_machine</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feature_release</span> <span class="o">=</span> <span class="n">feature_release</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bootstrapper</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">os_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client_name</span> <span class="o">=</span> <span class="n">client_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test_results_path</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">TEMP_DIR</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span> <span class="o">=</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">REMOTE_FILE_COPY_LOC</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">download_server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">download_server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">xml_helper</span> <span class="o">=</span> <span class="n">InstallXMLGenerator</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remote_media_path</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="SilentInstallHelper.silent_install"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.SilentInstallHelper.silent_install">[docs]</a>    <span class="k">def</span> <span class="nf">silent_install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Installs the client on the remote machine depending on the feature release using bootstrapper.</span>
+<span class="sd">            :arg</span>
+<span class="sd">                packages_list (list of package id)   -- list of features to be installed</span>
+<span class="sd">                                                        eg: packages_list=[1, 51, 702] for Windows</span>
+<span class="sd">                                                        eg: packages_list=[1002, 1101] for Unix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Module not implemented for the class&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SilentInstallHelper.get_packages_to_install"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.SilentInstallHelper.get_packages_to_install">[docs]</a>    <span class="k">def</span> <span class="nf">get_packages_to_install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">,</span> <span class="n">only_hard_dependent_packages</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Get the dictionary of packages(packages id : package name) to be installed on Remote machine</span>
+<span class="sd">            Args:</span>
+<span class="sd">                    packages_list     (list)  --  List of packages selected by the user</span>
+
+<span class="sd">                    only_hard_dependent_packages    (bool)  --  Select only hard dependent packages</span>
+<span class="sd">                                                                :Default False</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict  -   dict of packages id with package names</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Module not implemented for the class&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SilentInstallHelper.download_file_from_http_server"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.SilentInstallHelper.download_file_from_http_server">[docs]</a>    <span class="k">def</span> <span class="nf">download_file_from_http_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            This method is used to download configuration xml files from server.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">requests</span><span class="o">,</span> <span class="nn">urllib</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">req</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to get Hotfix Configuration xml from devserver - </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+                <span class="k">return</span> <span class="kc">None</span>
+
+            <span class="n">base_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="n">base_filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_results_path</span><span class="p">,</span> <span class="n">base_filename</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">base_filepath</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Opening XML failed:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">exp</span><span class="p">)</span>
+                <span class="n">fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">base_filepath</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span>
+
+            <span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+            <span class="n">fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">base_filepath</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception occurred in Downloading the file from http server </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_hard_dependent_packages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Get the hard depenedent packages for selected package</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                 pkgdict        (dict)   --  Xml of packages info convereted to Dict</span>
+
+<span class="sd">                 packages_list  (list)   --  List of packages selected by the user</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                List  -   List of hard dependent package ids</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Selected Packages from user is </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">packages_list</span><span class="p">)</span>
+            <span class="n">hard_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">each</span> <span class="ow">in</span> <span class="n">pkgdict</span><span class="p">[</span><span class="s1">&#39;UpdatePatches_PackageDetails&#39;</span><span class="p">][</span><span class="s1">&#39;PackageInfoList&#39;</span><span class="p">][</span><span class="s1">&#39;pkginfo&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;@pkgID&#39;</span><span class="p">])</span> <span class="ow">in</span> <span class="n">packages_list</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;@binarySetId&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;1&quot;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="s1">&#39;RequiresHard&#39;</span> <span class="ow">in</span> <span class="n">each</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;RequiresHard&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="n">hard_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;RequiresHard&#39;</span><span class="p">][</span><span class="s1">&#39;@pkgID&#39;</span><span class="p">]))</span>
+                        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;RequiresHard&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="k">for</span> <span class="n">every</span> <span class="ow">in</span> <span class="n">each</span><span class="p">[</span><span class="s1">&#39;RequiresHard&#39;</span><span class="p">]:</span>
+                                <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">every</span><span class="p">[</span><span class="s1">&#39;@pkgID&#39;</span><span class="p">])</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">packages_list</span><span class="p">:</span>
+                                    <span class="n">hard_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">every</span><span class="p">[</span><span class="s1">&#39;@pkgID&#39;</span><span class="p">]))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Hard dependent packages are &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">hard_list</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">hard_list</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;An exception occurred in getting hard dependent packages&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_soft_dependent_packages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Get the list of soft dependent packages for any package</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                 pkgdict        (dict)   --  Xml of packages info convereted to Dict</span>
+
+<span class="sd">                 packages_list  (list)   --  List of packages selected by the user</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                List  -   List of soft dependent package ids</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">soft_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">each</span> <span class="ow">in</span> <span class="n">pkgdict</span><span class="p">[</span><span class="s1">&#39;UpdatePatches_PackageDetails&#39;</span><span class="p">][</span><span class="s1">&#39;PackageInfoList&#39;</span><span class="p">][</span><span class="s1">&#39;pkginfo&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;@pkgID&#39;</span><span class="p">])</span> <span class="ow">in</span> <span class="n">packages_list</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;@binarySetId&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;1&quot;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="s1">&#39;RequiresSoft&#39;</span> <span class="ow">in</span> <span class="n">each</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;RequiresSoft&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="n">soft_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;RequiresSoft&#39;</span><span class="p">][</span><span class="s1">&#39;@pkgID&#39;</span><span class="p">]))</span>
+                        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;RequiresSoft&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="k">for</span> <span class="n">every</span> <span class="ow">in</span> <span class="n">each</span><span class="p">[</span><span class="s1">&#39;RequiresSoft&#39;</span><span class="p">]:</span>
+                                <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">every</span><span class="p">[</span><span class="s1">&#39;@pkgID&#39;</span><span class="p">])</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">packages_list</span><span class="p">:</span>
+                                    <span class="n">soft_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">every</span><span class="p">[</span><span class="s1">&#39;@pkgID&#39;</span><span class="p">]))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Soft dependent packages are &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">soft_list</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">soft_list</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;An exception occurred in getting soft dependent packages&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_pkg_displayname</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkgdict</span><span class="p">,</span> <span class="n">pkg_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">               frame dictionary of hard and soft depenedent package</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Getting the packages names from WinPackages.xml&quot;</span><span class="p">)</span>
+            <span class="n">packages_info</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">each</span> <span class="ow">in</span> <span class="n">pkgdict</span><span class="p">[</span><span class="s1">&#39;UpdatePatches_PackageDetails&#39;</span><span class="p">][</span><span class="s1">&#39;PkgList&#39;</span><span class="p">][</span><span class="s1">&#39;pkg&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;@id&#39;</span><span class="p">])</span> <span class="ow">in</span> <span class="n">pkg_list</span><span class="p">:</span>
+                    <span class="n">packages_info</span><span class="p">[</span><span class="n">each</span><span class="p">[</span><span class="s1">&#39;@id&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">each</span><span class="p">[</span><span class="s1">&#39;@DisplayName&#39;</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Package ID display Name dict is  &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">packages_info</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">packages_info</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;An Exception occurred while getting dictionary of name and package id&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SilentInstallHelper.get_commands_to_remote_execute"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.SilentInstallHelper.get_commands_to_remote_execute">[docs]</a>    <span class="k">def</span> <span class="nf">get_commands_to_remote_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Commands to be executed on the remote Machine</span>
+<span class="sd">        :param</span>
+<span class="sd">            media_path: Path of the Media on remote machine (Path where Setup.exe / silent_install is Present)</span>
+<span class="sd">        :return:</span>
+<span class="sd">            bat file that has all the list of commands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Method not implemented for this Class&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="WindowsInstallation"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.WindowsInstallation">[docs]</a><span class="k">class</span> <span class="nc">WindowsInstallation</span><span class="p">(</span><span class="n">SilentInstallHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for performing Install operations on a Windows client.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">feature_release</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Args:</span>
+<span class="sd">                    client_name -- Client Name provided for installation</span>
+
+<span class="sd">                    feature_release -- feature release of the bootstrapper</span>
+
+<span class="sd">                    machine_obj -- machine object</span>
+
+<span class="sd">                    inputs (dict) --  Inputs for Installation should be in a dictionary</span>
+
+<span class="sd">            Note:</span>
+<span class="sd">                Unix Installation Requires Filer Path/ Media Path (Path till CVMedia) -- mediaPath</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">WindowsInstallation</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">feature_release</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WindowsInstallation.silent_install"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.WindowsInstallation.silent_install">[docs]</a>    <span class="k">def</span> <span class="nf">silent_install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Installs the client on the remote machine depending on the feature release using bootstrapper.</span>
+<span class="sd">            :arg</span>
+<span class="sd">                packages_list (list of package id)   -- list of features to be installed</span>
+<span class="sd">                                                        eg: packages_list=[1, 51, 702] for Windows</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Windows use Bootstrapper to Install the packages</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bootstrapper</span> <span class="o">=</span> <span class="n">BootstrapperHelper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">feature_release</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bootstrapper</span><span class="o">.</span><span class="n">extract_bootstrapper</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">remote_media_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bootstrapper</span><span class="o">.</span><span class="n">remote_drive</span> <span class="o">+</span> \
+                <span class="n">installer_constants</span><span class="o">.</span><span class="n">BOOTSTRAPPER_EXECUTABLE_EXTRACTPATH</span>
+
+            <span class="n">packages_to_be_installed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_packages_to_install</span><span class="p">(</span><span class="n">packages_list</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Packages to be installed on the remote machine : </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">packages_to_be_installed</span><span class="p">))</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xml_helper</span><span class="o">.</span><span class="n">silent_install_xml</span><span class="p">(</span><span class="n">packages_to_be_installed</span><span class="p">)</span>
+            <span class="n">xml_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xml_helper</span><span class="o">.</span><span class="n">write_xml_to_file</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;silent_install.xml&quot;</span><span class="p">)</span>
+            <span class="n">install_batch_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_commands_to_remote_execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remote_media_path</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Copying file [</span><span class="si">{0}</span><span class="s2">] on Client [</span><span class="si">{1}</span><span class="s2">] at [</span><span class="si">{2}</span><span class="s2">]&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">install_batch_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">machine_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span><span class="p">))</span>
+
+            <span class="c1"># Copying batch file and the XML on the remote machine</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">copy_from_local</span><span class="p">(</span><span class="n">install_batch_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">copy_from_local</span><span class="p">(</span><span class="n">xml_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span><span class="p">)</span>
+            <span class="n">_command</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">install_batch_file</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing command [</span><span class="si">{0}</span><span class="s2">] on client [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_command</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">machine_name</span><span class="p">))</span>
+            <span class="n">return_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">_command</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">return_code</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Silent Installation Failed&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to Execute the bat file: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">return_code</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">return_code</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Silent Installation Successful for the machine&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Silent Installation Failed of the machine </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">machine_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WindowsInstallation.get_packages_to_install"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.WindowsInstallation.get_packages_to_install">[docs]</a>    <span class="k">def</span> <span class="nf">get_packages_to_install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">,</span> <span class="n">only_hard_dependent_packages</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Get the dictionary of packages(packages id : package name) to be installed on Remote machine</span>
+<span class="sd">            Args:</span>
+<span class="sd">                    packages_list     (list)  --  List of packages selected by the user</span>
+
+<span class="sd">                    only_hard_dependent_packages    (bool)  --  Select only hard dependent packages</span>
+<span class="sd">                                                                :Default False</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict  -   dict of packages id with package names</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Packages selected by the user: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">packages_list</span><span class="p">)</span>
+            <span class="n">xml_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pkg_info_path</span>
+            <span class="n">pkg_xml_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_file_from_http_server</span><span class="p">(</span><span class="n">xml_path</span><span class="p">)</span>
+
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pkg_xml_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fd</span><span class="p">:</span>
+                <span class="n">pkgdict</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">only_hard_dependent_packages</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finding the hard dependent packages&quot;</span><span class="p">)</span>
+                <span class="n">hard_packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_hard_dependent_packages</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">)</span>
+                <span class="n">initial_soft_packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_soft_dependent_packages</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">)</span>
+                <span class="n">packages_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">packages_list</span><span class="p">)</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">initial_soft_packages</span><span class="p">))</span>
+                <span class="n">final_soft_packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_hard_dependent_packages</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finding only the hard dependent packages&quot;</span><span class="p">)</span>
+                <span class="n">hard_packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_hard_dependent_packages</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">)</span>
+                <span class="n">final_soft_packages</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Soft packages wont be installed as it is not selected&quot;</span><span class="p">)</span>
+
+            <span class="n">final_pkg_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">packages_list</span><span class="p">)</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">hard_packages</span><span class="p">)</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">final_soft_packages</span><span class="p">))</span>
+            <span class="n">final_pkg_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_pkg_displayname</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">final_pkg_list</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">final_pkg_dict</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while getting list of packages to be installed&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WindowsInstallation.get_commands_to_remote_execute"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.WindowsInstallation.get_commands_to_remote_execute">[docs]</a>    <span class="k">def</span> <span class="nf">get_commands_to_remote_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Commands to be executed on the remote Machine</span>
+<span class="sd">        :param</span>
+<span class="sd">            media_path: Path of the Media on remote machine (Path where Setup.exe / silent_install is Present)</span>
+<span class="sd">        :return:</span>
+<span class="sd">            bat file that has all the list of commands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cmd_list</span><span class="o">=</span><span class="p">[]</span>
+            <span class="n">cmd_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">media_path</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">Setup.exe /silent /install /resume /play </span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="o">+</span>
+                            <span class="n">installer_constants</span><span class="o">.</span><span class="n">REMOTE_FILE_COPY_LOC</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">silent_install.xml</span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="o">+</span>
+                            <span class="s2">&quot; &gt;&gt; &quot;</span> <span class="o">+</span> <span class="n">installer_utils</span><span class="o">.</span><span class="n">get_batch_output_file</span><span class="p">())</span>
+
+            <span class="n">cmd_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;set exitcode=</span><span class="si">%E</span><span class="s2">RRORLEVEL%&quot;</span> <span class="o">+</span> <span class="s2">&quot;&gt;&gt; &quot;</span> <span class="o">+</span> <span class="n">installer_utils</span><span class="o">.</span><span class="n">get_batch_output_file</span><span class="p">())</span>
+            <span class="n">cmd_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;EXIT </span><span class="si">%e</span><span class="s2">xitcode%&quot;</span> <span class="o">+</span> <span class="s2">&quot;&gt;&gt; &quot;</span> <span class="o">+</span> <span class="n">installer_utils</span><span class="o">.</span><span class="n">get_batch_output_file</span><span class="p">())</span>
+            <span class="n">install_batch_file</span> <span class="o">=</span> <span class="n">installer_utils</span><span class="o">.</span><span class="n">create_batch_file_for_remote</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s2">&quot;silent_install.bat&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">install_batch_file</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Exception in creating a Batch file&quot;</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">get_pkg_info_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">download_server</span><span class="si">}</span><span class="s2">/CVMedia/</span><span class="si">{</span><span class="n">installer_constants</span><span class="o">.</span><span class="n">CURRENT_RELEASE_VERSION</span><span class="si">}</span><span class="s2">/&quot;</span> \
+               <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">installer_constants</span><span class="o">.</span><span class="n">CURRENT_BUILD_VERSION</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">feature_release</span><span class="si">}</span><span class="s2">DVD/Windows/WinPackages.xml&quot;</span></div>
+
+
+<div class="viewcode-block" id="DebianInstallation"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.DebianInstallation">[docs]</a><span class="k">class</span> <span class="nc">DebianInstallation</span><span class="p">(</span><span class="n">SilentInstallHelper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for performing Install operations on a debian/Mac client.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">feature_release</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">                    client_name -- Client Name provided for installation</span>
+
+<span class="sd">                    feature_release -- feature release of the bootstrapper</span>
+
+<span class="sd">                    machine_obj -- machine object</span>
+
+<span class="sd">                    inputs (dict) --  Inputs for Installation should be in a dictionary</span>
+
+<span class="sd">            Note:</span>
+<span class="sd">                Unix Installation Requires Filer Path/ Media Path ( Path till CVMedia) -- mediaPath</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">DebianInstallation</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">client_name</span><span class="p">,</span> <span class="n">feature_release</span><span class="p">,</span> <span class="n">machine_obj</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DebianInstallation.silent_install"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.DebianInstallation.silent_install">[docs]</a>    <span class="k">def</span> <span class="nf">silent_install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Installs the client on the remote machine depending on the feature release using bootstrapper.</span>
+<span class="sd">            :arg</span>
+<span class="sd">                packages_list (list of package id)   -- list of features to be installed</span>
+<span class="sd">                                                        eg: packages_list=[1, 51, 702] for Windows</span>
+<span class="sd">                                                        eg: packages_list=[1002, 1101] for Unix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span> <span class="o">=</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">UNIX_REMOTE_FILE_COPY_LOC</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mediaPath&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">remote_media_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mediaPath&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Please specify the path for download on Testcase Inputs&quot;</span><span class="p">)</span>
+
+            <span class="n">packages_to_be_installed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_packages_to_install</span><span class="p">(</span><span class="n">packages_list</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Packages to be installed on the remote machine : </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">packages_to_be_installed</span><span class="p">))</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xml_helper</span><span class="o">.</span><span class="n">silent_install_xml</span><span class="p">(</span><span class="n">packages_to_be_installed</span><span class="p">)</span>
+            <span class="n">xml_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">xml_helper</span><span class="o">.</span><span class="n">write_xml_to_file</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;silent_install.xml&quot;</span><span class="p">)</span>
+            <span class="n">install_batch_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_commands_to_remote_execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remote_media_path</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Copying file [</span><span class="si">{0}</span><span class="s2">] on Client [</span><span class="si">{1}</span><span class="s2">] at [</span><span class="si">{2}</span><span class="s2">]&quot;</span>
+                          <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">install_batch_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">machine_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">copy_from_local</span><span class="p">(</span><span class="n">install_batch_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">copy_from_local</span><span class="p">(</span><span class="n">xml_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span><span class="p">)</span>
+            <span class="n">_command</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">install_batch_file</span><span class="p">))</span>
+            <span class="n">_command</span> <span class="o">=</span> <span class="n">_command</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="s2">&quot;chmod -R 0775 &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">remote_dir</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Executing command [</span><span class="si">{0}</span><span class="s2">] on client [</span><span class="si">{1}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_command</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">machine_name</span><span class="p">))</span>
+            <span class="n">return_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">_command</span><span class="p">)</span>
+
+
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">return_code</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Silent Installation Failed&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Failed to Execute the bat file: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">return_code</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">return_code</span><span class="o">.</span><span class="n">formatted_output</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Silent Installation Successful for the machine&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Silent Installation Failed of the machine </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">machine_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DebianInstallation.get_packages_to_install"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.DebianInstallation.get_packages_to_install">[docs]</a>    <span class="k">def</span> <span class="nf">get_packages_to_install</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">,</span> <span class="n">only_hard_dependent_packages</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Get the dictionary of packages(packages id : package name) to be installed on Remote machine</span>
+<span class="sd">            Args:</span>
+<span class="sd">                    packages_list     (list)  --  List of packages selected by the user</span>
+
+<span class="sd">                    only_hard_dependent_packages    (bool)  --  Select only hard dependent packages</span>
+<span class="sd">                                                                :Default False</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                Dict  -   dict of packages id with package names</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Packages selected by the user: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">packages_list</span><span class="p">)</span>
+            <span class="n">xml_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pkg_info_path</span>
+            <span class="n">pkg_xml_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_file_from_http_server</span><span class="p">(</span><span class="n">xml_path</span><span class="p">)</span>
+
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pkg_xml_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fd</span><span class="p">:</span>
+                <span class="n">pkgdict</span> <span class="o">=</span> <span class="n">xmltodict</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">only_hard_dependent_packages</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finding the hard dependent packages&quot;</span><span class="p">)</span>
+                <span class="n">hard_packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_hard_dependent_packages</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">)</span>
+                <span class="n">initial_soft_packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_soft_dependent_packages</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">)</span>
+                <span class="n">packages_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">packages_list</span><span class="p">)</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">initial_soft_packages</span><span class="p">))</span>
+                <span class="n">final_soft_packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_hard_dependent_packages</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finding only the hard dependent packages&quot;</span><span class="p">)</span>
+                <span class="n">hard_packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_hard_dependent_packages</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">packages_list</span><span class="p">)</span>
+                <span class="n">final_soft_packages</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Soft packages wont be installed as it is not selected&quot;</span><span class="p">)</span>
+
+            <span class="n">final_pkg_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">packages_list</span><span class="p">)</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">hard_packages</span><span class="p">)</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">final_soft_packages</span><span class="p">))</span>
+            <span class="n">final_pkg_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_pkg_displayname</span><span class="p">(</span><span class="n">pkgdict</span><span class="p">,</span> <span class="n">final_pkg_list</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">final_pkg_dict</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;An error occurred while getting list of packages to be installed&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DebianInstallation.get_commands_to_remote_execute"><a class="viewcode-back" href="../../source/Install.html#Install.silent_install_helper.DebianInstallation.get_commands_to_remote_execute">[docs]</a>    <span class="k">def</span> <span class="nf">get_commands_to_remote_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">media_path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Commands to be executed on the remote Machine</span>
+<span class="sd">        :param</span>
+<span class="sd">            media_path: Path of the Media on remote machine (Path where Setup.exe / silent_install is Present)</span>
+<span class="sd">        :return:</span>
+<span class="sd">            bat file that has all the list of commands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cmd_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="n">media_path</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;//&quot;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="s2">&quot;/cvbuild&quot;</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="s2">&quot;umount /cvbuild&quot;</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">directory_name</span><span class="o">=</span><span class="s2">&quot;/cvbuild&quot;</span><span class="p">,</span> <span class="n">force_create</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">mount_op</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="s2">&quot;mount -t cifs &quot;</span> <span class="o">+</span> <span class="n">media_path</span> <span class="o">+</span> <span class="s2">&quot; -o username=&quot;</span> <span class="o">+</span>
+                                             <span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">dvd_username</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span>
+                                             <span class="s2">&quot;,password=&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">dvd_password</span> <span class="o">+</span> <span class="s2">&quot;,vers=2.0&quot;</span> <span class="o">+</span>
+                                             <span class="s2">&quot;,domain=&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_json</span><span class="o">.</span><span class="n">Install</span><span class="o">.</span><span class="n">dvd_username</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span>
+                                             <span class="s2">&quot; /cvbuild&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">mount_op</span><span class="o">.</span><span class="n">exit_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Mount failed.. Check network path and credentials&quot;</span><span class="p">)</span>
+                <span class="n">cmd_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;/cvbuild/silent_install -p &quot;</span> <span class="o">+</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">UNIX_REMOTE_FILE_COPY_LOC</span> <span class="o">+</span>
+                            <span class="s2">&quot;/silent_install.xml -jobid 836&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cmd_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">media_path</span><span class="si">}</span><span class="s2">/silent_install -p &quot;</span> <span class="o">+</span> <span class="n">installer_constants</span><span class="o">.</span><span class="n">UNIX_REMOTE_FILE_COPY_LOC</span> <span class="o">+</span>
+                                <span class="s2">&quot;/silent_install.xml -jobid 836&quot;</span><span class="p">)</span>
+
+            <span class="n">install_batch_file</span> <span class="o">=</span> <span class="n">installer_utils</span><span class="o">.</span><span class="n">create_batch_file_for_remote</span><span class="p">(</span><span class="n">cmd_list</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s2">&quot;silent_install.bat&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">install_batch_file</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Exception in creating a Batch file&quot;</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">get_pkg_info_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">download_server</span><span class="si">}</span><span class="s2">/CVMedia/</span><span class="si">{</span><span class="n">installer_constants</span><span class="o">.</span><span class="n">CURRENT_RELEASE_VERSION</span><span class="si">}</span><span class="s2">/&quot;</span> \
+               <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">installer_constants</span><span class="o">.</span><span class="n">CURRENT_BUILD_VERSION</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">feature_release</span><span class="si">}</span><span class="s2">DVD/Unix/pkg.xml&quot;</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

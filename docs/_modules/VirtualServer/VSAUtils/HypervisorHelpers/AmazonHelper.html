@@ -1,0 +1,393 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper &mdash; Commvault Automation 11.23 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script src="../../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home" alt="Documentation Home"> Commvault Automation
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Commvault Automation</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># --------------------------------------------------------------------------</span>
+<span class="c1"># Copyright Commvault Systems, Inc.</span>
+<span class="c1"># See LICENSE.txt in the project root for</span>
+<span class="c1"># license information.</span>
+<span class="c1"># --------------------------------------------------------------------------</span>
+
+<span class="sd">&quot;&quot;&quot;Main file that does all operations on Amazon &quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">boto3</span>
+<span class="kn">import</span> <span class="nn">botocore</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">botocore.exceptions</span> <span class="kn">import</span> <span class="n">ClientError</span>
+<span class="kn">from</span> <span class="nn">dateutil.tz</span> <span class="kn">import</span> <span class="n">tzlocal</span>
+<span class="kn">from</span> <span class="nn">VirtualServer.VSAUtils.HypervisorHelper</span> <span class="kn">import</span> <span class="n">Hypervisor</span>
+<span class="kn">from</span> <span class="nn">VirtualServer.VSAUtils.VirtualServerUtils</span> <span class="kn">import</span> <span class="n">get_details_from_config_file</span>
+
+
+<div class="viewcode-block" id="AmazonHelper"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.HypervisorHelpers.html#VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper.AmazonHelper">[docs]</a><span class="k">class</span> <span class="nc">AmazonHelper</span><span class="p">(</span><span class="n">Hypervisor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Main class for performing all operations on AWS</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">server_host_name</span><span class="p">,</span>
+                 <span class="n">user_name</span><span class="p">,</span>
+                 <span class="n">password</span><span class="p">,</span>
+                 <span class="n">instance_type</span><span class="p">,</span>
+                 <span class="n">commcell</span><span class="p">,</span>
+                 <span class="n">host_machine</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">AmazonHelper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">server_host_name</span><span class="p">,</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span>
+                                           <span class="n">instance_type</span><span class="p">,</span> <span class="n">commcell</span><span class="p">,</span> <span class="n">host_machine</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">password</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using secret key and access key authentication&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_aws_access_key</span> <span class="o">=</span> <span class="n">password</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_aws_secret_key</span> <span class="o">=</span> <span class="n">password</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using STS Assume Role&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sts_role</span> <span class="o">=</span> <span class="n">password</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_aws_access_key</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using IAM based authentication&quot;</span><span class="p">)</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="n">get_details_from_config_file</span><span class="p">(</span><span class="s1">&#39;aws_login_creds&#39;</span><span class="p">,</span> <span class="s1">&#39;keys&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_aws_access_key</span> <span class="o">=</span> <span class="n">keys</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_aws_secret_key</span> <span class="o">=</span> <span class="n">keys</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;region&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_aws_region</span> <span class="o">=</span> <span class="s1">&#39;us-east-1&#39;</span>  <span class="c1"># default region</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_aws_region</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;region&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aws_session</span><span class="p">()</span>
+
+<div class="viewcode-block" id="AmazonHelper.aws_session"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.HypervisorHelpers.html#VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper.AmazonHelper.aws_session">[docs]</a>    <span class="k">def</span> <span class="nf">aws_session</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create the session with aws &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aws_access_key</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">aws_access_key_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_aws_access_key</span><span class="p">,</span>
+                                                <span class="n">aws_secret_access_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_aws_secret_key</span><span class="p">,</span>
+                                                <span class="n">region_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">aws_region</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assumed_role_session</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sts_role</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Connection successful for AWS&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">ClientError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Unexpected error: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">err</span></div>
+
+<div class="viewcode-block" id="AmazonHelper.power_on_proxies"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.HypervisorHelpers.html#VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper.AmazonHelper.power_on_proxies">[docs]</a>    <span class="k">def</span> <span class="nf">power_on_proxies</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proxy_ips</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        power on the proxies</span>
+
+<span class="sd">        Returns: None</span>
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                Not able to get instances in the the AWS</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_resource</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;ec2&#39;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">instance</span> <span class="ow">in</span> <span class="n">_resource</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="n">power_state</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="s1">&#39;Code&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">instance</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="s1">&#39;Code&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">48</span> <span class="ow">and</span> <span class="n">instance</span><span class="o">.</span><span class="n">tags</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">instance</span><span class="o">.</span><span class="n">private_ip_address</span> <span class="ow">in</span> <span class="n">proxy_ips</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                        <span class="k">if</span> <span class="n">power_state</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">):</span>
+                            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">120</span><span class="p">)</span>
+                            <span class="n">instance</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                        <span class="k">elif</span> <span class="n">power_state</span> <span class="o">==</span> <span class="mi">80</span><span class="p">:</span>
+                            <span class="n">instance</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">proxy_instances</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
+                        <span class="c1"># proxy_ips.remove(instance.private_ip_address)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An exception occurred while powering on proxies&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AmazonHelper.power_off_proxies"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.HypervisorHelpers.html#VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper.AmazonHelper.power_off_proxies">[docs]</a>    <span class="k">def</span> <span class="nf">power_off_proxies</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proxy_ips</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        power off the proxies</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_resource</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;ec2&#39;</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">instance</span> <span class="ow">in</span> <span class="n">_resource</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">instance</span><span class="o">.</span><span class="n">private_ip_address</span> <span class="ow">in</span> <span class="n">proxy_ips</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="n">power_state</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="s1">&#39;Code&#39;</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">instance</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="s1">&#39;Code&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">48</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">power_state</span> <span class="o">!=</span> <span class="mi">80</span><span class="p">:</span>
+                            <span class="n">instance</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+                            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">180</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Power Off failed. Instance has been terminated already&quot;</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An exception occurred while powering off proxies&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AmazonHelper.assumed_role_session"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.HypervisorHelpers.html#VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper.AmazonHelper.assumed_role_session">[docs]</a>    <span class="k">def</span> <span class="nf">assumed_role_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">role_arn</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Login via assume role</span>
+<span class="sd">        Args:</span>
+<span class="sd">            role_arn                    (string):  assume role</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            aws session</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                Not able to get login via assume role</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+
+            <span class="n">base_session</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span><span class="o">.</span><span class="n">_session</span>
+            <span class="n">fetcher</span> <span class="o">=</span> <span class="n">botocore</span><span class="o">.</span><span class="n">credentials</span><span class="o">.</span><span class="n">AssumeRoleCredentialFetcher</span><span class="p">(</span>
+                <span class="n">client_creator</span><span class="o">=</span><span class="n">base_session</span><span class="o">.</span><span class="n">create_client</span><span class="p">,</span>
+                <span class="n">source_credentials</span><span class="o">=</span><span class="n">base_session</span><span class="o">.</span><span class="n">get_credentials</span><span class="p">(),</span>
+                <span class="n">role_arn</span><span class="o">=</span><span class="n">role_arn</span>
+            <span class="p">)</span>
+            <span class="n">creds</span> <span class="o">=</span> <span class="n">botocore</span><span class="o">.</span><span class="n">credentials</span><span class="o">.</span><span class="n">DeferredRefreshableCredentials</span><span class="p">(</span>
+                <span class="n">method</span><span class="o">=</span><span class="s1">&#39;assume-role&#39;</span><span class="p">,</span>
+                <span class="n">refresh_using</span><span class="o">=</span><span class="n">fetcher</span><span class="o">.</span><span class="n">fetch_credentials</span><span class="p">,</span>
+                <span class="n">time_fetcher</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">tzlocal</span><span class="p">())</span>
+            <span class="p">)</span>
+            <span class="n">botocore_session</span> <span class="o">=</span> <span class="n">botocore</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+            <span class="n">botocore_session</span><span class="o">.</span><span class="n">_credentials</span> <span class="o">=</span> <span class="n">creds</span>
+            <span class="k">return</span> <span class="n">boto3</span><span class="o">.</span><span class="n">Session</span><span class="p">(</span><span class="n">botocore_session</span><span class="o">=</span><span class="n">botocore_session</span><span class="p">,</span> <span class="n">region_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">aws_region</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Exception during login via assume role: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="n">err</span></div>
+
+<div class="viewcode-block" id="AmazonHelper.get_all_vms_in_hypervisor"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.HypervisorHelpers.html#VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper.AmazonHelper.get_all_vms_in_hypervisor">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_vms_in_hypervisor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all the ec2 instances in aws</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            _all_vm_list    (str):  List of instances in the the AWS</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                Not able to get instances in the the AWS</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_resource</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">resource</span><span class="p">(</span><span class="s1">&#39;ec2&#39;</span><span class="p">)</span>
+            <span class="n">_all_vm_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">instance</span> <span class="ow">in</span> <span class="n">_resource</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">instance</span><span class="o">.</span><span class="n">state</span> <span class="o">!=</span> <span class="mi">48</span> <span class="ow">and</span> <span class="n">instance</span><span class="o">.</span><span class="n">tags</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">instance</span><span class="o">.</span><span class="n">tags</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">tag</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Key&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Name&#39;</span><span class="p">:</span>
+                            <span class="n">_all_vm_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tag</span><span class="p">[</span><span class="s1">&#39;Value&#39;</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">_all_vm_list</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;An exception occurred while getting all VMs from AWS&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">err</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AmazonHelper.compute_free_resources"><a class="viewcode-back" href="../../../../source/VirtualServer.VSAUtils.HypervisorHelpers.html#VirtualServer.VSAUtils.HypervisorHelpers.AmazonHelper.AmazonHelper.compute_free_resources">[docs]</a>    <span class="k">def</span> <span class="nf">compute_free_resources</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proxy_vm</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        If proxy is not in  AWS, only then bucket is needed</span>
+<span class="sd">        Finds nearest bucket to proxy for restore</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            proxy_vm    (str)   -   AWS proxy vm</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bucket_id   (str)   -   bucket id</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            Exception:</span>
+<span class="sd">                if it fails to retreive bucket for non aws proxy</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: this is only for non AWS proxy</span>
+        <span class="k">pass</span></div></div>
+
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

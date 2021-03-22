@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>FileSystem.FSUtils.fshelper &mdash; Commvault Automation 11.22 documentation</title>
+  <title>FileSystem.FSUtils.fshelper &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -153,13 +153,9 @@
 
 <span class="sd">&quot;&quot;&quot;Helper file for performing File System operations</span>
 
-<span class="sd">ScanType , DistributedClusterType, IndexEnabled, CommitCondition and FSHelper are 5 classes defined in this file.</span>
+<span class="sd">ScanType , IndexEnabled, CommitCondition and FSHelper are 4 classes defined in this file.</span>
 
 <span class="sd">ScanType: Enum constants for all the scan types currently supported for file system subclients</span>
-
-<span class="sd">DistributedClusterType: Enum Constants for all the cluster types currently supported for bigdata apps instances</span>
-
-<span class="sd">DistributedClusterPkgName: Enum Constants for all the cluster package names currently supported for big data apps</span>
 
 <span class="sd">IndexEnabled: With Blocklevel we check Meta Data Collection on or not.</span>
 
@@ -290,6 +286,8 @@
 
 <span class="sd">    identify_master()                   --  Identifies the master node in multi-node backup</span>
 
+<span class="sd">    verify_scan_type_used()             -- Returns Scan type for a given job</span>
+
 
 <span class="sd">FSHelper Instance Attributes:</span>
 <span class="sd">=============================</span>
@@ -310,6 +308,7 @@
 <span class="kn">from</span> <span class="nn">zipfile</span> <span class="kn">import</span> <span class="n">ZipFile</span>
 <span class="kn">from</span> <span class="nn">past.builtins</span> <span class="kn">import</span> <span class="n">basestring</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">logger</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="kn">import</span> <span class="n">DistributedClusterType</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils.cvtestcase</span> <span class="kn">import</span> <span class="n">CVTestCase</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils.windows_machine</span> <span class="kn">import</span> <span class="n">WindowsMachine</span>
@@ -324,22 +323,6 @@
     <span class="n">OPTIMIZED</span> <span class="o">=</span> <span class="mi">2</span>
     <span class="n">CHANGEJOURNAL</span> <span class="o">=</span> <span class="mi">3</span></div>
 
-
-<div class="viewcode-block" id="DistributedClusterType"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.DistributedClusterType">[docs]</a><span class="k">class</span> <span class="nc">DistributedClusterType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Constants for all the cluster types</span>
-<span class="sd">        currently supported for bigdata apps instances&quot;&quot;&quot;</span>
-    <span class="n">HADOOP</span> <span class="o">=</span> <span class="mi">2</span>
-    <span class="n">GPFS</span> <span class="o">=</span> <span class="mi">3</span>
-    <span class="n">GLUSTERFS</span> <span class="o">=</span> <span class="mi">11</span>
-    <span class="n">LUSTREFS</span> <span class="o">=</span> <span class="mi">13</span></div>
-
-<div class="viewcode-block" id="DistributedClusterPkgName"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.DistributedClusterPkgName">[docs]</a><span class="k">class</span> <span class="nc">DistributedClusterPkgName</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Constants for all the cluster package names currently supported for big data apps&quot;&quot;&quot;</span>
-    <span class="n">HADOOP</span> <span class="o">=</span> <span class="s1">&#39;Hadoop&#39;</span>
-    <span class="n">GPFS</span> <span class="o">=</span> <span class="s1">&#39;GPFS&#39;</span>
-    <span class="n">GLUSTERFS</span> <span class="o">=</span> <span class="s1">&#39;GLUSTERFS&#39;</span>
-    <span class="n">LUSTREFS</span> <span class="o">=</span> <span class="s1">&#39;LUSTREFS&#39;</span>
-    <span class="n">UXFS</span> <span class="o">=</span> <span class="s1">&#39;uxfs&#39;</span></div>
 
 <div class="viewcode-block" id="IndexEnabled"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.IndexEnabled">[docs]</a><span class="k">class</span> <span class="nc">IndexEnabled</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;With Blocklevel we check Meta Data Collection on or not&quot;&quot;&quot;</span>
@@ -405,6 +388,8 @@
         <span class="n">disk_libraries_obj</span> <span class="o">=</span> <span class="n">commcell_object</span><span class="o">.</span><span class="n">disk_libraries</span>
         <span class="n">selected_storage_policy</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">for</span> <span class="n">storage_policy</span> <span class="ow">in</span> <span class="n">storage_polices_obj</span><span class="o">.</span><span class="n">all_storage_policies</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">storage_policy</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;commservedr&quot;</span><span class="p">:</span>
+                <span class="k">continue</span>
             <span class="n">library</span> <span class="o">=</span> <span class="n">disk_libraries_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">storage_polices_obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">storage_policy</span><span class="p">))</span><span class="o">.</span><span class="n">library_name</span><span class="p">)</span>
             <span class="n">mag_lib_summary</span> <span class="o">=</span> <span class="n">library</span><span class="o">.</span><span class="n">library_properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;magLibSummary&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">mag_lib_summary</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -653,11 +638,25 @@
                     <span class="n">cv_testcase</span><span class="o">.</span><span class="n">cvc</span> <span class="o">=</span> <span class="n">IBMiCVC</span><span class="p">(</span><span class="n">cv_testcase</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}{1}</span><span class="s2">cv_fs_automation&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">install_directory</span><span class="p">,</span>
-                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">slash_format</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;SubclientName&#39;</span> <span class="ow">in</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span> <span class="ow">and</span> \
+                <span class="nb">len</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">content</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> \
+                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">slash_format</span><span class="p">:</span>
+                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}{1}</span><span class="s2">cv_fs_automation_</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">slash_format</span><span class="p">),</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">slash_format</span><span class="p">,</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}{1}</span><span class="s2">cv_fs_automation_</span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">install_directory</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">slash_format</span><span class="p">),</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">slash_format</span><span class="p">,</span>
+                    <span class="n">cv_testcase</span><span class="o">.</span><span class="n">id</span>
+                    <span class="p">)</span>
+
         <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">storage_policy</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">cv_testcase</span><span class="o">.</span><span class="n">storage_policy</span> <span class="o">=</span> <span class="n">FSHelper</span><span class="o">.</span><span class="n">get_storage_policy</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;SubclientName&#39;</span> <span class="ow">in</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">tcinputs</span> <span class="ow">and</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">storage_policy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">storage_policy</span> <span class="o">=</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">storage_policy</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cv_testcase</span><span class="o">.</span><span class="n">storage_policy</span> <span class="o">=</span> <span class="n">FSHelper</span><span class="o">.</span><span class="n">get_storage_policy</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">cv_testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_flavour</span> <span class="o">==</span> <span class="s1">&#39;OpenVMS&#39;</span><span class="p">:</span>
             <span class="n">cv_testcase</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">mount_openvms_testpath</span><span class="p">(</span><span class="n">cv_testcase</span><span class="o">.</span><span class="n">test_path</span><span class="p">)</span>
@@ -678,18 +677,15 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">subclient_job_results_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Returns the subclient job  results directory path.&quot;&quot;&quot;</span>
-        <span class="n">path_items</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">job_results_directory</span><span class="p">,</span>
-                      <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commcell_id</span><span class="p">),</span>
-                      <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">subclient_id</span><span class="p">))</span>
 
+        <span class="n">common_sc_jr_path_items</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commcell_id</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">subclient_id</span><span class="p">)]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;WINDOWS&quot;</span><span class="p">:</span>
-            <span class="n">sc_jr_items</span> <span class="o">=</span> <span class="n">path_items</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="s2">&quot;CV_JobResults&quot;</span><span class="p">,</span>
-                                            <span class="s2">&quot;iDataAgent&quot;</span><span class="p">,</span> <span class="s2">&quot;FileSystemAgent&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">path_items</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
-
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;UNIX&quot;</span><span class="p">:</span>
-            <span class="n">sc_jr_items</span> <span class="o">=</span> <span class="n">path_items</span>
-
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="o">*</span><span class="n">sc_jr_items</span><span class="p">)</span>
+            <span class="n">common_sc_jr_path_items</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CV_JobResults&quot;</span><span class="p">,</span> <span class="s2">&quot;iDataAgent&quot;</span><span class="p">,</span> <span class="s2">&quot;FileSystemAgent&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">common_sc_jr_path_items</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">:</span>
+            <span class="n">sc_jr_path_on_node</span> <span class="o">=</span> <span class="p">{</span><span class="n">node</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">Machine</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">job_results_directory</span><span class="p">,</span> <span class="o">*</span><span class="n">common_sc_jr_path_items</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sc_jr_path_on_node</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">machine_name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">job_results_directory</span><span class="p">,</span> <span class="o">*</span><span class="n">common_sc_jr_path_items</span><span class="p">)}</span>
+        <span class="k">return</span> <span class="n">sc_jr_path_on_node</span>
 
 <div class="viewcode-block" id="FSHelper.verify_dc"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.verify_dc">[docs]</a>    <span class="k">def</span> <span class="nf">verify_dc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jobid</span><span class="p">,</span> <span class="n">log_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Verifies whether the job used Scan optimization</span>
@@ -919,27 +915,30 @@
 
 <span class="sd">                Available kwargs Options:</span>
 
-<span class="sd">                    software_compression(SoftwareCompression(Enum)) :   Software compression property for a subclient.</span>
+<span class="sd">                    software_compression    (SoftwareCompression(Enum)) --  Software compression property for a subclient.</span>
 <span class="sd">                    (ON_CLIENT/ON_MEDIA_AGENT/USE_STORAGE_POLICY_SETTINGS/OFF)</span>
 
-<span class="sd">                    catalog_acl (bool)              --  Collects file permissions</span>
+<span class="sd">                    catalog_acl             (bool)                      --  Collects file permissions</span>
 <span class="sd">                    default: False</span>
 
-<span class="sd">                    use_vss (dict)  --  Enable or Disable Use VSS, Applicable to Windows FS only.</span>
+<span class="sd">                    use_vss                 (dict)                      --  Enable or Disable Use VSS, Applicable to Windows FS only.</span>
 <span class="sd">                    Dictionary contains the keys &#39;useVSS&#39;, &#39;vssOptions&#39; and &#39;useVssForAllFilesOptions&#39;.</span>
 
-<span class="sd">                    useVSS:</span>
-<span class="sd">                        True    -   ENABLED</span>
-<span class="sd">                        False   -   DISABLED</span>
+<span class="sd">                        useVSS:</span>
+<span class="sd">                            True    -   ENABLED</span>
+<span class="sd">                            False   -   DISABLED</span>
 
-<span class="sd">                    vssOptions:</span>
-<span class="sd">                        1   -   For all files</span>
-<span class="sd">                        2   -   For locked files only</span>
+<span class="sd">                        vssOptions:</span>
+<span class="sd">                            1   -   For all files</span>
+<span class="sd">                            2   -   For locked files only</span>
 
-<span class="sd">                    useVssForAllFilesOptions:</span>
-<span class="sd">                        1   -   Fail the job</span>
-<span class="sd">                        2   -   Continue and reset access time</span>
-<span class="sd">                        3   -   Continue and do not reset access time</span>
+<span class="sd">                        useVssForAllFilesOptions:</span>
+<span class="sd">                            1   -   Fail the job</span>
+<span class="sd">                            2   -   Continue and reset access time</span>
+<span class="sd">                            3   -   Continue and do not reset access time</span>
+
+<span class="sd">                    impersonate_user        (dict)                      --  Details for impersonation, Applicable to Windows FS only.</span>
+<span class="sd">                    Dictionary values are &#39;username&#39;, &#39;password&#39;.</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                None</span>
@@ -984,7 +983,8 @@
                 <span class="n">onetouch_server</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;onetouch_server&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
                 <span class="n">onetouch_server_directory</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;onetouch_server_directory&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
                 <span class="n">description</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-                <span class="n">use_vss</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;useVSS&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;useVssForAllFilesOptions&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;vssOptions&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>
+                <span class="n">use_vss</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;useVSS&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;useVssForAllFilesOptions&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;vssOptions&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+                <span class="n">impersonate_user</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;impersonate_user&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
             <span class="p">)</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
@@ -1064,28 +1064,30 @@
 
 <span class="sd">                \*\*kwargs  (dict)              --  Optional arguments.</span>
 
-<span class="sd">                Available kwargs Options:</span>
-
-<span class="sd">                    software_compression(SoftwareCompression(Enum)) :   Software compression property for a subclient.</span>
+<span class="sd">                    software_compression    (SoftwareCompression(Enum)) --  Software compression property for a subclient.</span>
 <span class="sd">                    (ON_CLIENT/ON_MEDIA_AGENT/USE_STORAGE_POLICY_SETTINGS/OFF)</span>
 
-<span class="sd">                    catalog_acl                     --  Enable/Disable to collect file permissions</span>
+<span class="sd">                    catalog_acl             (bool)                      --  Collects file permissions</span>
+<span class="sd">                    default: False</span>
 
-<span class="sd">                    use_vss (dict)  --  Enable or Disable Use VSS, Applicable to Windows FS only.</span>
+<span class="sd">                    use_vss                 (dict)                      --  Enable or Disable Use VSS, Applicable to Windows FS only.</span>
 <span class="sd">                    Dictionary contains the keys &#39;useVSS&#39;, &#39;vssOptions&#39; and &#39;useVssForAllFilesOptions&#39;.</span>
 
-<span class="sd">                    useVSS:</span>
-<span class="sd">                        True    -   ENABLED</span>
-<span class="sd">                        False   -   DISABLED</span>
+<span class="sd">                        useVSS:</span>
+<span class="sd">                            True    -   ENABLED</span>
+<span class="sd">                            False   -   DISABLED</span>
 
-<span class="sd">                    vssOptions:</span>
-<span class="sd">                        1   -   For all files</span>
-<span class="sd">                        2   -   For locked files only</span>
+<span class="sd">                        vssOptions:</span>
+<span class="sd">                            1   -   For all files</span>
+<span class="sd">                            2   -   For locked files only</span>
 
-<span class="sd">                    useVssForAllFilesOptions:</span>
-<span class="sd">                        1   -   Fail the job</span>
-<span class="sd">                        2   -   Continue and reset access time</span>
-<span class="sd">                        3   -   Continue and do not reset access time</span>
+<span class="sd">                        useVssForAllFilesOptions:</span>
+<span class="sd">                            1   -   Fail the job</span>
+<span class="sd">                            2   -   Continue and reset access time</span>
+<span class="sd">                            3   -   Continue and do not reset access time</span>
+
+<span class="sd">                    impersonate_user        (dict)                      --  Details for impersonation, Applicable to Windows FS only.</span>
+<span class="sd">                    Dictionary values are &#39;username&#39;, &#39;password&#39;.</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                None</span>
@@ -1159,6 +1161,10 @@
 
             <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;description&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;impersonate_user&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">impersonate_user</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;impersonate_user&#39;</span><span class="p">)</span>
+
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">excp</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Subclient Update Failed with error: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">))</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Subclient Update Failed with error: </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">excp</span><span class="p">)))</span></div>
@@ -1479,6 +1485,7 @@
 <span class="sd">                        amr                      (bool)  -- If the restore is an auto mount restore (amr), certain</span>
 <span class="sd">                        modifications will be made to compare_source and compare_destination so verification doesn&#39;t fail on account of invalid paths.</span>
 
+<span class="sd">                        restore_nodes            (str/list) --  Client name or list of client names for the restore operation.</span>
 <span class="sd">                        }</span>
 
 <span class="sd">            Returns:</span>
@@ -1492,37 +1499,44 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Run Restore in place &quot;</span><span class="p">)</span>
-            <span class="n">_fs_options</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="n">_overwrite</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;overwrite&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-            <span class="n">_restore_data_and_acl</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;restore_data_and_acl&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-            <span class="n">_copy_precedence</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;copy_precedence&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="n">_from_time</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;from_time&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="n">_to_time</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;to_time&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;restoreDataInsteadOfStub&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                <span class="s2">&quot;restoreDataInsteadOfStub&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;restoreOnlyStubExists&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                <span class="s2">&quot;restoreOnlyStubExists&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;overwriteFiles&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                <span class="s2">&quot;overwriteFiles&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;doNotOverwriteFileOnDisk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                <span class="s2">&quot;doNotOverwriteFileOnDisk&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-            <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;disableStubRestore&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                <span class="s2">&quot;disableStubRestore&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-            <span class="n">_schedule_pattern</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;schedule_pattern&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">fs_options</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">overwrite</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;overwrite&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">restore_data_and_acl</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;restore_data_and_acl&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">copy_precedence</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;copy_precedence&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">from_time</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;from_time&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">to_time</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;to_time&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;restoreDataInsteadOfStub&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;restoreDataInsteadOfStub&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;restoreOnlyStubExists&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;restoreOnlyStubExists&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;overwriteFiles&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;overwriteFiles&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;doNotOverwriteFileOnDisk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;doNotOverwriteFileOnDisk&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;disableStubRestore&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;disableStubRestore&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="n">schedule_pattern</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;schedule_pattern&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
             <span class="c1"># IF AUTO MOUNT RESTORE, CLIENT NODE NEEDS TO BE SET AS THE DESTINATION CLIENT FOR RESTORE</span>
             <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;amr&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
-                <span class="n">_fs_options</span><span class="p">[</span><span class="s1">&#39;client&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_node</span>
+                <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;client&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_node</span>
+
+            <span class="c1"># MULTI NODE RESTORES IF restore_nodes IS SET</span>
+            <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;restore_nodes&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="n">restore_nodes_json</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">restore_nodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;restore_nodes&#39;</span><span class="p">]]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;restore_nodes&#39;</span><span class="p">],</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;restore_nodes&#39;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">access_node</span> <span class="ow">in</span> <span class="n">restore_nodes</span><span class="p">:</span>
+                    <span class="n">restore_nodes_json</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;clientName&quot;</span><span class="p">:</span> <span class="n">access_node</span><span class="p">})</span>
+                    <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;data_access_nodes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">restore_nodes_json</span>
+                <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">restore_nodes</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;multinode_restore&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;client&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">client_name</span>
+                <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;destination_appTypeId&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">33</span> <span class="k">if</span> <span class="s2">&quot;windows&quot;</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">else</span> <span class="mi">29</span>
 
             <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">(</span>
                 <span class="n">paths</span><span class="o">=</span><span class="n">paths</span><span class="p">,</span>
-                <span class="n">overwrite</span><span class="o">=</span><span class="n">_overwrite</span><span class="p">,</span>
-                <span class="n">restore_data_and_acl</span><span class="o">=</span><span class="n">_restore_data_and_acl</span><span class="p">,</span>
-                <span class="n">copy_precedence</span><span class="o">=</span><span class="n">_copy_precedence</span><span class="p">,</span>
-                <span class="n">from_time</span><span class="o">=</span><span class="n">_from_time</span><span class="p">,</span>
-                <span class="n">to_time</span><span class="o">=</span><span class="n">_to_time</span><span class="p">,</span>
-                <span class="n">fs_options</span><span class="o">=</span><span class="n">_fs_options</span><span class="p">,</span>
-                <span class="n">schedule_pattern</span><span class="o">=</span><span class="n">_schedule_pattern</span>
+                <span class="n">overwrite</span><span class="o">=</span><span class="n">overwrite</span><span class="p">,</span>
+                <span class="n">restore_data_and_acl</span><span class="o">=</span><span class="n">restore_data_and_acl</span><span class="p">,</span>
+                <span class="n">copy_precedence</span><span class="o">=</span><span class="n">copy_precedence</span><span class="p">,</span>
+                <span class="n">from_time</span><span class="o">=</span><span class="n">from_time</span><span class="p">,</span>
+                <span class="n">to_time</span><span class="o">=</span><span class="n">to_time</span><span class="p">,</span>
+                <span class="n">fs_options</span><span class="o">=</span><span class="n">fs_options</span><span class="p">,</span>
+                <span class="n">schedule_pattern</span><span class="o">=</span><span class="n">schedule_pattern</span>
             <span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Started restore in place job with job id: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
@@ -1723,7 +1737,7 @@
                     <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client</span>
                 <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">client</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
                     <span class="n">client</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
-                <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;destination_appTypeId&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">33</span> <span class="k">if</span> <span class="s2">&quot;linux&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">else</span> <span class="mi">29</span>
+                <span class="n">fs_options</span><span class="p">[</span><span class="s1">&#39;destination_appTypeId&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">33</span> <span class="k">if</span> <span class="s2">&quot;windows&quot;</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">os_info</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">else</span> <span class="mi">29</span>
 
             <span class="c1"># use the current test case client as default</span>
             <span class="k">if</span> <span class="n">client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -1987,7 +2001,10 @@
                                         <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths_copy</span><span class="p">])(</span><span class="n">paths_copy</span><span class="p">)</span>
 
             <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths_copy</span><span class="p">:</span>
-                <span class="n">client_machine</span><span class="o">.</span><span class="n">rename_file_or_folder</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">path</span><span class="p">,</span> <span class="n">source_suffix</span><span class="p">)))</span>
+                <span class="n">client_machine</span><span class="o">.</span><span class="n">rename_file_or_folder</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;UNC-NT_&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\\\\</span><span class="s2">&quot;</span><span class="p">),</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;UNC-NT_&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\\\\</span><span class="s2">&quot;</span><span class="p">),</span> <span class="n">source_suffix</span><span class="p">)))</span>
+
+            <span class="k">if</span> <span class="n">restore_nodes</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;restore_nodes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">restore_nodes</span>
 
             <span class="n">jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">restore_in_place</span><span class="p">(</span><span class="n">paths</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -3179,7 +3196,7 @@
         <span class="n">split_char</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\r\n</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;WINDOWS&quot;</span> <span class="k">else</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
         <span class="c1"># FETCHING AND STORING VALUE OF self.subclient_job_results_directory  IN</span>
         <span class="c1"># sc_jr FOR FURTHER USAGE</span>
-        <span class="n">sc_jr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_job_results_directory</span>
+        <span class="n">sc_jr</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient_job_results_directory</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># STEP 1 - GET ACTUAL COMMIT COLLECT FILE</span>
         <span class="n">commit_cvf_file_path</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">sc_jr</span><span class="p">,</span> <span class="n">commit_cvf_name</span><span class="p">)</span>
@@ -3279,7 +3296,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">job_ref_time_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;next_incr_ref_time&#39;</span><span class="p">:</span> <span class="n">last_incr</span><span class="p">}</span>
 
-<div class="viewcode-block" id="FSHelper.extent_level_validation"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.extent_level_validation">[docs]</a>    <span class="k">def</span> <span class="nf">extent_level_validation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">,</span> <span class="n">cvf_validation</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="FSHelper.extent_level_validation"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.extent_level_validation">[docs]</a>    <span class="k">def</span> <span class="nf">extent_level_validation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">,</span> <span class="n">cvf_validation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Attempts to check whether large files were backed up as extents.</span>
 <span class="sd">        It also, optionally, validates the extent eligible collect file.</span>
 
@@ -3287,6 +3304,12 @@
 <span class="sd">            job             (object)    --  Instance of backup Job.</span>
 
 <span class="sd">            cvf_validation  (bool)      --  If true, validates entries in the extent eligible collect file.</span>
+
+<span class="sd">            \*\*kwargs  (dict)              --  Optional arguments.</span>
+
+<span class="sd">            Available kwargs Options:</span>
+
+<span class="sd">                    node    (str) --  Name of the node/client whose job results directory should be used for validation.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            bool    -   Returns True if the lists are identical.</span>
@@ -3298,60 +3321,58 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">def</span> <span class="nf">get_query_op</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">cond</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT </span><span class="si">{}</span><span class="s2"> FROM </span><span class="si">{}</span><span class="s2"> WITH (NOLOCK) WHERE </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">col</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">cond</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SELECT </span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2"> FROM </span><span class="si">{</span><span class="n">table</span><span class="si">}</span><span class="s2"> WITH (NOLOCK) WHERE </span><span class="si">{</span><span class="n">cond</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
                 <span class="k">return</span> <span class="mi">0</span>  <span class="c1"># 0 FILES HAVE BEEN TRANSFERRED SO FAR</span>
             <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_csdb</span><span class="o">.</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
 
+        <span class="k">def</span> <span class="nf">get_ref_time_and_patterns</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">backup_level</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;FULL&quot;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;FileExtentNumColTot*&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(?!.*</span><span class="se">\\</span><span class="s2">\d</span><span class="si">{8}</span><span class="s2">\|.*)[*?][*?][*?](?P&lt;file_path&gt;.*?)\|(?P&lt;flags&gt;.*)&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;*ExtentEligibleNumColTot*&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[*?][*?][*?](?P&lt;file_path&gt;.*?)(?P&lt;flags&gt;\|.*)&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">data_access_nodes</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_ref_time_dict</span><span class="p">[</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">]),</span> <span class="s2">&quot;FileExtentNumColInc*&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(?!.*</span><span class="se">\\</span><span class="s2">\d</span><span class="si">{8}</span><span class="s2">\|.*)[*?][*?][*?](?P&lt;file_path&gt;.*?)\|(?P&lt;flags&gt;.*)&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_ref_time_dict</span><span class="p">[</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">]),</span> <span class="s2">&quot;ExtentEligibleNumColInc*&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[*?][*?][*?](?P&lt;file_path&gt;.*?)(?P&lt;flags&gt;\|.*)&quot;</span><span class="p">)</span>
+
         <span class="c1"># STEP 1 - GET NUMBER OF FILES TRANSFERRED AND NUMBER OF STREAMS USED BY THE JOB.</span>
-        <span class="n">num_files</span> <span class="o">=</span> <span class="n">get_query_op</span><span class="p">(</span><span class="s2">&quot;totalNumOfFiles&quot;</span><span class="p">,</span> <span class="s2">&quot;JMBkpStats&quot;</span><span class="p">,</span> <span class="s2">&quot;jobId =</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
-        <span class="n">num_streams</span> <span class="o">=</span> <span class="n">get_query_op</span><span class="p">(</span>
-            <span class="s2">&quot;COUNT(*)&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;JMJobResourceHistory&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;jobId=</span><span class="si">{}</span><span class="s2"> AND phaseNum=7&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">))</span>
+        <span class="n">num_files</span> <span class="o">=</span> <span class="n">get_query_op</span><span class="p">(</span><span class="s2">&quot;totalNumOfFiles&quot;</span><span class="p">,</span> <span class="s2">&quot;JMBkpStats&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;jobId =</span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">num_streams</span> <span class="o">=</span> <span class="n">get_query_op</span><span class="p">(</span><span class="s2">&quot;COUNT(*)&quot;</span><span class="p">,</span> <span class="s2">&quot;JMJobResourceHistory&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;jobId=</span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2"> AND phaseNum=7&quot;</span><span class="p">)</span>
         <span class="n">result</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="k">if</span> <span class="n">num_files</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">num_streams</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> streams used to transfer one file, it was backed up as extents&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">num_streams</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">num_streams</span><span class="si">}</span><span class="s2"> streams used to transfer one file, it was backed up as extents&quot;</span><span class="p">)</span>
             <span class="n">result</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                <span class="s2">&quot;Unable to perform validation for this job based merely on the number of streams used.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Unable to perform validation for this job based merely on the number of streams used.&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">cvf_validation</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Collect file validation will be performed.&quot;</span><span class="p">)</span>
             <span class="n">machine_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span>
-            <span class="n">items_on_setup</span><span class="p">,</span> <span class="n">items_in_collect</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(),</span> <span class="nb">list</span><span class="p">()</span>
-            <span class="n">split_char</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\r\n</span><span class="s2">&quot;</span>
-            <span class="k">if</span> <span class="n">job</span><span class="o">.</span><span class="n">backup_level</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;FULL&quot;</span><span class="p">:</span>
-                <span class="n">ptrn</span> <span class="o">=</span> <span class="s2">&quot;*ExtentEligibleNumColTot*&quot;</span>
-                <span class="n">ref_time</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">ptrn</span> <span class="o">=</span> <span class="s2">&quot;*ExtentEligibleNumColInc*&quot;</span>
-                <span class="n">ref_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">job_ref_time_dict</span><span class="p">[</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">])</span>
+            <span class="n">items_on_setup</span><span class="p">,</span> <span class="n">items_in_collect</span><span class="p">,</span> <span class="n">split_char</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(),</span> <span class="nb">list</span><span class="p">(),</span> <span class="s2">&quot;</span><span class="se">\r\n</span><span class="s2">&quot;</span>
+            <span class="n">ref_time</span><span class="p">,</span> <span class="n">ptrn</span><span class="p">,</span> <span class="n">cvf_entry_ptrn</span> <span class="o">=</span> <span class="n">get_ref_time_and_patterns</span><span class="p">()</span>
 
             <span class="c1"># STEP 1 - GET LIST OF ALL FILES ON SETUP THAT SHOULD QUALIFY FOR EXTENT LEVEL BACKUP</span>
-            <span class="n">meta_list</span> <span class="o">=</span> <span class="s2">&quot;&#39;FilesOnly&#39;,&#39;Hidden&#39;,&#39;FullName&#39;,&#39;LastWriteTimeUtc&#39;,&#39;Size&#39;&quot;</span>
-            <span class="n">list_of_items</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">get_test_data_info</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">custom_meta_list</span><span class="o">=</span><span class="n">meta_list</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">split_char</span><span class="p">)</span>
+            <span class="n">list_of_items</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">get_test_data_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">custom_meta_list</span><span class="o">=</span><span class="s2">&quot;&#39;FilesOnly&#39;,&#39;Hidden&#39;,&#39;FullName&#39;,&#39;LastWriteTimeUtc&#39;,&#39;Size&#39;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">split_char</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">list_of_items</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">item</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
                     <span class="n">item_prop</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="n">maxsplit</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
                     <span class="n">path</span><span class="p">,</span> <span class="n">lwt</span><span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="n">item_prop</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">floor</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">item_prop</span><span class="p">[</span><span class="mi">1</span><span class="p">])),</span> <span class="nb">int</span><span class="p">(</span><span class="n">item_prop</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
-                    <span class="k">if</span> <span class="n">size</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">threshold</span> <span class="ow">and</span> <span class="n">lwt</span> <span class="o">&gt;</span> <span class="n">ref_time</span><span class="p">:</span>
-                        <span class="n">items_on_setup</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                    <span class="n">items_on_setup</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">if</span> <span class="n">size</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">threshold</span> <span class="ow">and</span> <span class="n">lwt</span> <span class="o">&gt;</span> <span class="n">ref_time</span> <span class="k">else</span> <span class="kc">None</span>
 
-            <span class="c1"># STEP 2 - GET LIST OF ALL ENTRIES FROM ALL FileExtentEligibleNumCol*.cvf</span>
-            <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot;(Get-ChildItem </span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2"> -Filter </span><span class="se">\&quot;</span><span class="si">{}</span><span class="se">\&quot;</span><span class="s2">).FullName&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient_job_results_directory</span><span class="p">,</span> <span class="n">ptrn</span><span class="p">)</span>
-            <span class="n">cvf_entry_ptrn</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[*?][*?][*?](?P&lt;file_path&gt;.*?)(?P&lt;flags&gt;\|.*)&quot;</span><span class="p">)</span>
-            <span class="n">extent_eligible_cvfs</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">(</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">split_char</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">]</span>
-            <span class="k">for</span> <span class="n">extent_eligible_cvf</span> <span class="ow">in</span> <span class="n">extent_eligible_cvfs</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="p">(</span><span class="n">machine_obj</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">extent_eligible_cvf</span><span class="p">))</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">split_char</span><span class="p">):</span>
+            <span class="c1"># STEP 2 - GET LIST OF ALL ENTRIES FROM ALL FileExtentEligibleNumCol*.cvf OR ExtentEligibleNumCol*.cvf</span>
+            <span class="n">node</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;node&#39;</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient_job_results_directory</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]),</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+            <span class="n">sc_jr_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_job_results_directory</span><span class="p">[</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;node&#39;</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">machine_name</span><span class="p">)]</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;(Get-ChildItem </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">sc_jr_path</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2"> -Filter </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">ptrn</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">).FullName&quot;</span>
+            <span class="n">extent_cvfs</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">split_char</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">]</span>
+
+            <span class="c1"># PROCESS EVERY SINGLE EXTENT ELIGIBLE COLLECT FILE</span>
+            <span class="k">for</span> <span class="n">extent_cvf</span> <span class="ow">in</span> <span class="n">extent_cvfs</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">extent_cvf</span><span class="p">))</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">split_char</span><span class="p">):</span>
                     <span class="n">match_ptrn</span> <span class="o">=</span> <span class="n">cvf_entry_ptrn</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">match_ptrn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">items_in_collect</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">match_ptrn</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;file_path&#39;</span><span class="p">))</span>
+                    <span class="n">items_in_collect</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">match_ptrn</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;file_path&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;UNC-NT_&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\\\\</span><span class="s1">&#39;</span><span class="p">))</span> <span class="k">if</span> <span class="n">match_ptrn</span> <span class="k">else</span> <span class="kc">None</span>
+
+            <span class="n">items_in_collect</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">items_in_collect</span><span class="p">))</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compare_lists</span><span class="p">(</span><span class="n">items_on_setup</span><span class="p">,</span> <span class="n">items_in_collect</span><span class="p">,</span> <span class="n">sort_list</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Collect file validation was successful&quot;</span><span class="p">)</span>
@@ -4129,7 +4150,28 @@
             <span class="k">if</span> <span class="n">logs</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">node</span>
 
-        <span class="k">return</span> <span class="kc">None</span></div></div>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="FSHelper.verify_scan_type_used"><a class="viewcode-back" href="../../../source/FileSystem.FSUtils.html#FileSystem.FSUtils.fshelper.FSHelper.verify_scan_type_used">[docs]</a>    <span class="k">def</span> <span class="nf">verify_scan_type_used</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Function to verify job type used in the given job</span>
+<span class="sd">            Args:</span>
+<span class="sd">                job_id (str) - job_id of the job for which scan method needs to be verified</span>
+
+<span class="sd">            Returns:</span>
+<span class="sd">                scan_type (str) - if able to detect scan method from logs</span>
+<span class="sd">                                else &quot;&quot; (empty string).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">testcase</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">get_logs_for_job_from_file</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job_id</span><span class="p">,</span>
+                                                                       <span class="n">log_file_name</span><span class="o">=</span><span class="s2">&quot;FileScan.log&quot;</span><span class="p">,</span>
+                                                                       <span class="n">search_term</span><span class="o">=</span><span class="s2">&quot;CumulativeScanModeAndReason&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">logs</span><span class="p">:</span>
+            <span class="n">scan_type</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;CumulativeScanModeAndReason=[A-Z+]*&quot;</span><span class="p">,</span> <span class="n">logs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">scan_type</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">scan_type</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span></div></div>
 </pre></div>
 
            </div>
@@ -4143,7 +4185,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Testcases.56497 &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Testcases.56497 &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -262,48 +262,102 @@
 <span class="sd">                8 - Run data-aging</span>
 <span class="sd">                9 - Verify if checkpoints are aged</span>
 
+<span class="sd">                Scenario covered:</span>
+<span class="sd">                -----</span>
+
+<span class="sd">                1) aged job checkpoint is deleted</span>
+<span class="sd">                2) redundant checkpoint</span>
+<span class="sd">                3) retain 3 latest checkpoints</span>
+
+<span class="sd">                Cycles to retain by pruning = 2</span>
+
+<span class="sd">                full j1</span>
+<span class="sd">                Initialize pruning</span>
+
+<span class="sd">                full j2, full j3, full j4</span>
+<span class="sd">                checkpoint   ( j1, j2, j3, j4 ) - CP1</span>
+<span class="sd">                compaction   j1, j2 will be pruned</span>
+
+<span class="sd">                full j5</span>
+<span class="sd">                checkpoint  ( j3, j4, j5 ) - CP2</span>
+
+<span class="sd">                full j6</span>
+<span class="sd">                checkpoint  ( j3, j4, j5, j6 ) - CP3</span>
+<span class="sd">                compaction  j3, j4 will be pruned</span>
+
+<span class="sd">                full j7 inc j8</span>
+<span class="sd">                checkpoint ( j5, j6, j7, j8 ) - CP4</span>
+
+<span class="sd">                sfull j9 inc j10</span>
+<span class="sd">                checkpoint ( j5, j6, j7, j8, j9, j10 ) - CP5</span>
+
+<span class="sd">                sfull j11</span>
+<span class="sd">                checkpoint ( j5, j6, j7, j8, j9, j10, j11 ) - CP6</span>
+
+<span class="sd">                Age j2, j3, j4, j5 manually</span>
+
+<span class="sd">                Restart EvMgrS</span>
+
+<span class="sd">                Checkpoints expected to be retained:</span>
+<span class="sd">                CP1, CP4, CP5, CP6</span>
+
+<span class="sd">                CP1 is retained because it still contains j1</span>
+<span class="sd">                CP4, 5, 6 will be retained because it is part of the last 3 latest startTime range</span>
+
+<span class="sd">                CP2 will be aged because j3, j4, j5 are manually aged</span>
+<span class="sd">                CP3 will be aged because j3, j4, j5 are manually aged and j6 is part of CP4</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">idx_tc</span><span class="o">.</span><span class="n">run_backup_sequence</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;New&#39;</span><span class="p">,</span> <span class="s1">&#39;Full&#39;</span><span class="p">,</span> <span class="s1">&#39;Synthetic_full&#39;</span><span class="p">,</span> <span class="s1">&#39;Synthetic_full&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********** JOB 1 **********&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">idx_tc</span><span class="o">.</span><span class="n">run_backup_sequence</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;New&#39;</span><span class="p">,</span> <span class="s1">&#39;Full&#39;</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">idx_db</span> <span class="o">=</span> <span class="n">index_db</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="p">)</span>
 
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********** Initializing dbPrune prop **********&#39;</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">idx_db</span><span class="o">.</span><span class="n">prune_db</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Index pruning failed.&#39;</span><span class="p">)</span>
 
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;********** Job </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="si">}</span><span class="s1"> and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span><span class="si">}</span><span class="s1"> and &#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39;Checkpoint </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">checkpoints</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="si">}</span><span class="s1"> **********&#39;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_and_checkpoint</span><span class="p">([</span><span class="s1">&#39;Synthetic_full&#39;</span><span class="p">,</span> <span class="s1">&#39;Synthetic_full&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********** JOB 2, 3, 4 **********&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_and_checkpoint</span><span class="p">([</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;full&#39;</span><span class="p">])</span>  <span class="c1"># CP1 + first full</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;*************** Prune all jobs until Job-7 (Each job is a cycle) ***************&#39;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">idx_db</span><span class="o">.</span><span class="n">prune_db</span><span class="p">():</span>
-                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Index pruning failed.&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;*************** Pruning JOB 1 and JOB 2 ***************&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">idx_db</span><span class="o">.</span><span class="n">compact_db</span><span class="p">(</span><span class="n">registry_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s1">&#39;***** Job </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="si">}</span><span class="s1"> and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span><span class="si">}</span><span class="s1"> and &#39;</span>
-                    <span class="sa">f</span><span class="s1">&#39;Checkpoint </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">checkpoints</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="si">}</span><span class="s1"> *****&#39;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_and_checkpoint</span><span class="p">([</span><span class="s1">&#39;Synthetic_full&#39;</span><span class="p">,</span> <span class="s1">&#39;Synthetic_full&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********** JOB 5 **********&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_and_checkpoint</span><span class="p">([</span><span class="s1">&#39;full&#39;</span><span class="p">])</span>  <span class="c1"># CP2</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;******** Age all jobs except Job7 to Job16, Last 10 jobs ********&#39;</span><span class="p">)</span>
-            <span class="n">jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idx_tc</span><span class="o">.</span><span class="n">get_backup_jobs_stats</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="p">)</span>
-            <span class="n">jobs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">job</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s1">&#39;agedTime&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">jobs</span><span class="p">))[:</span><span class="o">-</span><span class="mi">10</span><span class="p">]</span>
-            <span class="n">jobs</span> <span class="o">=</span> <span class="p">[</span><span class="n">job</span><span class="p">[</span><span class="s1">&#39;jobId&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********** JOB 6 **********&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_and_checkpoint</span><span class="p">([</span><span class="s1">&#39;full&#39;</span><span class="p">])</span>  <span class="c1"># CP3</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">age_jobs</span><span class="p">(</span><span class="n">jobs</span><span class="o">=</span><span class="n">jobs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;*************** Pruning JOB 3 and JOB 4 ***************&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">idx_db</span><span class="o">.</span><span class="n">compact_db</span><span class="p">(</span><span class="n">registry_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********** JOB 7 &amp; INC JOB 8 **********&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_and_checkpoint</span><span class="p">([</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="s1">&#39;edit&#39;</span><span class="p">,</span> <span class="s1">&#39;incremental&#39;</span><span class="p">])</span>   <span class="c1"># CP4</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********** JOB 9 &amp; INC JOB 10 **********&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_and_checkpoint</span><span class="p">([</span><span class="s1">&#39;synthetic_full&#39;</span><span class="p">,</span> <span class="s1">&#39;edit&#39;</span><span class="p">,</span> <span class="s1">&#39;incremental&#39;</span><span class="p">])</span>  <span class="c1"># CP5</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;********** JOB 11 **********&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_backup_and_checkpoint</span><span class="p">([</span><span class="s1">&#39;synthetic_full&#39;</span><span class="p">])</span>  <span class="c1"># CP6</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">checkpoints</span><span class="p">)</span>
+
+            <span class="n">job_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">]</span>
+            <span class="n">to_age_jobs</span> <span class="o">=</span> <span class="n">job_ids</span><span class="p">[:</span><span class="mi">4</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;********** Aging jobs [</span><span class="si">{</span><span class="n">to_age_jobs</span><span class="si">}</span><span class="s1">] **********&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">age_jobs</span><span class="p">(</span><span class="n">jobs</span><span class="o">=</span><span class="n">to_age_jobs</span><span class="p">)</span>
 
             <span class="c1"># expected result for created checkpoints</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">checkpoints_flags</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="mi">0</span><span class="p">,</span>  <span class="c1"># all jobs aged</span>
-                <span class="mi">0</span><span class="p">,</span>  <span class="c1"># all jobs aged</span>
-                <span class="mi">0</span><span class="p">,</span>  <span class="c1"># all jobs aged</span>
-                <span class="mi">1</span><span class="p">,</span>  <span class="c1"># has un-aged jobs</span>
-                <span class="mi">0</span><span class="p">,</span>  <span class="c1"># time range falls within next checkpoint</span>
-                <span class="mi">1</span><span class="p">,</span>  <span class="c1"># last 3 checkpoints are not aged</span>
-                <span class="mi">1</span><span class="p">,</span>  <span class="c1"># last 3 checkpoints are not aged</span>
-                <span class="mi">1</span><span class="p">,</span>  <span class="c1"># last 3 checkpoints are not aged</span>
+                <span class="mi">1</span><span class="p">,</span>  <span class="c1"># CP1 has jobs 1, 2, 3, 4 = Jobs 2, 3, 4 are aged, but job 1 is active. Will be retained</span>
+                <span class="mi">0</span><span class="p">,</span>  <span class="c1"># CP2 has jobs 3, 4, 5 = Job 5 is aged and has redundant jobs of CP3. CP2 is aged</span>
+                <span class="mi">0</span><span class="p">,</span>  <span class="c1"># CP3 has jobs 3, 4, 5, 6 = Jobs 3, 4, 5 are aged but job 6 is part of CP4. CP3 is aged.</span>
+                <span class="mi">1</span><span class="p">,</span>  <span class="c1"># CP4 has jobs 5, 6, 7, 8 = Will be retained as it falls under last 3 checkpoint</span>
+                <span class="mi">1</span><span class="p">,</span>  <span class="c1"># CP5 has jobs 5, 6, 7, 8, 9, 10 = Will be retained as it falls under last 3 checkpoint</span>
+                <span class="mi">1</span><span class="p">,</span>  <span class="c1"># CP6 has jobs 5, 6, 7, 8, 9, 10, 11 = Will be retained as it falls under last 3 checkpoint</span>
             <span class="p">]</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;******** Checkpoints available ********&#39;</span><span class="p">)</span>
@@ -318,8 +372,8 @@
 
             <span class="bp">self</span><span class="o">.</span><span class="n">attempt_validate</span><span class="p">(</span>
                 <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Wait for checkpoint flags to update&#39;</span><span class="p">,</span>
-                <span class="n">total_attempts</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-                <span class="n">wait_time_seconds</span><span class="o">=</span><span class="mi">10</span> <span class="o">*</span> <span class="mi">60</span><span class="p">,</span>
+                <span class="n">total_attempts</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+                <span class="n">wait_time_seconds</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
                 <span class="n">validate_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_checkpoint_flags_updated</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;************** Checkpoints flags updated successfully. **************&#39;</span><span class="p">)</span>
@@ -331,7 +385,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">attempt_validate</span><span class="p">(</span>
                 <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Wait for checkpoints to age.&#39;</span><span class="p">,</span>
                 <span class="n">total_attempts</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-                <span class="n">wait_time_seconds</span><span class="o">=</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">,</span>
+                <span class="n">wait_time_seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
                 <span class="n">validate_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_checkpoints_aged</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;************** Checkpoints aged successfully. **************&#39;</span><span class="p">)</span>
@@ -373,8 +427,10 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;***** Running checkpoint job *****&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">idx_db</span><span class="o">.</span><span class="n">checkpoint_db</span><span class="p">(</span><span class="n">by_all_index_backup_clients</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">registry_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Checkpoint index failed.&#39;</span><span class="p">)</span>
+
         <span class="n">checkpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idx_db</span><span class="o">.</span><span class="n">get_index_db_checkpoints</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">[</span><span class="s1">&#39;startTime&#39;</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">[</span><span class="s1">&#39;endTime&#39;</span><span class="p">])</span></div>
 
@@ -382,9 +438,14 @@
         <span class="sd">&quot;&quot;&quot;Run jobs and checkpoint, append them to respective lists&quot;&quot;&quot;</span>
 
         <span class="n">jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idx_tc</span><span class="o">.</span><span class="n">run_backup_sequence</span><span class="p">(</span><span class="n">subclient_obj</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="n">steps</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;***** Running checkpoint job #</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">checkpoints</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">checkpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_checkpoint_and_get_time</span><span class="p">()</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Adding jobs [</span><span class="si">{</span><span class="n">jobs</span><span class="si">}</span><span class="s1">] to list&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">jobs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Adding checkpoint [</span><span class="si">{</span><span class="n">checkpoint</span><span class="si">}</span><span class="s1">] to list&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">checkpoints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TestCase.attempt_validate"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.56497.TestCase.attempt_validate">[docs]</a>    <span class="k">def</span> <span class="nf">attempt_validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">total_attempts</span><span class="p">,</span> <span class="n">wait_time_seconds</span><span class="p">,</span> <span class="n">validate_method</span><span class="p">):</span>
@@ -420,6 +481,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">checkpoints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">idx_db</span><span class="o">.</span><span class="n">get_index_db_checkpoints</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">checkpoints</span><span class="p">)</span>
 
         <span class="n">checkpoint_dict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">checkpoint</span> <span class="ow">in</span> <span class="n">checkpoints</span><span class="p">:</span>
@@ -487,7 +549,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Testcases.59199 &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Testcases.59199 &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -167,7 +167,7 @@
 
 <span class="sd">    update_subclient()   --  Updates the content and impersonation details</span>
 
-<span class="sd">    is_jr_dir_updated_in_all_nodes()    --  Verifies that JR Dir is updated in all nodes</span>
+<span class="sd">    is_jr_dir_updated_in_all_nodes()    --  Verifies that JR Dir is updated in all nodes using DCTot.cvf</span>
 
 <span class="sd">    check_if_all_node_participated_in_backup()  --  Verifies that all nodes participated in backup</span>
 
@@ -199,6 +199,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">option_selector</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">drive_letter</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prev_jr_dir</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">master_node</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tcinputs</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">&quot;Content&quot;</span><span class="p">:</span> <span class="kc">None</span>
         <span class="p">}</span>
@@ -219,7 +221,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">config_reader</span> <span class="o">=</span> <span class="n">ConfigReader</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">config_reader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_reader</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">option_selector</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">drive_letter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">option_selector</span><span class="o">.</span><span class="n">get_drive</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">drive_letter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">option_selector</span><span class="o">.</span><span class="n">get_drive</span><span class="p">(</span><span class="n">machine</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TestCase.update_subclient"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.59199.TestCase.update_subclient">[docs]</a>    <span class="k">def</span> <span class="nf">update_subclient</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -235,32 +237,44 @@
         <span class="n">subclient_properties</span><span class="p">[</span><span class="s2">&quot;impersonateUser&quot;</span><span class="p">][</span><span class="s2">&quot;password&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">b64encode</span><span class="p">(</span><span class="n">password</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">update_properties</span><span class="p">(</span><span class="n">subclient_properties</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="TestCase.is_jr_dir_updated_in_all_nodes"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.59199.TestCase.is_jr_dir_updated_in_all_nodes">[docs]</a>    <span class="k">def</span> <span class="nf">is_jr_dir_updated_in_all_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">):</span>
+<div class="viewcode-block" id="TestCase.subclient_dir_path"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.59199.TestCase.subclient_dir_path">[docs]</a>    <span class="k">def</span> <span class="nf">subclient_dir_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machine_instance</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Function to return subclient Dir of the client</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sc_jr_items</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">path_items</span> <span class="o">=</span> <span class="p">(</span><span class="n">machine_instance</span><span class="o">.</span><span class="n">client_object</span><span class="o">.</span><span class="n">job_results_directory</span><span class="p">,</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">commcell_id</span><span class="p">),</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">subclient_id</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">machine_instance</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;WINDOWS&quot;</span><span class="p">:</span>
+            <span class="n">sc_jr_items</span> <span class="o">=</span> <span class="n">path_items</span><span class="p">[:</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="s2">&quot;CV_JobResults&quot;</span><span class="p">,</span>
+                                            <span class="s2">&quot;iDataAgent&quot;</span><span class="p">,</span> <span class="s2">&quot;FileSystemAgent&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">path_items</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+        <span class="k">elif</span> <span class="n">machine_instance</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;UNIX&quot;</span><span class="p">:</span>
+            <span class="n">sc_jr_items</span> <span class="o">=</span> <span class="n">path_items</span>
+
+        <span class="k">return</span> <span class="n">machine_instance</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="o">*</span><span class="n">sc_jr_items</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCase.is_jr_dir_updated_in_all_nodes"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.59199.TestCase.is_jr_dir_updated_in_all_nodes">[docs]</a>    <span class="k">def</span> <span class="nf">is_jr_dir_updated_in_all_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">            Checks if JR directory is updated for all nodes using clBackup.log</span>
-<span class="sd">            Args:</span>
-<span class="sd">                job(job instance) - job for which this needs to be verified</span>
 
 <span class="sd">            Returns:</span>
 <span class="sd">                True/False - if JR updated/JR not updated</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">search_term</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subclient</span><span class="o">.</span><span class="n">subclient_id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="k">for</span> <span class="n">backup_node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
 
-            <span class="n">machine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">[</span><span class="n">backup_node</span><span class="p">]</span>
-            <span class="n">logs</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">get_logs_for_job_from_file</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span>
-                                                      <span class="n">log_file_name</span><span class="o">=</span><span class="s2">&quot;clBackup.log&quot;</span><span class="p">,</span>
-                                                      <span class="n">search_term</span><span class="o">=</span><span class="s2">&quot;Local subclient directory state : 0&quot;</span><span class="p">)</span>
-
-            <span class="k">if</span> <span class="n">logs</span><span class="p">:</span>
-                <span class="k">continue</span>
-
-            <span class="n">logs</span> <span class="o">=</span> <span class="n">machine</span><span class="o">.</span><span class="n">get_logs_for_job_from_file</span><span class="p">(</span><span class="n">job_id</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span>
-                                                      <span class="n">log_file_name</span><span class="o">=</span><span class="s2">&quot;clBackup.log&quot;</span><span class="p">,</span>
-                                                      <span class="n">search_term</span><span class="o">=</span><span class="n">search_term</span><span class="p">)</span>
-
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">logs</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;JR not updated for [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">backup_node</span><span class="p">)</span>
+        <span class="n">all_nodes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">first_node</span> <span class="o">=</span> <span class="n">all_nodes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">first_node_sc_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_dir_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">[</span><span class="n">first_node</span><span class="p">])</span>
+        <span class="n">first_node_dc_file_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">[</span><span class="n">first_node</span><span class="p">]</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">first_node_sc_dir</span><span class="p">,</span> <span class="s2">&quot;DCTot.cvf&quot;</span><span class="p">)</span>
+        <span class="n">first_node_checksum_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">[</span><span class="n">first_node</span><span class="p">]</span><span class="o">.</span><span class="n">get_checksum_list</span><span class="p">(</span><span class="n">first_node_dc_file_path</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">all_nodes</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">curr_node_sc_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subclient_dir_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">[</span><span class="n">node</span><span class="p">])</span>
+            <span class="n">curr_node_dc_file_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">[</span><span class="n">first_node</span><span class="p">]</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="n">curr_node_sc_dir</span><span class="p">,</span> <span class="s2">&quot;DCTot.cvf&quot;</span><span class="p">)</span>
+            <span class="n">curr_node_checksum_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">[</span><span class="n">node</span><span class="p">]</span><span class="o">.</span><span class="n">get_checksum_list</span><span class="p">(</span><span class="n">curr_node_dc_file_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">compare_lists</span><span class="p">(</span><span class="n">first_node_checksum_list</span><span class="p">,</span> <span class="n">curr_node_checksum_list</span><span class="p">):</span>
                 <span class="k">return</span> <span class="kc">False</span>
 
         <span class="k">return</span> <span class="kc">True</span></div>
@@ -322,7 +336,7 @@
 
             <span class="c1"># verify if the JR dir is updated in all backup nodes</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Verifying that JR is updated for all nodes&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_jr_dir_updated_in_all_nodes</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_jr_dir_updated_in_all_nodes</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Job Result Directory is not Updated in all backup nodes&quot;</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;JR updated for all nodes.&quot;</span><span class="p">)</span>
@@ -335,16 +349,16 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;All Node Participated in Backup&quot;</span><span class="p">)</span>
 
             <span class="c1"># update default JR directory to given NewJobResultDir in TC_INPUT for master node</span>
-            <span class="n">master_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">identify_master</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">master_node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">master_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">helper</span><span class="o">.</span><span class="n">identify_master</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_machines</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">master_node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Master Node not detected&quot;</span><span class="p">)</span>
 
             <span class="n">new_jr_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">join_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">drive_letter</span><span class="p">,</span> <span class="s2">&quot;JR&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">new_jr_dir</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">client_machine</span><span class="o">.</span><span class="n">create_directory</span><span class="p">(</span><span class="n">new_jr_dir</span><span class="p">)</span>
 
-            <span class="n">prev_jr_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_jr_directory_in_client</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">master_node</span><span class="p">,</span>
-                                                             <span class="n">new_jr_directory</span><span class="o">=</span><span class="n">new_jr_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prev_jr_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_jr_directory_in_client</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">master_node</span><span class="p">,</span>
+                                                                  <span class="n">new_jr_directory</span><span class="o">=</span><span class="n">new_jr_dir</span><span class="p">)</span>
             <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
 
             <span class="c1"># Run Full backup</span>
@@ -360,16 +374,22 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;All Node Participated in Backup&quot;</span><span class="p">)</span>
 
             <span class="c1"># verify if the JR dir is updated in all backup nodes</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_jr_dir_updated_in_all_nodes</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_jr_dir_updated_in_all_nodes</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Job Result Directory is not Updated in all backup nodes&quot;</span><span class="p">)</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">update_jr_directory_in_client</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="n">master_node</span><span class="p">,</span>
-                                               <span class="n">new_jr_directory</span><span class="o">=</span><span class="n">prev_jr_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_jr_directory_in_client</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">master_node</span><span class="p">,</span>
+                                               <span class="n">new_jr_directory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">prev_jr_dir</span><span class="p">)</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exp</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Failed to execute test case with error: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">exp</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">result_string</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span></div></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">FAILED</span></div>
+
+<div class="viewcode-block" id="TestCase.tear_down"><a class="viewcode-back" href="../../source/Testcases.html#Testcases.59199.TestCase.tear_down">[docs]</a>    <span class="k">def</span> <span class="nf">tear_down</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;JR Update of master node to prev. state&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prev_jr_dir</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_jr_directory_in_client</span><span class="p">(</span><span class="n">client_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">master_node</span><span class="p">,</span>
+                                               <span class="n">new_jr_directory</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">prev_jr_dir</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>
@@ -383,7 +403,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

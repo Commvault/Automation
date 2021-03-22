@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Database.OracleUtils.oraclehelper &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Database.OracleUtils.oraclehelper &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -274,6 +274,7 @@
 <span class="kn">from</span> <span class="nn">AutomationUtils.database_helper</span> <span class="kn">import</span> <span class="n">get_csdb</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">cvhelper</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils</span> <span class="kn">import</span> <span class="n">database_helper</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.idautils</span> <span class="kn">import</span> <span class="n">CommonUtils</span>
 
 
 <div class="viewcode-block" id="OracleHelper"><a class="viewcode-back" href="../../../source/Database.OracleUtils.html#Database.OracleUtils.oraclehelper.OracleHelper">[docs]</a><span class="k">class</span> <span class="nc">OracleHelper</span><span class="p">:</span>
@@ -1269,18 +1270,36 @@
                 <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
                     <span class="s2">&quot;Failed to get the replication Job ID&quot;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="OracleHelper.oracle_data_cleanup"><a class="viewcode-back" href="../../../source/Database.OracleUtils.html#Database.OracleUtils.oraclehelper.OracleHelper.oracle_data_cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">oracle_data_cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">tablespace</span><span class="p">):</span>
+<div class="viewcode-block" id="OracleHelper.oracle_data_cleanup"><a class="viewcode-back" href="../../../source/Database.OracleUtils.html#Database.OracleUtils.oraclehelper.OracleHelper.oracle_data_cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">oracle_data_cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tablespace</span><span class="p">,</span> <span class="n">tables</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Cleans up the data created before running the backup</span>
 <span class="sd">            Args:</span>
-<span class="sd">                    table(str) -- The table to be dropped</span>
+<span class="sd">                    tablespace      (str)  -- Tablespace name which has to be dropped</span>
 
-<span class="sd">                    tablespace     (str)  -- Tablespace name which has to be dropped</span>
+<span class="sd">                    tables          (list) -- The table to be dropped</span>
+<span class="sd">                        default:    None</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dropping the table&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">oradb</span><span class="o">.</span><span class="n">drop_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_user</span><span class="p">,</span> <span class="n">table</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dropping the table(s)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tables</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">tables</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">oradb</span><span class="o">.</span><span class="n">drop_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ora_sys_user</span><span class="p">,</span> <span class="n">table</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dropping the tablespace&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">oradb</span><span class="o">.</span><span class="n">drop_tablespace</span><span class="p">(</span><span class="n">tablespace</span><span class="p">)</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oradb</span><span class="o">.</span><span class="n">drop_tablespace</span><span class="p">(</span><span class="n">tablespace</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OracleHelper.backup_validation"><a class="viewcode-back" href="../../../source/Database.OracleUtils.html#Database.OracleUtils.oraclehelper.OracleHelper.backup_validation">[docs]</a>    <span class="k">def</span> <span class="nf">backup_validation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jobid</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validates backup level of job triggered</span>
+<span class="sd">            Args:</span>
+<span class="sd">                    jobid           (str)                   --     jobid which needs to be</span>
+<span class="sd">                                                                   validated on backup completion</span>
+
+<span class="sd">                    backup_type     (str):                  --     expected backup type from</span>
+<span class="sd">                                                                   calling method</span>
+<span class="sd">                                                                   eg: &quot;Online Full&quot;/</span>
+<span class="sd">                                                                   &quot;Offline Full&quot;/&quot;Incremental&quot; etc</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">common_utils</span> <span class="o">=</span> <span class="n">CommonUtils</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">common_utils</span><span class="o">.</span><span class="n">backup_validation</span><span class="p">(</span><span class="n">jobid</span><span class="p">,</span> <span class="n">backup_type</span><span class="p">)</span></div></div>
 
 
 <div class="viewcode-block" id="OracleDMHelper"><a class="viewcode-back" href="../../../source/Database.OracleUtils.html#Database.OracleUtils.oraclehelper.OracleDMHelper">[docs]</a><span class="k">class</span> <span class="nc">OracleDMHelper</span><span class="p">:</span>
@@ -1787,7 +1806,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

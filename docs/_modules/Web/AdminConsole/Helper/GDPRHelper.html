@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Web.AdminConsole.Helper.GDPRHelper &mdash; Commvault Automation 11.22 documentation</title>
+  <title>Web.AdminConsole.Helper.GDPRHelper &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -198,6 +198,7 @@
 <span class="sd">    verify_last_collection_time()    -- Verifies the last collection time for inventory asset scan</span>
 <span class="sd">    validate_request_operations() -- validates whether DELETE/EXPORT request made from Request Manages</span>
 <span class="sd">    compare_entities()  -- Compares DB Entites with Review Page Entities</span>
+<span class="sd">    monitor_classifier_training()   --    Monitors the classifier training progress</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 
@@ -217,7 +218,7 @@
 <span class="kn">from</span> <span class="nn">Web.AdminConsole.GovernanceAppsPages.DataSourceReview</span> <span class="kn">import</span> <span class="n">DataSourceReview</span>
 <span class="kn">from</span> <span class="nn">Web.AdminConsole.GovernanceAppsPages.RequestManager</span> <span class="kn">import</span> <span class="n">RequestManager</span>
 <span class="kn">from</span> <span class="nn">Web.AdminConsole.GovernanceAppsPages.ReviewRequest</span> <span class="kn">import</span> <span class="n">ReviewRequest</span>
-<span class="kn">from</span> <span class="nn">Web.AdminConsole.GovernanceAppsPages.entity_manager</span> <span class="kn">import</span> <span class="n">EntityManager</span>
+<span class="kn">from</span> <span class="nn">Web.AdminConsole.GovernanceAppsPages.entity_manager</span> <span class="kn">import</span> <span class="n">EntityManager</span><span class="p">,</span> <span class="n">ClassifierManager</span>
 <span class="kn">from</span> <span class="nn">dynamicindex.utils.activateutils</span> <span class="kn">import</span> <span class="n">ActivateUtils</span>
 
 
@@ -250,6 +251,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_entities_replace_dict</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_data_source_name</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_disable_entities_list</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_advance_entity_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_advance_column_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queries_per_entity</span> <span class="o">=</span> <span class="mi">1</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">activate_utils</span> <span class="o">=</span> <span class="n">ActivateUtils</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">inventory_details_obj</span> <span class="o">=</span> <span class="n">InventoryManagerDetails</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
@@ -258,6 +262,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">data_source_discover_obj</span> <span class="o">=</span> <span class="n">DataSourceDiscover</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data_source_review_obj</span> <span class="o">=</span> <span class="n">DataSourceReview</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">entity_manager_obj</span> <span class="o">=</span> <span class="n">EntityManager</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">classifier_obj</span> <span class="o">=</span> <span class="n">ClassifierManager</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">request_manager</span> <span class="o">=</span> <span class="n">RequestManager</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">review</span> <span class="o">=</span> <span class="n">ReviewRequest</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">__table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="p">)</span>
@@ -270,6 +275,67 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sqlitedb</span> <span class="o">=</span> <span class="n">SQLite</span><span class="p">(</span><span class="n">sqlite_database_file_path</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">advance_entity_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns Entity list used for Advance search validation</span>
+<span class="sd">        in SDG</span>
+<span class="sd">        Example:</span>
+<span class="sd">            [&#39;Email&#39;,&#39;IP address&#39;]</span>
+<span class="sd">        :return: advance_entity_names (list) UI Entity names for Advance search</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_entity_names</span>
+
+    <span class="nd">@advance_entity_names</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">advance_entity_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets Entity names list  for Advance search validation</span>
+<span class="sd">        in SDG</span>
+<span class="sd">        Example:</span>
+<span class="sd">            [&#39;Email&#39;,&#39;IP address&#39;]</span>
+<span class="sd">        :param value: (list) UI Entity names for Advance search</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_advance_entity_names</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">queries_per_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the number of queries per entity</span>
+<span class="sd">        Returns</span>
+<span class="sd">            (int):- Count of queries per entity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queries_per_entity</span>
+
+    <span class="nd">@queries_per_entity</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">queries_per_entity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets queries count per entity</span>
+<span class="sd">        :param value: (int) Count of queries per entity</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queries_per_entity</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">advance_column_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns Columns list used for Advance search validation</span>
+<span class="sd">        in SDG</span>
+<span class="sd">        Example:</span>
+<span class="sd">            [&#39;File name&#39;,&#39;File Path&#39;]</span>
+<span class="sd">        :return: advance_column_names (list) UI Column names for Advance search</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_column_names</span>
+
+    <span class="nd">@advance_column_names</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">advance_column_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets Column names list  for Advance search validation</span>
+<span class="sd">        in SDG</span>
+<span class="sd">        Example:</span>
+<span class="sd">            [&#39;File name&#39;,&#39;File Path&#39;]</span>
+<span class="sd">        :param value: (list) UI Column names for Advance search</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_advance_column_names</span> <span class="o">=</span> <span class="n">value</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">testdata_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -677,6 +743,8 @@
         <span class="k">if</span> <span class="n">data_source_type</span> <span class="o">==</span> <span class="n">cs</span><span class="o">.</span><span class="n">ONE_DRIVE</span><span class="p">:</span>
             <span class="n">search_str</span> <span class="o">=</span> <span class="n">row_data</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span>
             <span class="n">search_str</span> <span class="o">=</span> <span class="n">search_str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">data_source_type</span> <span class="o">==</span> <span class="n">cs</span><span class="o">.</span><span class="n">SHAREPOINT</span><span class="p">:</span>
+            <span class="n">search_str</span> <span class="o">=</span> <span class="n">row_data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data_source_review_obj</span><span class="o">.</span><span class="n">search_file</span><span class="p">(</span><span class="n">search_str</span><span class="p">,</span> <span class="n">data_source_type</span><span class="o">=</span><span class="n">data_source_type</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Verifying Sensitivity for Data </span><span class="si">{</span><span class="n">search_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">db_entities_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activate_utils</span><span class="o">.</span><span class="n">db_get_sensitive_entities</span><span class="p">(</span>
@@ -813,7 +881,7 @@
 
 <div class="viewcode-block" id="GDPR.cleanup"><a class="viewcode-back" href="../../../../source/Web.AdminConsole.Helper.html#Web.AdminConsole.Helper.GDPRHelper.GDPR.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">project_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inventory_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">plan_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                 <span class="n">delete_backupset_for_client</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">backupset_names_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                <span class="n">pseudo_client_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                <span class="n">pseudo_client_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">classifier_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Cleanup test case created things</span>
 
@@ -826,8 +894,15 @@
 <span class="sd">                                                    names matches with project name</span>
 <span class="sd">                backupset_names_list (list) -- List of Backupset names to be deleted</span>
 <span class="sd">                If none provided, it would search for names related to project_name</span>
+<span class="sd">                classifier_name (list)   --  Name of classifier to be deleted</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">classifier_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">navigator</span><span class="o">.</span><span class="n">navigate_to_governance_apps</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">inventory_details_obj</span><span class="o">.</span><span class="n">select_entity_manager</span><span class="p">(</span><span class="n">sub_type</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">classifier</span> <span class="ow">in</span> <span class="n">classifier_name</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__table</span><span class="o">.</span><span class="n">is_entity_present_in_column</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">,</span> <span class="n">classifier</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">classifier_obj</span><span class="o">.</span><span class="n">delete_classifier</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">classifier</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">project_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">navigator</span><span class="o">.</span><span class="n">navigate_to_governance_apps</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">inventory_details_obj</span><span class="o">.</span><span class="n">select_sensitive_data_analysis</span><span class="p">()</span>
@@ -886,7 +961,7 @@
                                     <span class="p">(</span><span class="n">backupset_name</span><span class="p">,</span> <span class="n">excp</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="GDPR.get_schedule_datetime"><a class="viewcode-back" href="../../../../source/Web.AdminConsole.Helper.html#Web.AdminConsole.Helper.GDPRHelper.GDPR.get_schedule_datetime">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">get_schedule_datetime</span><span class="p">(</span><span class="n">frequency</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exceptions</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_schedule_datetime</span><span class="p">(</span><span class="n">frequency</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exceptions</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">custom_time</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        Returns the schedule options based on current time</span>
 <span class="sd">            Args:</span>
@@ -896,10 +971,13 @@
 <span class="sd">                    &quot;Daily&quot;</span>
 <span class="sd">                    &quot;Weekly&quot;</span>
 <span class="sd">                    &quot;Montyly&quot;</span>
+<span class="sd">            custom_time (datetime)  --  Using a custom time for schedule</span>
 <span class="sd">            exceptions (Bool)  -- For Exceptions</span>
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="n">schedule_options</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">custom_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">custom_time</span>
         <span class="k">if</span> <span class="n">frequency</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">schedule_options</span><span class="p">[</span><span class="s1">&#39;schedule_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">now</span>
             <span class="n">schedule_options</span><span class="p">[</span><span class="s1">&#39;hours&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">now</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%I&quot;</span><span class="p">)</span>
@@ -916,7 +994,7 @@
         <span class="k">elif</span> <span class="n">frequency</span> <span class="o">==</span> <span class="s1">&#39;Monthly&#39;</span><span class="p">:</span>
             <span class="n">schedule_options</span><span class="p">[</span><span class="s1">&#39;onday&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">now</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)))</span>
         <span class="k">if</span> <span class="n">exceptions</span><span class="p">:</span>
-            <span class="n">next_day</span> <span class="o">=</span> <span class="n">now</span><span class="o">+</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">next_day</span> <span class="o">=</span> <span class="n">now</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">schedule_options</span><span class="p">[</span><span class="s1">&#39;exceptiondays&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">next_day</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)))]</span>
         <span class="k">return</span> <span class="n">schedule_options</span></div>
 
@@ -932,7 +1010,284 @@
         <span class="k">if</span> <span class="n">last_collection_time</span> <span class="o">&gt;=</span> <span class="n">schedule_time</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Last collection time is greater than or equal to scheduled time&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Last collection time is less than scheduled time&quot;</span><span class="p">)</span></div></div>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Last collection time is less than scheduled time&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GDPR.monitor_classifier_training"><a class="viewcode-back" href="../../../../source/Web.AdminConsole.Helper.html#Web.AdminConsole.Helper.GDPRHelper.GDPR.monitor_classifier_training">[docs]</a>    <span class="k">def</span> <span class="nf">monitor_classifier_training</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">time_out</span><span class="o">=</span><span class="mi">20</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Monitors the classifier training job</span>
+<span class="sd">            Args:</span>
+
+<span class="sd">                time_out            (int)   --  Threshold wait time in mins</span>
+<span class="sd">                                                    Default : 20</span>
+
+<span class="sd">                status              (str)   --  Status of classifier to wait for</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+        <span class="n">current_time</span> <span class="o">=</span> <span class="n">start_time</span>
+        <span class="n">completion_time</span> <span class="o">=</span> <span class="n">start_time</span> <span class="o">+</span> <span class="n">time_out</span> <span class="o">*</span> <span class="mi">60</span>
+        <span class="k">while</span> <span class="n">completion_time</span> <span class="o">&gt;</span> <span class="n">current_time</span><span class="p">:</span>
+            <span class="n">current_status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">classifier_obj</span><span class="o">.</span><span class="n">get_training_status</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Current classifier status : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">current_status</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">current_status</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Expected status reached : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">current_status</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+            <span class="n">current_time</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Timeout at classifier training&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="GDPR.verify_advance_search"><a class="viewcode-back" href="../../../../source/Web.AdminConsole.Helper.html#Web.AdminConsole.Helper.GDPRHelper.GDPR.verify_advance_search">[docs]</a>    <span class="k">def</span> <span class="nf">verify_advance_search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db_path</span><span class="p">,</span> <span class="n">data_source</span><span class="o">=</span><span class="n">cs</span><span class="o">.</span><span class="n">FILE_SYSTEM</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Verify advance search functionality for SDG/FSO</span>
+<span class="sd">        Args:</span>
+<span class="sd">            db_path (str): Path to GDPR DB</span>
+<span class="sd">            data_source (str): SDG DataSource Name</span>
+<span class="sd">        Return:</span>
+<span class="sd">            status (bool) True/False whether verification is passed or failed</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">or_count</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="n">query_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="n">db_data_entity</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">db_data_metadata</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">performed_query_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">error_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">flag</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">data_source</span> <span class="ow">in</span> <span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DATABASE</span><span class="p">,</span> <span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE</span><span class="p">):</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">db_data_entity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activate_utils</span><span class="o">.</span><span class="n">db_get_entities_dict_from_sqllite</span><span class="p">(</span>
+            <span class="n">db_path</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="s2">&quot;select * from entity&quot;</span><span class="p">)[</span><span class="s1">&#39;result&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">data_source</span> <span class="o">!=</span> <span class="n">cs</span><span class="o">.</span><span class="n">FILE_SYSTEM</span><span class="p">:</span>
+            <span class="n">db_data_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activate_utils</span><span class="o">.</span><span class="n">db_get_entities_dict_from_sqllite</span><span class="p">(</span>
+                <span class="n">db_path</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="s2">&quot;select * from metadata&quot;</span><span class="p">)[</span><span class="s1">&#39;result&#39;</span><span class="p">]</span>
+            <span class="n">advance_selector_ui</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queries_per_entity</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_entity_names</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">advance_selector_ui</span> <span class="o">=</span> \
+                <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queries_per_entity</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_entity_names</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_column_names</span><span class="p">}</span>
+
+        <span class="k">for</span> <span class="n">rows</span> <span class="ow">in</span> <span class="n">db_data_entity</span><span class="p">:</span>
+            <span class="n">pending_selectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">advance_selector_ui</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">non_empty_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">rows</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">pending_selectors</span><span class="p">:</span>
+                <span class="n">db_label</span> <span class="o">=</span> <span class="n">cs</span><span class="o">.</span><span class="n">DB_COLUMN_NAMES</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_FIELDS</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">col</span><span class="p">)]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">db_label</span> <span class="ow">in</span> <span class="n">non_empty_columns</span> <span class="ow">and</span> <span class="n">rows</span><span class="p">[</span><span class="s1">&#39;Flag&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">flag</span><span class="p">:</span>
+                    <span class="n">advance_selector_ui</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">advance_selector_ui</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
+                    <span class="n">test_value</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="n">db_label</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_ENTITY_DELIMITER</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="n">ui_test_value</span> <span class="o">=</span> <span class="n">test_value</span>
+                    <span class="k">if</span> <span class="n">db_label</span> <span class="o">==</span> <span class="n">cs</span><span class="o">.</span><span class="n">DB_SEARCH_TEXT_FIELD</span><span class="p">:</span>
+                        <span class="n">ui_test_value</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{</span><span class="n">ui_test_value</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data_source_discover_obj</span><span class="o">.</span><span class="n">select_review</span><span class="p">()</span>
+                    <span class="n">ui_output_value</span><span class="p">,</span> <span class="n">adv_query</span> <span class="o">=</span> \
+                        <span class="bp">self</span><span class="o">.</span><span class="n">data_source_review_obj</span><span class="o">.</span><span class="n">do_advanced_search</span><span class="p">(</span>
+                            <span class="n">selector_list</span><span class="o">=</span><span class="p">[</span><span class="n">col</span><span class="p">],</span>
+                            <span class="n">value_list</span><span class="o">=</span><span class="p">[</span><span class="n">ui_test_value</span><span class="p">],</span>
+                            <span class="n">data_source</span><span class="o">=</span><span class="n">data_source</span><span class="p">)</span>
+
+                    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;select [</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]</span><span class="si">}</span><span class="s2">],ID from </span>
+<span class="s2">                    entity where [</span><span class="si">{</span><span class="n">db_label</span><span class="si">}</span><span class="s2">] like &#39;%</span><span class="si">{</span><span class="n">test_value</span><span class="si">}</span><span class="s2">%&#39;&quot;&quot;&quot;</span>
+                    <span class="n">db_data_temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activate_utils</span><span class="o">.</span><span class="n">db_get_entities_dict_from_sqllite</span><span class="p">(</span>
+                        <span class="n">db_path</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">)[</span><span class="s1">&#39;result&#39;</span><span class="p">]</span>
+                    <span class="n">db_output_value</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">rows_temp</span> <span class="ow">in</span> <span class="n">db_data_temp</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">data_source</span> <span class="o">!=</span> <span class="n">cs</span><span class="o">.</span><span class="n">FILE_SYSTEM</span><span class="p">:</span>
+                            <span class="n">mquery</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;select [</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]</span><span class="si">}</span><span class="s2">],</span>
+<span class="s2">                            [</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_MAILBOX_DB_FIELD</span><span class="si">}</span><span class="s2">],[</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_ATTACHMENT_MAILBOXES_FIELD</span><span class="si">}</span><span class="s2">] </span>
+<span class="s2">                            from metadata where Eid = </span><span class="si">{</span><span class="n">rows_temp</span><span class="p">[</span><span class="s1">&#39;ID&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;&quot;&quot;</span>
+                            <span class="n">mdata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activate_utils</span><span class="o">.</span><span class="n">db_get_entities_dict_from_sqllite</span><span class="p">(</span>
+                                <span class="n">db_path</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="n">mquery</span><span class="p">)[</span><span class="s1">&#39;result&#39;</span><span class="p">]</span>
+                            <span class="n">rows_temp</span> <span class="o">=</span> <span class="n">mdata</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="k">if</span> <span class="n">data_source</span> <span class="o">==</span> <span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE</span><span class="p">:</span>
+                                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_MAILBOX_DB_FIELD</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_ENTITY_DELIMITER</span><span class="p">))):</span>
+                                    <span class="n">db_output_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]])</span>
+                                <span class="k">if</span> <span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_ATTACHMENT_MAILBOXES_FIELD</span><span class="p">]:</span>
+                                    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_ATTACHMENT_MAILBOXES_FIELD</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                                        <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+                                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_ENTITY_DELIMITER</span><span class="p">):</span>
+                                            <span class="n">db_output_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">db_output_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Performing Query:- </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">adv_query</span><span class="p">))</span>
+                    <span class="n">performed_query_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">adv_query</span><span class="p">)</span>
+                    <span class="n">db_output_value</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">db_output_value</span><span class="p">)</span>
+                    <span class="n">ui_output_value</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">ui_output_value</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ui_output_value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">db_output_value</span> <span class="o">!=</span> <span class="n">ui_output_value</span><span class="p">:</span>
+                        <span class="n">error_dict</span><span class="p">[</span><span class="n">adv_query</span><span class="p">]</span> <span class="o">=</span> \
+                            <span class="s2">&quot;Advance search output Mismatch DB:</span><span class="si">{0}</span><span class="s2"> , UI: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">db_output_value</span><span class="p">,</span> <span class="n">ui_output_value</span><span class="p">)</span>
+                        <span class="n">status</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;Advance search output Matched DB:</span><span class="si">{0}</span><span class="s2"> , UI: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_output_value</span><span class="p">,</span> <span class="n">ui_output_value</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">or_count</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_entity_names</span><span class="p">:</span>
+                    <span class="n">db_label</span> <span class="o">=</span> <span class="n">cs</span><span class="o">.</span><span class="n">DB_COLUMN_NAMES</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_FIELDS</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">col</span><span class="p">)]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">db_label</span> <span class="ow">in</span> <span class="n">non_empty_columns</span> <span class="ow">and</span> <span class="n">rows</span><span class="p">[</span><span class="s1">&#39;Flag&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">flag</span><span class="p">:</span>
+                        <span class="n">selector_value</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="n">db_label</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_ENTITY_DELIMITER</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                        select [</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]</span><span class="si">}</span><span class="s2">],ID from entity </span>
+<span class="s2">                        where [</span><span class="si">{</span><span class="n">db_label</span><span class="si">}</span><span class="s2">] like &#39;%</span><span class="si">{</span><span class="n">selector_value</span><span class="si">}</span><span class="s2">%&#39;</span>
+<span class="s2">                        &quot;&quot;&quot;</span>
+                        <span class="n">db_data_temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activate_utils</span><span class="o">.</span><span class="n">db_get_entities_dict_from_sqllite</span><span class="p">(</span>
+                            <span class="n">db_path</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">)[</span><span class="s1">&#39;result&#39;</span><span class="p">]</span>
+                        <span class="n">db_output_value</span> <span class="o">=</span> <span class="p">[]</span>
+                        <span class="k">for</span> <span class="n">rows_temp</span> <span class="ow">in</span> <span class="n">db_data_temp</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">data_source</span> <span class="o">!=</span> <span class="n">cs</span><span class="o">.</span><span class="n">FILE_SYSTEM</span><span class="p">:</span>
+                                <span class="n">mquery</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;select [</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]</span><span class="si">}</span><span class="s2">],</span>
+<span class="s2">                                [</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_MAILBOX_DB_FIELD</span><span class="si">}</span><span class="s2">],[</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_ATTACHMENT_MAILBOXES_FIELD</span><span class="si">}</span><span class="s2">] from </span>
+<span class="s2">                                metadata where Eid = </span><span class="si">{</span><span class="n">rows_temp</span><span class="p">[</span><span class="s1">&#39;ID&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;&quot;&quot;</span>
+                                <span class="n">mdata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activate_utils</span><span class="o">.</span><span class="n">db_get_entities_dict_from_sqllite</span><span class="p">(</span>
+                                    <span class="n">db_path</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="n">mquery</span><span class="p">)[</span><span class="s1">&#39;result&#39;</span><span class="p">]</span>
+                                <span class="n">rows_temp</span> <span class="o">=</span> <span class="n">mdata</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                                <span class="k">if</span> <span class="n">data_source</span> <span class="o">==</span> <span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE</span><span class="p">:</span>
+                                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span>
+                                            <span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_MAILBOX_DB_FIELD</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_ENTITY_DELIMITER</span><span class="p">))):</span>
+                                        <span class="n">db_output_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]])</span>
+                                    <span class="k">if</span> <span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_ATTACHMENT_MAILBOXES_FIELD</span><span class="p">]:</span>
+                                        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_ATTACHMENT_MAILBOXES_FIELD</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                                            <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+                                            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_ENTITY_DELIMITER</span><span class="p">):</span>
+                                                <span class="n">db_output_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">db_output_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]])</span>
+                        <span class="n">query_dict</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">selector_value</span><span class="p">,</span> <span class="n">db_output_value</span><span class="p">]</span>
+                        <span class="n">or_count</span> <span class="o">=</span> <span class="n">or_count</span> <span class="o">-</span> <span class="mi">1</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_advance_entity_names</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+                        <span class="k">break</span>
+            <span class="k">if</span> <span class="n">or_count</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">pending_selectors</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="n">advance_selector_ui</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queries_per_entity</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advance_column_names</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">rows</span> <span class="ow">in</span> <span class="n">db_data_metadata</span><span class="p">:</span>
+            <span class="n">pending_selectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">advance_selector_ui</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">non_empty_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">rows</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">pending_selectors</span><span class="p">:</span>
+                <span class="n">table_name</span> <span class="o">=</span> <span class="s2">&quot;metadata&quot;</span>
+                <span class="n">db_label</span> <span class="o">=</span> <span class="n">cs</span><span class="o">.</span><span class="n">DB_COLUMN_NAMES</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_FIELDS</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">col</span><span class="p">)]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">db_label</span> <span class="ow">in</span> <span class="n">non_empty_columns</span><span class="p">:</span>
+                    <span class="n">advance_selector_ui</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">advance_selector_ui</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
+                    <span class="n">test_value</span> <span class="o">=</span> <span class="n">rows</span><span class="p">[</span><span class="n">db_label</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_ENTITY_DELIMITER</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="n">ui_test_value</span> <span class="o">=</span> <span class="n">test_value</span>
+                    <span class="k">if</span> <span class="n">db_label</span> <span class="o">==</span> <span class="n">cs</span><span class="o">.</span><span class="n">DB_SEARCH_TEXT_FIELD</span><span class="p">:</span>
+                        <span class="n">ui_test_value</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="si">{</span><span class="n">ui_test_value</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data_source_discover_obj</span><span class="o">.</span><span class="n">select_review</span><span class="p">()</span>
+                    <span class="n">ui_output_value</span><span class="p">,</span> <span class="n">adv_query</span> <span class="o">=</span> \
+                        <span class="bp">self</span><span class="o">.</span><span class="n">data_source_review_obj</span><span class="o">.</span><span class="n">do_advanced_search</span><span class="p">(</span>
+                            <span class="n">selector_list</span><span class="o">=</span><span class="p">[</span><span class="n">col</span><span class="p">],</span>
+                            <span class="n">value_list</span><span class="o">=</span><span class="p">[</span><span class="n">ui_test_value</span><span class="p">],</span>
+                            <span class="n">data_source</span><span class="o">=</span><span class="n">data_source</span><span class="p">)</span>
+
+                    <span class="n">query</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;select [</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]</span><span class="si">}</span><span class="s2">],</span>
+<span class="s2">                    [</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_MAILBOX_DB_FIELD</span><span class="si">}</span><span class="s2">],[</span><span class="si">{</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_ATTACHMENT_MAILBOXES_FIELD</span><span class="si">}</span><span class="s2">] </span>
+<span class="s2">                    from </span><span class="si">{</span><span class="n">table_name</span><span class="si">}</span><span class="s2"> where [</span><span class="si">{</span><span class="n">db_label</span><span class="si">}</span><span class="s2">] like &#39;%</span><span class="si">{</span><span class="n">test_value</span><span class="si">}</span><span class="s2">%&#39;&quot;&quot;&quot;</span>
+                    <span class="n">db_data_temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activate_utils</span><span class="o">.</span><span class="n">db_get_entities_dict_from_sqllite</span><span class="p">(</span>
+                        <span class="n">db_path</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">)[</span><span class="s1">&#39;result&#39;</span><span class="p">]</span>
+                    <span class="n">db_output_value</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">rows_temp</span> <span class="ow">in</span> <span class="n">db_data_temp</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">data_source</span> <span class="o">==</span> <span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE</span><span class="p">:</span>
+                            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_MAILBOX_DB_FIELD</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_ENTITY_DELIMITER</span><span class="p">))):</span>
+                                <span class="n">db_output_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]])</span>
+                            <span class="k">if</span> <span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_ATTACHMENT_MAILBOXES_FIELD</span><span class="p">]</span> <span class="ow">and</span> \
+                                    <span class="n">db_label</span> <span class="o">==</span> <span class="n">cs</span><span class="o">.</span><span class="n">DB_SEARCH_TEXT_FIELD</span><span class="p">:</span>
+                                <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">EXCHANGE_ATTACHMENT_MAILBOXES_FIELD</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
+                                    <span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">strip</span><span class="p">()[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+                                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_ENTITY_DELIMITER</span><span class="p">):</span>
+                                        <span class="n">db_output_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">db_output_value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows_temp</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">]])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Performing Query:- </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">adv_query</span><span class="p">))</span>
+                    <span class="n">performed_query_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">adv_query</span><span class="p">)</span>
+                    <span class="n">ui_output_value</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">ui_output_value</span><span class="p">)</span>
+                    <span class="n">db_output_value</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">db_output_value</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ui_output_value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">db_output_value</span> <span class="o">!=</span> <span class="n">ui_output_value</span><span class="p">:</span>
+                        <span class="n">error_dict</span><span class="p">[</span><span class="n">adv_query</span><span class="p">]</span> <span class="o">=</span> \
+                            <span class="s2">&quot;Advance search output Mismatch DB:</span><span class="si">{0}</span><span class="s2"> , UI: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">db_output_value</span><span class="p">,</span> <span class="n">ui_output_value</span><span class="p">)</span>
+                        <span class="n">status</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;Advance search output Matched DB:</span><span class="si">{0}</span><span class="s2"> , UI: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_output_value</span><span class="p">,</span>
+                                                                                    <span class="n">ui_output_value</span><span class="p">))</span>
+
+        <span class="c1"># OR Query</span>
+        <span class="k">if</span> <span class="n">or_count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">test_value_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">selector_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">selector_value</span> <span class="ow">in</span> <span class="n">query_dict</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+            <span class="n">db_output_value_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">output_value</span> <span class="ow">in</span> <span class="n">query_dict</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">db_output_value_list</span> <span class="o">=</span> <span class="n">db_output_value_list</span> <span class="o">+</span> <span class="n">output_value</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">ui_selector_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">query_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_source_discover_obj</span><span class="o">.</span><span class="n">select_review</span><span class="p">()</span>
+            <span class="n">ui_output_value</span><span class="p">,</span> <span class="n">adv_query</span> <span class="o">=</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">data_source_review_obj</span><span class="o">.</span><span class="n">do_advanced_search</span><span class="p">(</span>
+                    <span class="n">selector_list</span><span class="o">=</span><span class="n">ui_selector_list</span><span class="p">,</span>
+                    <span class="n">value_list</span><span class="o">=</span><span class="n">test_value_list</span><span class="p">,</span>
+                    <span class="n">data_source</span><span class="o">=</span><span class="n">data_source</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Performing OR Query:- </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">adv_query</span><span class="p">))</span>
+            <span class="n">performed_query_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">adv_query</span><span class="p">)</span>
+            <span class="n">db_output_value_list</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">db_output_value_list</span><span class="p">)</span>
+            <span class="n">ui_output_value</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">ui_output_value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ui_output_value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">db_output_value_list</span> <span class="o">!=</span> <span class="n">ui_output_value</span><span class="p">:</span>
+                <span class="n">error_dict</span><span class="p">[</span><span class="n">adv_query</span><span class="p">]</span> <span class="o">=</span> \
+                    <span class="s2">&quot;Advance search output Mismatch DB:</span><span class="si">{0}</span><span class="s2"> , UI: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">db_output_value_list</span><span class="p">,</span> <span class="n">ui_output_value</span><span class="p">)</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Advance search output Matched DB:</span><span class="si">{0}</span><span class="s2"> , UI: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">db_output_value_list</span><span class="p">,</span> <span class="n">ui_output_value</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Please Provide more data or Entity fields for OR Query to be formed&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Perform AND Query for advance search</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">query_dict</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">selector_ui</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">query_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">input_query</span> <span class="o">=</span> <span class="s2">&quot;(</span><span class="si">{0}</span><span class="s2">:</span><span class="si">{1}</span><span class="s2">) AND (</span><span class="si">{2}</span><span class="s2">:</span><span class="si">{3}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">cs</span><span class="o">.</span><span class="n">DB_COLUMN_TO_KEY</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_FIELDS</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">selector_ui</span><span class="p">)],</span>
+                <span class="n">query_dict</span><span class="p">[</span><span class="n">selector_ui</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">cs</span><span class="o">.</span><span class="n">DB_COLUMN_TO_KEY</span><span class="p">[</span><span class="n">cs</span><span class="o">.</span><span class="n">DB_COLUMN_NAMES</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">cs</span><span class="o">.</span><span class="n">ADVANCE_SEARCH_DB_OUTPUT_FIELD</span><span class="p">[</span><span class="n">data_source</span><span class="p">])],</span>
+                <span class="n">query_dict</span><span class="p">[</span><span class="n">selector_ui</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">db_output_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">output_value</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">query_dict</span><span class="p">[</span><span class="n">selector_ui</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">query_dict</span><span class="p">[</span><span class="n">selector_ui</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])):</span>
+                <span class="n">db_output_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">query_dict</span><span class="p">[</span><span class="n">selector_ui</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">driver</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__admin_console</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_source_discover_obj</span><span class="o">.</span><span class="n">select_review</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Performing AND operation query:- </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">input_query</span><span class="p">))</span>
+            <span class="n">performed_query_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">input_query</span><span class="p">)</span>
+            <span class="n">and_ui_output</span><span class="p">,</span> <span class="n">adv_query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_source_review_obj</span><span class="o">.</span><span class="n">do_advanced_search</span><span class="p">(</span>
+                <span class="n">input_query</span><span class="o">=</span><span class="n">input_query</span><span class="p">,</span>
+                <span class="n">data_source</span><span class="o">=</span><span class="n">data_source</span>
+            <span class="p">)</span>
+            <span class="n">db_output_list</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">db_output_list</span><span class="p">)</span>
+            <span class="n">and_ui_output</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">and_ui_output</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">and_ui_output</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">db_output_list</span> <span class="o">!=</span> <span class="n">and_ui_output</span><span class="p">:</span>
+                <span class="n">error_dict</span><span class="p">[</span><span class="n">adv_query</span><span class="p">]</span> <span class="o">=</span> \
+                    <span class="s2">&quot;Advance search output Mismatch DB:</span><span class="si">{0}</span><span class="s2"> , UI: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">db_output_list</span><span class="p">,</span> <span class="n">and_ui_output</span><span class="p">)</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Advance search output Matched DB:</span><span class="si">{0}</span><span class="s2"> , UI: </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">db_output_list</span><span class="p">,</span> <span class="n">and_ui_output</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">status</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;****************Advance Search Failed for below queries*******************&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">error_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span>
+        <span class="n">failed_queries</span> <span class="o">=</span> <span class="n">error_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">performed_query_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">failed_queries</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status:- FAILED | Query Used  </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">q</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Status:- PASSED | Query Used  </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">q</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n\n</span><span class="s2">Total Queries Performed = [</span><span class="si">%s</span><span class="s2">] | PASSED = [</span><span class="si">%s</span><span class="s2">] | FAILED = [</span><span class="si">%s</span><span class="s2">] </span><span class="se">\n\n\n</span><span class="s2">&quot;</span> <span class="o">%</span>
+                      <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">performed_query_list</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">performed_query_list</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">failed_queries</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">failed_queries</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">status</span></div></div>
 </pre></div>
 
            </div>
@@ -946,7 +1301,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>

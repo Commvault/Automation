@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>dynamicindex.content_analyzer_helper &mdash; Commvault Automation 11.22 documentation</title>
+  <title>dynamicindex.content_analyzer_helper &mdash; Commvault Automation 11.23 documentation</title>
   
 
   
@@ -175,11 +175,24 @@
 
 <span class="sd">        monitor_offline_entity_extraction()   --  monitors the offline CI&#39;ed docs entity extraction job progress</span>
 
+<span class="sd">        move_zip_data_to_client()             --  Moves zip&#39;s extracted files to remote client</span>
+
+<span class="sd">        get_classifier_info()                 --  Returns classifier info for the given attribute</span>
+
+<span class="sd">        is_classifier_model_data_exists()     --  Checks whether classifier model data exists on client or not</span>
+
+<span class="sd">        split_zip_file()                      --  Splits zip file into two separate zip files</span>
+
+<span class="sd">        add_folder_to_zip()                   --  Adds folder to the zip file</span>
+
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">datetime</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">zipfile</span>
 <span class="kn">from</span> <span class="nn">past.builtins</span> <span class="kn">import</span> <span class="n">basestring</span>
 <span class="kn">from</span> <span class="nn">cvpysdk.deployment.install</span> <span class="kn">import</span> <span class="n">Install</span>
 <span class="kn">from</span> <span class="nn">cvpysdk.deployment</span> <span class="kn">import</span> <span class="n">deploymentconstants</span> <span class="k">as</span> <span class="n">install_constants</span>
@@ -187,6 +200,8 @@
 <span class="kn">from</span> <span class="nn">cvpysdk.deployment.deploymentconstants</span> <span class="kn">import</span> <span class="n">DownloadOptions</span> <span class="k">as</span> <span class="n">download_constants</span>
 <span class="kn">from</span> <span class="nn">cvpysdk.deployment.deploymentconstants</span> <span class="kn">import</span> <span class="n">DownloadPackages</span> <span class="k">as</span> <span class="n">pkg_constants</span>
 <span class="kn">from</span> <span class="nn">AutomationUtils.machine</span> <span class="kn">import</span> <span class="n">Machine</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.options_selector</span> <span class="kn">import</span> <span class="n">OptionsSelector</span>
+<span class="kn">from</span> <span class="nn">AutomationUtils.constants</span> <span class="kn">import</span> <span class="n">AUTOMATION_DIRECTORY</span>
 <span class="kn">from</span> <span class="nn">dynamicindex.utils</span> <span class="kn">import</span> <span class="n">constants</span> <span class="k">as</span> <span class="n">dynamic_constants</span>
 <span class="kn">from</span> <span class="nn">dynamicindex.utils.search_engine_util</span> <span class="kn">import</span> <span class="n">SearchEngineHelper</span>
 
@@ -200,6 +215,296 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">tc_object</span><span class="o">.</span><span class="n">log</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ca_process_name</span> <span class="o">=</span> <span class="s2">&quot;python&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tc_object</span> <span class="o">=</span> <span class="n">tc_object</span>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.add_folder_to_zip"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.add_folder_to_zip">[docs]</a>    <span class="k">def</span> <span class="nf">add_folder_to_zip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">zip_name</span><span class="p">,</span> <span class="n">extension</span><span class="p">,</span> <span class="n">force_folder_struct</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">delete_after_zip</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds folder to the zip file</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                folder              (str)       --  Folder path which needs to be zipped</span>
+
+<span class="sd">                extension           (str)       --  Zip file format</span>
+
+<span class="sd">                zip_name            (str)       --  Name of the zip file</span>
+
+<span class="sd">                force_folder_struct (bool)      --  Specify whether to maintain folder structure in zip file or not</span>
+
+<span class="sd">                delete_after_zip    (bool)      --  Specifies whether to delete the folder after zipping</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                None</span>
+
+<span class="sd">            Raises:</span>
+
+<span class="sd">                Exception:</span>
+
+<span class="sd">                        if failed to create zip file</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">base_dir</span> <span class="o">=</span> <span class="n">folder</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">force_folder_struct</span><span class="p">:</span>
+            <span class="n">base_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="n">folder</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Base directory for zip : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">base_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Zip folder : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Zipping file name : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">zip_name</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">make_archive</span><span class="p">(</span><span class="n">base_name</span><span class="o">=</span><span class="n">zip_name</span><span class="p">,</span> <span class="n">root_dir</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">folder</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="n">extension</span><span class="p">,</span> <span class="n">base_dir</span><span class="o">=</span><span class="n">base_dir</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">delete_after_zip</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.split_zip_file"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.split_zip_file">[docs]</a>    <span class="k">def</span> <span class="nf">split_zip_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zip_file</span><span class="p">,</span> <span class="n">split_count</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">doc_count</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Splits zip file into two separate zip files</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                zip_file            (str)       --      Zip file path</span>
+
+<span class="sd">                split_count         (int)       --      specifies split count for zip split</span>
+
+<span class="sd">                doc_count           (int)       --      No of documents to be in each splited zip file</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                list        --  containing separated zip file paths</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">zip_file_paths</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Splitting zip file into [</span><span class="si">%s</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">split_count</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">is_zipfile</span><span class="p">(</span><span class="n">zip_file</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Not a valid zip file&quot;</span><span class="p">)</span>
+        <span class="n">zip_obj</span> <span class="o">=</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">total_elements</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">zip_obj</span><span class="o">.</span><span class="n">namelist</span><span class="p">())</span>
+        <span class="n">bucket_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">total_elements</span> <span class="o">/</span> <span class="n">split_count</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">doc_count</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Ignoring Split count as Document count is set by caller as : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">doc_count</span><span class="p">)</span>
+            <span class="n">bucket_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">doc_count</span><span class="p">)</span>
+        <span class="n">ops</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="n">temp_folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">AUTOMATION_DIRECTORY</span><span class="p">,</span> <span class="s2">&quot;Temp&quot;</span><span class="p">)</span>
+        <span class="n">folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_folder</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Automation_CAHelper_</span><span class="si">{</span><span class="n">ops</span><span class="o">.</span><span class="n">get_custom_str</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">total_elements</span><span class="p">):</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">zip_info</span> <span class="o">=</span> <span class="n">zip_obj</span><span class="o">.</span><span class="n">getinfo</span><span class="p">(</span><span class="n">zip_obj</span><span class="o">.</span><span class="n">namelist</span><span class="p">()[</span><span class="n">element</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">zip_info</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Ignoring Directory : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">zip_info</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">zip_obj</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">zip_obj</span><span class="o">.</span><span class="n">namelist</span><span class="p">()[</span><span class="n">element</span><span class="p">],</span> <span class="n">folder</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;</span> <span class="n">bucket_count</span> <span class="ow">or</span> <span class="n">element</span> <span class="o">==</span> <span class="n">total_elements</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Split size reached. Compress it&quot;</span><span class="p">)</span>
+                <span class="n">file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">temp_folder</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Split_zip_</span><span class="si">{</span><span class="n">ops</span><span class="o">.</span><span class="n">get_custom_str</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_folder_to_zip</span><span class="p">(</span><span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">zip_name</span><span class="o">=</span><span class="n">file_name</span><span class="p">,</span> <span class="n">force_folder_struct</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                       <span class="n">delete_after_zip</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extension</span><span class="o">=</span><span class="s2">&quot;zip&quot;</span><span class="p">)</span>
+                <span class="n">zip_file_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">file_name</span><span class="si">}</span><span class="s2">.zip&quot;</span><span class="p">)</span>
+                <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">element</span> <span class="o">==</span> <span class="n">total_elements</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="c1"># deleting folder after zipping. Recreate it again</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Splited zipped paths : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">zip_file_paths</span><span class="p">)</span>
+        <span class="n">zip_obj</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">zip_file_paths</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.get_classifier_info"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.get_classifier_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_classifier_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">attribute</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns classifier info for the given param</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                name            (str)       --  Name of the classifier</span>
+
+<span class="sd">                attribute       (str)       --  attribute whose info has to be returned</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                str     --  classifier&#39;s attribute value</span>
+
+<span class="sd">            Raises:</span>
+<span class="sd">                Exception:</span>
+
+<span class="sd">                    if failed to find classifier</span>
+
+<span class="sd">                    if failed to find classifier attribute</span>
+
+<span class="sd">                    if entity is not a classifier</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Refresh always so that we get latest xml for classifiers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Refreshing Activate Entity before fetching details&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">activate_entity</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">activate_entity</span><span class="o">.</span><span class="n">has_entity</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Classifier entity not found&quot;</span><span class="p">)</span>
+        <span class="n">entity_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">activate_entity</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ENTITY_TYPE</span> <span class="o">!=</span> <span class="n">entity_obj</span><span class="o">.</span><span class="n">entity_type</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Not a valid classifier entity&quot;</span><span class="p">)</span>
+        <span class="n">entity_xml</span> <span class="o">=</span> <span class="n">entity_obj</span><span class="o">.</span><span class="n">entity_xml</span>
+        <span class="k">if</span> <span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_DETAILS_JSON_NODE</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">entity_xml</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Classifier details info missing&quot;</span><span class="p">)</span>
+        <span class="n">classifier_details</span> <span class="o">=</span> <span class="n">entity_xml</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_DETAILS_JSON_NODE</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">attribute</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">classifier_details</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Attribute not found&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attribute = [</span><span class="si">{</span><span class="n">attribute</span><span class="si">}</span><span class="s2">] &amp; value = </span><span class="si">{</span><span class="n">classifier_details</span><span class="p">[</span><span class="n">attribute</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">classifier_details</span><span class="p">[</span><span class="n">attribute</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.is_classifier_model_data_exists"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.is_classifier_model_data_exists">[docs]</a>    <span class="k">def</span> <span class="nf">is_classifier_model_data_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">trained_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">model_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skip_solr</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;checks whether classifier model experiment ML data folder exists or not</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                name                (str)       --  Name of the classifier</span>
+
+<span class="sd">                trained_only        (bool)      --  Bool to specify whether to check this only</span>
+<span class="sd">                                                        for trained CA or for Sync CA as well</span>
+
+<span class="sd">                skip_solr           (bool)      --  Bool to specify whether to skip solr train data check or not</span>
+<span class="sd">                                                            Default : False</span>
+
+<span class="sd">                model_info          (dict)      --  containing model data info</span>
+<span class="sd">                                                        Default : None [Force fetch info from CS DB]</span>
+
+<span class="sd">                                    Example : {</span>
+<span class="sd">                                    &quot;CAUsedInTraining&quot;: &quot;</span>
+<span class="sd">                                                        {</span>
+<span class="sd">                                                        &quot;caUrl&quot;: &quot;http://yokosolinux.sna.commvault.com:22000&quot;,</span>
+<span class="sd">                                                        &quot;clientId&quot;: 34, &quot;cloudName&quot;: &quot;YokosoLinux_ContentAnalyzer&quot;,</span>
+<span class="sd">                                                        &quot;cloudId&quot;: 9,</span>
+<span class="sd">                                                        &quot;lastModelTrainTime&quot;: 1606387881</span>
+<span class="sd">                                                        }&quot;,</span>
+<span class="sd">                                    &quot;modelURI&quot;: &quot;../ContentAnalyzer/bin/classifier_models/custom_trained_models/mlruns/5/0a9e610a56d04f128fd63c1afbf0f982/artifacts&quot;,</span>
+<span class="sd">                                    &quot;entity_id&quot;: 101</span>
+<span class="sd">                                        }</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                  bool      --  to denote model folder exists on client</span>
+
+<span class="sd">                  dict      --  containing model data location on both trained &amp; sync nodes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sync_result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">classifier_info</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">trained_ca</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">model_uri</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">entity_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">model_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">trained_ca</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_classifier_info</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">attribute</span><span class="o">=</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_CA_USED</span><span class="p">)</span>
+            <span class="n">model_uri</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_classifier_info</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">attribute</span><span class="o">=</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_MODEL_URI</span><span class="p">)</span>
+            <span class="n">entity_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">activate_entity</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">entity_id</span> <span class="o">=</span> <span class="n">entity_obj</span><span class="o">.</span><span class="n">entity_id</span>
+            <span class="n">classifier_info</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_CA_USED</span><span class="p">]</span> <span class="o">=</span> <span class="n">trained_ca</span>
+            <span class="n">classifier_info</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_MODEL_URI</span><span class="p">]</span> <span class="o">=</span> <span class="n">model_uri</span>
+            <span class="n">classifier_info</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ENTITY_ID</span><span class="p">]</span> <span class="o">=</span> <span class="n">entity_id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">trained_ca</span> <span class="o">=</span> <span class="n">model_info</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_CA_USED</span><span class="p">]</span>
+            <span class="n">model_uri</span> <span class="o">=</span> <span class="n">model_info</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_MODEL_URI</span><span class="p">]</span>
+            <span class="n">entity_id</span> <span class="o">=</span> <span class="n">model_info</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ENTITY_ID</span><span class="p">]</span>
+        <span class="n">trained_ca</span> <span class="o">=</span> <span class="n">trained_ca</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">trained_ca_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">trained_ca</span><span class="p">)</span>
+        <span class="n">trained_client_id</span> <span class="o">=</span> <span class="n">trained_ca_json</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_CLIENTID</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trained CA client id : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">trained_client_id</span><span class="p">)</span>
+        <span class="n">trained_client_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">trained_client_id</span><span class="p">)</span>
+        <span class="n">trained_client_name</span> <span class="o">=</span> <span class="n">trained_client_obj</span><span class="o">.</span><span class="n">client_name</span>
+        <span class="n">install_dir</span> <span class="o">=</span> <span class="n">trained_client_obj</span><span class="o">.</span><span class="n">install_directory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trained CA client Name : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">trained_client_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trained CA Install directory : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">install_dir</span><span class="p">)</span>
+        <span class="n">model_folder</span> <span class="o">=</span> <span class="n">model_uri</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="n">install_dir</span><span class="p">)</span>
+        <span class="c1"># Form folder to MLrun ID</span>
+        <span class="n">model_folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">model_folder</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trained CA model Folder : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">model_folder</span><span class="p">)</span>
+        <span class="n">trained_client_machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="o">=</span><span class="n">trained_client_name</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">trained_client_machine_obj</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">directory_path</span><span class="o">=</span><span class="n">model_folder</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model data exists on client : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">trained_client_name</span><span class="p">)</span>
+            <span class="n">sync_result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;True&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model data not exists on trained client : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">trained_client_name</span><span class="p">)</span>
+            <span class="n">sync_result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;False&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">skip_solr</span><span class="p">:</span>
+            <span class="n">dataset_response</span> <span class="o">=</span> <span class="n">trained_client_machine_obj</span><span class="o">.</span><span class="n">get_api_response_locally</span><span class="p">(</span>
+                <span class="n">api_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_SOLR_DATASET_ENTITY_QUERY</span><span class="si">}{</span><span class="n">entity_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">dataset_response</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">dataset_response</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">dataset_response</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">RESPONSE_PARAM</span><span class="p">][</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">NUM_FOUND_PARAM</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dataset solr core contains data for this entity&quot;</span><span class="p">)</span>
+                <span class="n">sync_result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;True&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dataset solr core does not contains data for this entity&quot;</span><span class="p">)</span>
+                <span class="n">sync_result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;False&#39;</span><span class="p">)</span>
+            <span class="n">dataset_info_response</span> <span class="o">=</span> <span class="n">trained_client_machine_obj</span><span class="o">.</span><span class="n">get_api_response_locally</span><span class="p">(</span>
+                <span class="n">api_url</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_SOLR_DATASET_INFO_ENTITY_QUERY</span><span class="si">}{</span><span class="n">entity_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">dataset_info_response</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">dataset_info_response</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">dataset_info_response</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">RESPONSE_PARAM</span><span class="p">][</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">NUM_FOUND_PARAM</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dataset info solr core contains data for this entity&quot;</span><span class="p">)</span>
+                <span class="n">sync_result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;True&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dataset info solr core does not contains data for this entity&quot;</span><span class="p">)</span>
+                <span class="n">sync_result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;False&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping trained model data check on content extractor Solr&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">trained_only</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Option to validate all CA&#39;s is Set&quot;</span><span class="p">)</span>
+            <span class="n">sync_ca</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1"># find all synced CA&#39;s</span>
+            <span class="k">if</span> <span class="n">model_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">sync_ca</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_classifier_info</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">attribute</span><span class="o">=</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_SYNC_CA</span><span class="p">)</span>
+                <span class="n">classifier_info</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_SYNC_CA</span><span class="p">]</span> <span class="o">=</span> <span class="n">sync_ca</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sync_ca</span> <span class="o">=</span> <span class="n">model_info</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_SYNC_CA</span><span class="p">]</span>
+            <span class="n">sync_ca</span> <span class="o">=</span> <span class="n">sync_ca</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&#39;&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">sync_ca_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">sync_ca</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">content_analyzer</span> <span class="ow">in</span> <span class="n">sync_ca_json</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_SYNC_CA_LIST_JSON_NODE</span><span class="p">]:</span>
+                <span class="n">client_id</span> <span class="o">=</span> <span class="n">content_analyzer</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ATTRIBUTE_CLIENTID</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Synced CA client id : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client_id</span><span class="p">)</span>
+                <span class="n">client_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="o">.</span><span class="n">clients</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">client_id</span><span class="p">)</span><span class="o">.</span><span class="n">client_name</span>
+                <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="o">=</span><span class="n">client_name</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+                <span class="n">experiment</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">entity_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Experiment name formed : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">experiment</span><span class="p">)</span>
+                <span class="n">api</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ML_API</span><span class="si">}{</span><span class="n">experiment</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">get_api_response_locally</span><span class="p">(</span><span class="n">api_url</span><span class="o">=</span><span class="n">api</span><span class="p">)</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;API Response : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span>
+                <span class="n">response_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+                <span class="n">model_folder</span> <span class="o">=</span> <span class="n">response_json</span><span class="p">[</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_EXPERIMENT</span><span class="p">][</span><span class="n">dynamic_constants</span><span class="o">.</span><span class="n">CLASSIFIER_ARTIFACT_LOCATION</span><span class="p">]</span>
+                <span class="n">model_folder</span> <span class="o">=</span> <span class="n">model_folder</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;file://&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model folder got : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">model_folder</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">check_directory_exists</span><span class="p">(</span><span class="n">directory_path</span><span class="o">=</span><span class="n">model_folder</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model data exists on client : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
+                    <span class="n">sync_result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;True&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model data not exists on client: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">client_name</span><span class="p">)</span>
+                    <span class="n">sync_result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;False&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Classifier Info&#39;s : </span><span class="si">%s</span><span class="s2"> &quot;</span><span class="p">,</span> <span class="n">classifier_info</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Result list : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">sync_result</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">elem</span> <span class="o">==</span> <span class="n">sync_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">sync_result</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Is exists matched for all CA nodes - </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+            <span class="k">return</span> <span class="s1">&#39;True&#39;</span> <span class="o">==</span> <span class="n">sync_result</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">classifier_info</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Classifier CA model folder exists status is of mixed type. Please check&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ContentAnalyzerHelper.move_zip_data_to_client"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.move_zip_data_to_client">[docs]</a>    <span class="k">def</span> <span class="nf">move_zip_data_to_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_name</span><span class="p">,</span> <span class="n">zip_file</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Moves zip file to remote client and unzip</span>
+
+<span class="sd">            Args:</span>
+
+<span class="sd">                client_name         (str)       --  Name of the client</span>
+
+<span class="sd">                zip_file            (str)       --  zip file path on controller</span>
+
+<span class="sd">            Returns:</span>
+
+<span class="sd">                  str   --  Destination folder path on client where data was copied</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">machine_name</span><span class="o">=</span><span class="n">client_name</span><span class="p">,</span> <span class="n">commcell_object</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="n">ops</span> <span class="o">=</span> <span class="n">OptionsSelector</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
+        <span class="n">drive</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">get_drive</span><span class="p">(</span><span class="n">machine</span><span class="o">=</span><span class="n">machine_obj</span><span class="p">)</span>
+        <span class="n">temp_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Automation_CAHelper_</span><span class="si">{</span><span class="n">ops</span><span class="o">.</span><span class="n">get_custom_str</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">destination_folder</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">drive</span><span class="si">}{</span><span class="n">temp_name</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">folder</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">AUTOMATION_DIRECTORY</span><span class="p">,</span> <span class="s2">&quot;Temp&quot;</span><span class="p">,</span> <span class="n">temp_name</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Extracting zip file on controller&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zip_ref</span><span class="p">:</span>
+            <span class="n">zip_ref</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Copying extracted content from controller to remote client : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+        <span class="n">machine_obj</span><span class="o">.</span><span class="n">copy_from_local</span><span class="p">(</span><span class="n">local_path</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="n">remote_path</span><span class="o">=</span><span class="n">destination_folder</span><span class="p">,</span>
+                                    <span class="n">threads</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">raise_exception</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Folder copy done&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Deleting locally extracted zip content folder : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">destination_folder</span></div>
 
 <div class="viewcode-block" id="ContentAnalyzerHelper.validate_tppm_setup"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.validate_tppm_setup">[docs]</a>    <span class="k">def</span> <span class="nf">validate_tppm_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_server</span><span class="p">,</span> <span class="n">content_analyzer</span><span class="p">,</span> <span class="n">exists</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Validates whether dynamic tppm entry exists between source index server and destination CA client</span>
@@ -479,7 +784,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generated Entity config Json : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">caconfig</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">caconfig</span></div>
 
-<div class="viewcode-block" id="ContentAnalyzerHelper.check_all_python_process"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.check_all_python_process">[docs]</a>    <span class="k">def</span> <span class="nf">check_all_python_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_obj</span><span class="p">,</span> <span class="n">process_count</span><span class="o">=</span><span class="mi">17</span><span class="p">):</span>
+<div class="viewcode-block" id="ContentAnalyzerHelper.check_all_python_process"><a class="viewcode-back" href="../../source/dynamicindex.html#dynamicindex.content_analyzer_helper.ContentAnalyzerHelper.check_all_python_process">[docs]</a>    <span class="k">def</span> <span class="nf">check_all_python_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_obj</span><span class="p">,</span> <span class="n">process_count</span><span class="o">=</span><span class="mi">23</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Checks whether all default python process is up and running on CA client</span>
 <span class="sd">                Args:</span>
 <span class="sd">                    client_obj  (obj)    --  Object of client</span>
@@ -492,7 +797,7 @@
 <span class="sd">                Exception:</span>
 <span class="sd">                    if unable to find python process</span>
 
-<span class="sd">                    if total python process running is not equal to 17</span>
+<span class="sd">                    if total python process running is not equal to 23 for windows &amp; 24 for unix</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CA client id - </span><span class="si">{</span><span class="n">client_obj</span><span class="o">.</span><span class="n">client_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;(Get-Process | where-object{$_.ProcessName -eq </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2">}).Count&quot;</span>
@@ -500,6 +805,8 @@
         <span class="n">machine_obj</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">client_obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commcell</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">os_info</span> <span class="o">==</span> <span class="s2">&quot;UNIX&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;This is the unix machine&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">process_count</span> <span class="o">==</span> <span class="mi">23</span><span class="p">:</span> <span class="c1">#default value</span>
+                <span class="n">process_count</span> <span class="o">=</span> <span class="n">process_count</span> <span class="o">+</span> <span class="mi">1</span>
             <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;ps -ef | grep -w </span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2"> | grep -v grep | wc -l&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">ca_process_name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Command Formed : </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span>
         <span class="n">total_process_running</span> <span class="o">=</span> <span class="n">machine_obj</span><span class="o">.</span><span class="n">execute_command</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
@@ -508,9 +815,9 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">total_process_running</span><span class="o">.</span><span class="n">exception</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">total_process_running</span><span class="o">.</span><span class="n">output</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Python process is not up on CA client.&quot;</span><span class="p">)</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Python client is not running on CA client&quot;</span><span class="p">)</span>
-        <span class="c1"># 1-Handler + 1-Publisher + 10-Generic client + 5-CI clients</span>
+        <span class="c1"># 1-Handler + 1-Publisher + 10-Generic client + 5-CI clients + 1 Email + 5Classifier</span>
         <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">total_process_running</span><span class="o">.</span><span class="n">output</span><span class="p">)</span> <span class="o">==</span> <span class="n">process_count</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;All 17 python process is up and running fine.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;All python process is up and running fine.&quot;</span><span class="p">)</span>
             <span class="k">return</span>
         <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Few python process didn&#39;t come up on CA client. Please check&quot;</span><span class="p">)</span></div>
 
@@ -600,7 +907,7 @@
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Commvault Systems Inc. All Rights Reserved
+        &copy; Copyright Commvault Systems Inc. All Rights Reserved
 
     </p>
   </div>
